@@ -1,0 +1,2666 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ComptaInf</title>
+
+<link rel="stylesheet" href="design_v1.css" />
+
+</head>
+<body>
+<div id="googleStatus"></div>
+<div class="layout">
+
+    <!-- MENU -->
+
+    <div class="sidebar">
+
+        <div class="logo">
+
+            <h1>🩺 ComptaInf</h1>
+
+            <div class="tagline">
+                Concentrez-vous sur vos patients
+            </div>
+
+            <div class="signature">
+                by NJOSoftware
+            </div>
+
+        </div>
+
+        <div class="menu">
+			<!--<a href="/login" lass="btn-google"> <span>🔐</span>
+								<span>Connexion Google</span></a>-->
+			
+            <a href="">🏠 Tableau de bord</a>
+
+            <!--<a href="">📄 Justificatifs</a>-->
+
+            <a href="">💰 Recettes</a>
+
+            <a href="/depenses">🧾 Dépenses</a>
+
+            <a href="">🚗 Frais kilométriques</a>
+
+            <a href="">📊 Rapports</a>
+
+            <a href="#"
+				onclick="openSettings(); return false;">⚙️ Paramètres</a>
+			
+
+	
+
+        </div>
+
+        <div class="sidebar-footer">
+            ComptaInf v0.1
+        </div>
+
+    </div>
+
+    <!-- CONTENU -->
+
+    <div class="content">
+
+		
+		<div class="topbar">
+
+    <div class="welcome">
+
+		<div class="welcome-row">
+			<h2 id="welcomeTitle">Bonjour 👋</h2>
+			<a id="googleLoginBtn"
+					href="/login"
+					class="btn-google">
+				🔐 Connexion Google
+				</a>
+		</div>
+
+        <div class="subtitle">
+            Bienvenue dans votre espace de gestion comptable
+        </div>
+
+    </div>
+
+    <div class="top-right">
+
+        <div class="current-date" id="currentDate"></div>
+		
+		<div class="current-date" id="currentYear"></div>
+		
+		<select id="exerciceSelect"></select>		
+
+		<div id="googleBadge"
+			class="google-badge disconnected">
+			🔴 Google non connecté
+		</div>
+		
+		<div id="environmentBadge">
+		</div>
+		
+
+
+    </div>
+
+</div>
+
+        <!-- CARTES -->
+
+        <div class="cards">
+
+            <div class="card">
+                <div class="card-title">💰 Recettes</div>
+                <div class="card-value green">0 CHF</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🧾 Dépenses</div>
+                <div class="card-value red" id="depensesTotal" >0 CHF</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📈 Résultat</div>
+                <div class="card-value blue">0 CHF</div>
+            </div>
+
+        </div>
+
+        <!-- DRAG & DROP -->
+
+        <div id="dropzone" class="dropzone">
+
+            <div class="dropicon">📄</div>
+
+            <h2>Déposer un justificatif</h2>
+
+            <p>Glissez un PDF ici ou cliquez pour sélectionner un fichier</p>
+
+        </div>
+
+        <!-- ACTIONS -->
+
+        <div class="actions">
+
+		 
+			<button class="btn" onclick="openDepense()">
+			➕ Nouvelle Operation
+			</button>
+
+            <button class="btn">
+                📊 Voir les statistiques
+            </button>
+
+        </div>
+
+        <!-- TABLEAU -->
+
+        <div class="panel">
+
+            <h3>Dernières opérations</h3>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Libellé</th>
+                        <th>Catégorie</th>
+						<th>Compte</th>
+                        <th>Montant</th>
+						<th>Justificatif</th>
+                    </tr>
+                </thead>
+
+                <tbody id="operationsBody">
+
+                    <!--<tr>
+                        <td>15.09.2026</td>
+                        <td>Swisscom</td>
+                        <td>Téléphone</td>
+                        <td>134.40 CHF</td>
+                    </tr>
+
+                    <tr>
+                        <td>14.09.2026</td>
+                        <td>Coop</td>
+                        <td>Carburant</td>
+                        <td>82.50 CHF</td>
+                    </tr>
+
+                    <tr>
+                        <td>13.09.2026</td>
+                        <td>Pharmacie</td>
+                        <td>Matériel médical</td>
+                        <td>46.80 CHF</td>
+                    </tr>-->
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+let currentFile = null;
+let pendingFiles = [];
+let currentCEESV = null;
+
+const dropzone = document.getElementById("dropzone");
+
+dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("dragover");
+});
+
+dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("dragover");
+});
+dropzone.addEventListener("drop", (e) => {
+
+    e.preventDefault();
+
+    dropzone.classList.remove("dragover");
+
+    const files =
+        Array.from(
+            e.dataTransfer.files
+        );
+
+    if(!files.length){
+        return;
+    }
+
+    pendingFiles.push(...files);
+
+    console.log(
+        "Ajoutés dans la file :",
+        files.length
+    );
+
+    processNextFile();
+
+});
+
+dropzone.addEventListener("click", () => {
+    alert("Sélection de fichier à implémenter 😉");
+});
+function showPreview(file){
+
+    document.getElementById(
+        "dropzoneDepense"
+    ).style.display = "none";
+
+    const selectedFile =
+        document.getElementById(
+            "selectedFile"
+        );
+
+    selectedFile.style.display = "block";
+
+    selectedFile.innerHTML =
+        `✅ ${file.name}
+        <button
+            type="button"
+            onclick="replaceFile()"
+            class="btn-small">
+            🔄 Remplacer
+        </button>`;
+
+    const fileUrl =
+        URL.createObjectURL(file);
+
+    const pdf =
+        document.getElementById("pdfPreview");
+
+    const img =
+        document.getElementById("imagePreview");
+
+    const empty =
+        document.getElementById("previewEmpty");
+
+    pdf.style.display = "none";
+    img.style.display = "none";
+    empty.style.display = "none";
+
+    if(file.type === "application/pdf"){
+
+        pdf.src = fileUrl;
+        pdf.style.display = "block";
+
+    }
+    else{
+
+        img.src = fileUrl;
+        img.style.display = "block";
+
+    }
+
+}
+function openOperationWithData(data, ouvrirModal = true){
+
+    if(ouvrirModal){
+		openDepense();
+	}
+	
+	//
+	// RECETTE / DEPENSE
+	//
+	const operationType =
+		document.getElementById(
+		"operationType"
+		);
+	 
+	operationType.value =
+		data.type === "RECETTE"
+			? "RECETTE"
+			: "DEPENSE";
+	
+	operationType.dispatchEvent(
+		new Event("change")
+	);
+	
+	const montantGroup =
+		document.getElementById(
+		"montantGroup"
+		);
+	const ceesvInfo =
+		document.getElementById(
+		"ceesvInfo"
+		);
+
+	montantGroup.style.display = "block";
+ 
+	ceesvInfo.style.display = "none";
+	
+    const montantInput =
+        document.getElementById("depMontant");
+
+    const dateInput =
+        document.getElementById("depDate");
+
+    const montantContainer =
+        document.getElementById("ocrMontants");
+
+    const dateContainer =
+        document.getElementById("ocrDates");
+
+
+    // Nettoyage
+    montantContainer.innerHTML = "";
+    dateContainer.innerHTML = "";
+
+
+	//
+	// FOURNISSEUR
+	//
+	if(data.fournisseur){
+	
+		const fournisseurInput =
+			document.getElementById(
+				"depFournisseur"
+			);
+	
+		fournisseurInput.value =
+			data.fournisseur;
+	
+		// Déclenche exactement le même traitement
+		// que lors d'une saisie manuelle
+		fournisseurInput.dispatchEvent(
+			new Event("input", {
+				bubbles: true
+			})
+		);
+	}
+
+
+    //
+    // MONTANTS
+    //
+
+    //console.log(
+    //    "Montants reçus :",
+    //    data.montants
+    //);
+
+    if(
+        Array.isArray(data.montants) &&
+        data.montants.length > 0
+    ){
+
+        // Premier montant par défaut
+        montantInput.value =
+            data.montants[0];
+
+        data.montants.forEach((m, index) => {
+
+            const chip =
+                document.createElement("div");
+
+            chip.className = "ocr-chip";
+
+            if(index === 0){
+                chip.classList.add("active");
+            }
+
+            chip.textContent =
+                Number(m).toFixed(2) +
+                " CHF";
+
+            chip.onclick = () => {
+
+                montantContainer
+                    .querySelectorAll(".ocr-chip")
+                    .forEach(c =>
+                        c.classList.remove("active")
+                    );
+
+                chip.classList.add("active");
+
+                montantInput.value = m;
+            };
+
+            montantContainer.appendChild(chip);
+        });
+
+    }
+    else if(data.montant){
+
+        // Fallback si le serveur ne renvoie
+        // qu'un seul montant
+        montantInput.value =
+            data.montant;
+    }
+
+
+     //
+    // CONVERSION DATE
+    //
+
+    function convertDate(date){
+
+        if(!date){
+            return "";
+        }
+
+        if(
+            date.includes(".") ||
+            date.includes("/")
+        ){
+
+            const p =
+                date.split(/[./]/);
+
+            if(p.length === 3){
+
+                return (
+                    `${p[2]}-${p[1]}-${p[0]}`
+                );
+
+            }
+        }
+
+        return date;
+    }
+
+
+    //
+    // DATES
+    //
+	document.getElementById(
+			"ceesvInfo"
+		).innerHTML = "";
+		
+    //console.log(
+    //    "Dates reçues :",
+    //    data.dates
+    //);
+	if(data.ceesv){
+	
+		montantGroup.style.display = "none";
+ 
+		ceesvInfo.style.display = "block";
+	
+		document.getElementById(
+                    "operationTitle"
+                ).innerHTML += " CEESV"
+	
+		console.log(
+			"CEESV détecté",
+			data.ceesv
+		);
+	
+		document.getElementById(
+			"depMontant"
+		).value =
+			data.ceesv.montantEtat;
+	
+		document.getElementById(
+			"depDate"
+		).value =
+			convertDate(
+				data.ceesv.dateValeur
+			);
+			
+			
+		document.getElementById(
+			"ceesvInfo"
+		).innerHTML = `
+			<div class="ceesv-box">
+				<div>
+					🧾 Facturé :
+					<strong>
+						${Number(data.ceesv.montantFacture).toFixed(2)} CHF
+					</strong>
+				</div>
+	
+				<div>
+					🏛 Etat :
+					<strong>
+						${Number(data.ceesv.montantEtat).toFixed(2)} CHF
+					</strong>
+				</div>
+	
+				<div>
+					📋 Factures :
+					<strong>
+						${data.ceesv.nbFactures}
+					</strong>
+				</div>
+	
+			</div>
+		`;	
+			
+			
+	}
+	else // pas d'affichage de date si on est CEESV car on prend toujours date de valeur
+    if(
+        Array.isArray(data.dates) &&
+        data.dates.length > 0
+    ){
+
+        // Première date par défaut
+        dateInput.value =
+            convertDate(
+                data.dates[0]
+            );
+
+        data.dates.forEach((date, index) => {
+
+            const chip =
+                document.createElement("div");
+
+            chip.className = "ocr-chip";
+
+            if(index === 0){
+                chip.classList.add("active");
+            }
+
+            chip.textContent =
+                "📅 " + date;
+
+            chip.onclick = () => {
+
+                dateContainer
+                    .querySelectorAll(".ocr-chip")
+                    .forEach(c =>
+                        c.classList.remove("active")
+                    );
+
+                chip.classList.add("active");
+
+                dateInput.value =
+                    convertDate(date);
+            };
+
+            dateContainer.appendChild(chip);
+        });
+
+    }
+    else if(data.date){
+
+        // Fallback si le serveur ne renvoie
+        // qu'une seule date
+        dateInput.value =
+            convertDate(
+                data.date
+            );
+    }
+
+	
+}
+
+
+function detectCategorieFromFournisseur(fournisseur){
+
+    if(!fournisseur){
+        return "";
+    }
+
+    const normaliser = texte =>
+        texte
+            .toLowerCase()
+            .trim()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+
+    const nomOCR = normaliser(fournisseur);
+
+    // IMPORTANT : après trim, plus rien ?
+    if(!nomOCR){
+        return "";
+    }
+
+    const fournisseurs =
+        Object.keys(comptaFournisseurs);
+
+    // Correspondance exacte
+    let correspondance =
+        fournisseurs.find(f =>
+            normaliser(f) === nomOCR
+        );
+
+    // Correspondance partielle
+    if(!correspondance){
+
+        correspondance =
+            fournisseurs.find(f => {
+
+                const nomReference =
+                    normaliser(f);
+
+                if(!nomReference){
+                    return false;
+                }
+
+                return (
+                    nomOCR.includes(nomReference) ||
+                    nomReference.includes(nomOCR)
+                );
+
+            });
+    }
+
+    if(!correspondance){
+		console.log(
+		"⚠️ Aucun fournisseur reconnu :",
+		fournisseur
+		);
+		 
+		return {
+		categorie: "",
+		fournisseurTrouve: "",
+		exact: false
+		};
+    }
+
+    console.log(
+        "✅ Fournisseur reconnu :",
+        fournisseur,
+        "→",
+        correspondance
+    );
+
+	return {
+		categorie:
+			comptaFournisseurs[correspondance]
+				?.categorie || "",
+	
+		fournisseurTrouve:
+			correspondance,
+	
+		exact:
+			normaliser(correspondance) === nomOCR
+	};
+}
+function updateCategorieFromFournisseur(){
+
+    const fournisseur =
+        document.getElementById(
+            "depFournisseur"
+        ).value.trim();
+
+	const resultat =
+		detectCategorieFromFournisseur(
+			fournisseur
+		);
+	
+	const categorie =
+		resultat.categorie;
+
+    const select =
+        document.getElementById(
+            "depCategorie"
+        );
+
+    const compte =
+        document.getElementById(
+            "depCompte"
+        );
+
+    const memoriser =
+        document.getElementById(
+            "memoriserFournisseur"
+        );
+
+    const checkbox =
+        document.getElementById(
+            "saveFournisseur"
+        );
+
+
+	if(categorie){
+	
+		select.value = categorie;
+	
+		select.dispatchEvent(
+			new Event("change")
+		);
+	
+		//
+		// On cache uniquement
+		// si la correspondance est exacte
+		//
+		if(resultat.exact){
+	
+			memoriser.style.display = "none";
+			checkbox.checked = false;
+	
+		}
+		else{
+	
+			memoriser.style.display = "block";
+	
+		}
+	
+	}
+    else{
+
+        // Fournisseur inconnu
+        select.value = "";
+        compte.value = "";
+
+        if(fournisseur.length >= 2){
+
+            memoriser.style.display = "block";
+
+        }
+        else{
+
+            memoriser.style.display = "none";
+            checkbox.checked = false;
+
+        }
+    }
+}
+
+document
+.getElementById("exerciceSelect")
+.addEventListener(
+    "change",
+    async function(){
+
+        const exercice =
+            this.value;
+
+        console.log(
+            "Exercice sélectionné :",
+            exercice
+        );
+
+        await loadDepenses(
+            exercice
+        );
+
+        await refreshStats(
+            exercice
+        );
+
+    }
+);
+
+
+const envMode =
+    document.getElementById(
+        "environmentMode"
+    );
+
+if(envMode){
+
+    envMode.addEventListener(
+        "change",
+        function(){
+
+            const info =
+                document.getElementById(
+                    "environmentInfo"
+                );
+
+            if(this.value === "DEV"){
+
+                info.innerHTML =
+                    "🧪 Mode développement";
+
+            }
+            else{
+
+                info.innerHTML =
+                    "🚀 Mode production";
+
+            }
+
+        }
+    );
+
+}
+
+async function loadExercices(){
+
+    const response =
+        await fetch("/api/exercices");
+
+    const exercices =
+        await response.json();
+
+    const select =
+        document.getElementById(
+            "exerciceSelect"
+        );
+
+    select.innerHTML = "";
+
+    exercices.forEach(exercice => {
+
+        const option =
+            document.createElement(
+                "option"
+            );
+
+        option.value =
+            exercice;
+
+        option.textContent =
+            "📚 " + exercice;
+
+        select.appendChild(
+            option
+        );
+
+    });
+
+    const settingsResponse =
+        await fetch("/settings");
+
+    const settings =
+        await settingsResponse.json();
+
+    select.value =
+        settings.Exercice.toString();
+}
+loadExercices();
+
+async function loadFournisseurs(){
+
+    try {
+
+        const response =
+            await fetch("/api/fournisseurs");
+
+        comptaFournisseurs =
+            await response.json();
+
+        console.log(
+            "Fournisseurs chargés :",
+            comptaFournisseurs
+        );
+
+    }
+    catch(err){
+
+        console.error(
+            "Erreur chargement fournisseurs :",
+            err
+        );
+
+    }
+}
+function openDepense(){
+
+    document.getElementById(
+        "modalDepense"
+    ).style.display = "flex";
+
+
+    // Réinitialisation formulaire
+    document.getElementById("depDate").valueAsDate =
+        new Date();
+
+    document.getElementById("depFournisseur").value = "";
+
+    document.getElementById("depCategorie").value = "";
+
+    document.getElementById("depCompte").value = "";
+
+    document.getElementById("depMontant").value = "";
+
+
+    // Réinitialisation suggestions OCR
+    document.getElementById("ocrDates").innerHTML = "";
+
+    document.getElementById("ocrMontants").innerHTML = "";
+
+
+    // Réinitialisation fichier
+    document.getElementById("pdfFile").value = "";
+
+    document.getElementById(
+        "dropzoneDepense"
+    ).style.display = "flex";
+
+    document.getElementById(
+        "selectedFile"
+    ).style.display = "none";
+
+
+    // Réinitialisation aperçu
+    document.getElementById(
+        "pdfPreview"
+    ).style.display = "none";
+
+    document.getElementById(
+        "imagePreview"
+    ).style.display = "none";
+
+    document.getElementById(
+        "previewEmpty"
+    ).style.display = "flex";
+}
+
+function closeDepense() {
+	resetDepense();
+    document.getElementById('modalDepense').style.display = 'none';
+	// Date du jour uniquement pour une saisie manuelle
+	document.getElementById("depDate").valueAsDate = new Date();
+	
+}
+
+
+window.addEventListener("DOMContentLoaded", () => {
+
+    const fournisseurInput =
+        document.getElementById("depFournisseur");
+
+    if(!fournisseurInput){
+        return;
+    }
+
+	fournisseurInput.addEventListener(
+		"input",
+		() => {
+	
+			updateCategorieFromFournisseur();
+	
+			updateMemorisationFournisseur();
+	
+		}
+	);
+
+});
+window.addEventListener("DOMContentLoaded", () => {
+
+    const dz = document.getElementById("dropzoneDepense");
+    const inputFile = document.getElementById("pdfFile");
+    const selectedFile = document.getElementById("selectedFile");
+
+    if(!dz) return;
+
+    dz.addEventListener("click", () => {
+        inputFile.click();
+    });
+
+    inputFile.addEventListener("change", () => {
+
+		if(inputFile.files.length){
+	
+			currentFile =
+				inputFile.files[0];
+	
+			showFile(currentFile);
+	
+		}
+
+	});
+
+    dz.addEventListener("dragover", (e) => {
+
+        e.preventDefault();
+
+        dz.classList.add("dragover");
+
+    });
+
+    dz.addEventListener("dragleave", () => {
+
+        dz.classList.remove("dragover");
+
+    });
+
+	dz.addEventListener("drop", (e) => {
+	
+		e.preventDefault();
+	
+		dz.classList.remove("dragover");
+	
+		if(!e.dataTransfer.files.length){
+			return;
+		}
+	
+		currentFile =
+			e.dataTransfer.files[0];
+	
+		showFile(currentFile);
+	
+	});
+
+
+
+
+});
+
+async function processNextFile(){
+
+    console.log(
+        "processNextFile"
+    );
+
+    console.log(
+        "currentFile =",
+        currentFile
+    );
+
+    console.log(
+        "pendingFiles =",
+        pendingFiles.length
+    );
+
+    if(currentFile){
+        return;
+    }
+
+    if(pendingFiles.length === 0){
+        return;
+    }
+
+    currentFile =
+        pendingFiles.shift();
+
+    console.log(
+        "Traitement :",
+        currentFile.name
+    );
+
+    openDepense();
+
+    await showFile(
+        currentFile
+    );
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+
+    const categorieSelect =
+        document.getElementById("depCategorie");
+
+    const nouvelleCategorie =
+        document.getElementById("depNouvelleCategorie");
+
+    const compteInput =
+        document.getElementById("depCompte");
+
+    const memoriserCategorie =
+        document.getElementById("memoriserCategorie");
+
+    if (!categorieSelect || !compteInput) {
+        return;
+    }
+
+    categorieSelect.addEventListener("change", function () {
+
+        const categorie = this.value;
+
+
+        //
+        // NOUVELLE CATEGORIE
+        //
+        if (categorie === "__new__") {
+
+            nouvelleCategorie.style.display = "block";
+
+            memoriserCategorie.style.display = "block";
+
+            nouvelleCategorie.value = "";
+
+            compteInput.value = "";
+
+            nouvelleCategorie.focus();
+
+            console.log(
+                "➕ Création d'une nouvelle catégorie"
+            );
+
+            return;
+        }
+
+
+        //
+        // CATEGORIE EXISTANTE
+        //
+
+        nouvelleCategorie.style.display = "none";
+
+        memoriserCategorie.style.display = "none";
+
+        const compte =
+            comptaCategories[categorie]?.compte || "";
+
+        compteInput.value = compte;
+
+        console.log(
+            "Catégorie :",
+            categorie,
+            "Compte MEGA :",
+            compte
+        );
+
+		updateMemorisationFournisseur();
+    });
+
+});
+async function showFile(file){
+
+    const selectedFile =
+        document.getElementById("selectedFile");
+
+    selectedFile.style.display = "block";
+    selectedFile.innerHTML = "⏳ Analyse du document...";
+
+    // Aperçu immédiat
+    showPreview(file);
+
+    try {
+
+        const formData = new FormData();
+
+        formData.append("pdf", file);
+
+        const response =
+            await fetch("/analyse-document", {
+                method: "POST",
+                body: formData
+            });
+
+        if(!response.ok){
+            throw new Error(
+                "Erreur OCR HTTP " + response.status
+            );
+        }
+
+        const result =
+            await response.json();
+			
+		currentCEESV =
+			result.ceesv || null;	
+
+        console.log("OCR COMPLET :", result);
+        console.log("Dates :", result.dates);
+        console.log("Montants :", result.montants);
+
+        /*
+         * Très important :
+         * false = la modal est déjà ouverte.
+         */
+        openOperationWithData(result, false);
+
+        document.getElementById(
+            "dropzoneDepense"
+        ).style.display = "none";
+
+        selectedFile.style.display = "block";
+
+        selectedFile.innerHTML = `
+            ✅ ${file.name}
+            (${Math.round(file.size / 1024)} Ko)
+
+            <button
+                type="button"
+                onclick="replaceFile()"
+                class="btn-small">
+                🔄 Remplacer
+            </button>
+        `;
+
+    }
+    catch(err){
+
+        console.error("Erreur OCR :", err);
+
+        selectedFile.innerHTML =
+            "❌ Analyse OCR impossible";
+    }
+}
+function replaceFile(){
+
+    //
+    // RESET FORMULAIRE
+    //
+
+    document.getElementById("depDate").value = "";
+
+    document.getElementById("depFournisseur").value = "";
+
+    document.getElementById("depCategorie").value = "";
+
+    document.getElementById("depCompte").value = "";
+
+    document.getElementById("depMontant").value = "";
+
+
+    //
+    // RESET SUGGESTIONS OCR
+    //
+
+    document.getElementById("ocrDates").innerHTML = "";
+
+    document.getElementById("ocrMontants").innerHTML = "";
+
+
+    //
+    // RESET FICHIER
+    //
+
+    document.getElementById("pdfFile").value = "";
+
+    document.getElementById(
+        "selectedFile"
+    ).style.display = "none";
+	
+	document.getElementById(
+		"selectedFile"
+	).innerHTML = "";
+	
+    document.getElementById(
+        "dropzoneDepense"
+    ).style.display = "flex";
+
+
+    //
+    // RESET APERCU
+    //
+	currentFile = null;
+	currentCEESV = null;
+
+    const pdf =
+        document.getElementById("pdfPreview");
+
+    const img =
+        document.getElementById("imagePreview");
+
+    const empty =
+        document.getElementById("previewEmpty");
+
+    pdf.src = "";
+    pdf.style.display = "none";
+
+    img.src = "";
+    img.style.display = "none";
+
+    empty.style.display = "flex";
+
+
+    //
+    // OPTIONNEL :
+    // remettre la date du jour
+    //
+    document.getElementById(
+        "depDate"
+    ).valueAsDate = new Date();
+	
+	document.getElementById(
+		"saveFournisseur"
+	).checked = false;
+	
+	document.getElementById(
+		"memoriserFournisseur"
+	).style.display = "none";
+	
+	
+	const montantGroup =
+		document.getElementById(
+		"montantGroup"
+		);
+	montantGroup.style.display = "block";
+
+	const ceesvInfo =
+		document.getElementById(
+		"ceesvInfo"
+		);
+	ceesvInfo.style.display = "none";
+
+}
+
+
+
+async function saveOperation() {
+
+	showLoader();
+	try {
+	
+		let driveUrl = "";
+
+		const file = currentFile;;
+
+		if (file) {
+
+			const settingsResponse =
+				await fetch("/settings");
+			
+			const settings =
+				await settingsResponse.json();
+			
+			const exercice =
+				settings.Exercice;
+			
+			const anneeDepense =
+				new Date(
+					document.getElementById(
+						"depDate"
+					).value
+				).getFullYear();
+
+			if(String(anneeDepense) !== String(exercice)){
+			
+				alert(
+					`La dépense doit appartenir à l'exercice ${exercice}`
+				);
+			
+				return;
+			}
+
+			const fournisseur =
+				document.getElementById(
+				"depFournisseur"
+				).value
+				.trim()
+				.replace(/[<>:"/\\|?*]/g, "")
+				.replace(/\s+/g, "_");
+				 
+			const date =
+				document.getElementById(
+				"depDate"
+				).value;
+				 
+			const montant =
+				Number(
+				document.getElementById(
+				"depMontant"
+				).value
+				)
+				.toFixed(2)
+				.replace(".", "_");
+			
+			const originalName =
+				file.name;
+ 
+			const nouveauNom =
+				`${fournisseur}_${date}_${montant}_${originalName}`;
+			
+			const formData = new FormData();
+			
+			formData.append(
+				"fileName",
+				nouveauNom
+			);	
+			
+			formData.append(
+				"pdf",
+				file
+			);
+
+			const uploadResponse =
+				await fetch("/upload", {
+					method: "POST",
+					body: formData
+				});
+	
+			const uploadResult =
+				await uploadResponse.json();
+
+	
+			driveUrl =
+				uploadResult.driveUrl || "";
+	
+			console.log(
+				"Lien Drive :",
+				driveUrl
+			);
+		}
+	
+		const depense = {
+	
+			date:
+				document.getElementById("depDate").value,
+	
+			fournisseur:
+				document.getElementById("depFournisseur").value,
+	
+			categorie:
+				getCategorieSelectionnee(),
+			
+			compte:
+				document.getElementById("depCompte").value,	
+	
+			montant:
+				document.getElementById("depMontant").value,
+	
+			pdf:
+				driveUrl,
+				
+			operationType:
+				document.getElementById("operationType").value
+				
+	
+		};
+		
+		//
+		// CAS SPECIAL CEESV
+		//
+		if(
+			depense.fournisseur ===
+			"CEESV - Centrale d'Encaissement"
+			&&
+			currentCEESV
+		){
+		
+			const ligneFacture = {
+		
+				...depense,
+		
+				fournisseur:
+					"CEESV - Facture",
+		
+				montant:
+					currentCEESV.montantFacture,
+		
+				referenceCEESV:
+					currentCEESV.reference,
+		
+				nbFactures:
+					currentCEESV.nbFactures
+		
+			};
+		
+			const ligneEtat = {
+		
+				...depense,
+		
+				fournisseur:
+					"CEESV - Etat",
+		
+				montant:
+					currentCEESV.montantEtat,
+		
+				referenceCEESV:
+					currentCEESV.reference,
+		
+				nbFactures:
+					currentCEESV.nbFactures
+		
+			};
+		
+			await fetch(
+				"/addDepense",
+				{
+					method: "POST",
+		
+					headers: {
+						"Content-Type":
+							"application/json"
+					},
+		
+					body:
+						JSON.stringify(
+							ligneFacture
+						)
+				}
+			);
+		
+			await fetch(
+				"/addDepense",
+				{
+					method: "POST",
+		
+					headers: {
+						"Content-Type":
+							"application/json"
+					},
+		
+					body:
+						JSON.stringify(
+							ligneEtat
+						)
+				}
+			);
+		
+			alert(
+				"✅ CEESV enregistré (Facture + Etat)"
+			);
+		
+			await loadDepenses();
+			await refreshStats();
+			await loadCategories();
+			await loadFournisseurs();
+		
+			closeDepense();
+		
+			currentFile = null;
+		
+			processNextFile();
+		
+			return;
+		}
+
+		
+		
+		
+		//
+		// MEMORISATION FOURNISSEUR
+		//
+		
+		const saveFournisseur =
+			document.getElementById(
+				"saveFournisseur"
+			);
+		
+		if(
+			saveFournisseur.checked &&
+			depense.fournisseur &&
+			depense.categorie
+		){
+		
+			const response =
+				await fetch(
+					"/api/fournisseurs",
+					{
+						method:"POST",
+		
+						headers:{
+							"Content-Type":
+								"application/json"
+						},
+		
+						body:JSON.stringify({
+		
+							fournisseur:
+								depense.fournisseur,
+		
+							categorie:
+								depense.categorie
+		
+						})
+					}
+				);
+		
+			const result =
+				await response.json();
+		
+			if(result.success){
+		
+				console.log(
+					"🧠 Fournisseur mémorisé"
+				);
+		
+				// Mise à jour immédiate en mémoire
+				comptaFournisseurs[
+					depense.fournisseur
+				] = {
+					categorie:
+						depense.categorie
+				};
+			}
+		}
+		console.log(
+			"DEPENSE FINALE :",
+			depense
+		);
+		
+		//
+		// Sauvegarde catégorie
+		//
+		
+		if( depense.categorie ){
+		
+			await fetch(
+				"/api/categories",
+				{
+		
+					method:"POST",
+		
+					headers:{
+						"Content-Type":
+							"application/json"
+					},
+		
+					body:JSON.stringify({
+		
+						categorie:
+							depense.categorie,
+		
+						compte:
+							depense.compte || ""
+		
+					})
+		
+				}
+			);
+		
+		}	
+		//
+		// Sauvegarde fournisseur
+		//
+		
+		if(
+			depense.fournisseur &&
+			depense.categorie
+		){
+		
+			await fetch(
+				"/api/fournisseurs",
+				{
+		
+					method:"POST",
+		
+					headers:{
+						"Content-Type":
+							"application/json"
+					},
+		
+					body:JSON.stringify({
+		
+						fournisseur:
+							depense.fournisseur,
+		
+						categorie:
+							depense.categorie
+		
+					})
+		
+				}
+			);
+		
+		}		
+		const depenseResponse =
+			await fetch("/addDepense", {
+	
+				method: "POST",
+	
+				headers: {
+					"Content-Type": "application/json"
+				},
+	
+				body: JSON.stringify(depense)
+	
+			});
+	
+		const result =
+			await depenseResponse.text();
+	
+		alert(result);
+		
+		
+		
+		await loadDepenses();
+		await refreshStats();
+		
+		//
+		// Recharge les référentiels
+		//
+		
+		await loadCategories();
+		await loadFournisseurs();		
+		console.log(
+			"Avant suivant :",
+			pendingFiles.length
+			);
+		closeDepense();
+		currentFile = null;
+		processNextFile();
+	}
+	catch(err){
+	 
+		console.error(err);
+	 
+		alert("Erreur : " + err.message);
+	 
+	}
+	finally{
+	 
+		hideLoader();
+	 
+	}		
+}
+
+
+const params =
+    new URLSearchParams(window.location.search);
+
+if(params.get("google") === "ok"){
+
+    const badge =
+        document.getElementById("googleBadge");
+
+    badge.classList.remove("disconnected");
+    badge.classList.add("connected");
+
+    badge.innerHTML =
+        "🟢 Google connecté";
+
+}
+function updateMemorisationFournisseur(){
+
+    const fournisseur =
+        document.getElementById(
+            "depFournisseur"
+        ).value.trim();
+
+    const categorie =
+        getCategorieSelectionnee();
+
+    const memoriser =
+        document.getElementById(
+            "memoriserFournisseur"
+        );
+
+    const resultat =
+        detectCategorieFromFournisseur(
+            fournisseur
+        );
+
+    //
+    // Cas 1 :
+    // correspondance exacte
+    //
+    if(resultat.exact){
+
+        memoriser.style.display = "none";
+
+        return;
+    }
+
+    //
+    // Cas 2 :
+    // fournisseur inconnu OU
+    // rapprochement non exact
+    //
+    if(
+        fournisseur &&
+        categorie
+    ){
+
+        memoriser.style.display =
+            "block";
+
+    }
+    else{
+
+        memoriser.style.display =
+            "none";
+
+    }
+
+}
+
+
+function resetDepense(){
+
+    //
+    // CHAMPS
+    //
+    document.getElementById("depDate").value = "";
+    document.getElementById("depFournisseur").value = "";
+    document.getElementById("depCategorie").value = "";
+    document.getElementById("depCompte").value = "";
+    document.getElementById("depMontant").value = "";
+
+	currentFile = null;
+	
+    //
+    // NOUVELLE CATEGORIE
+    //
+    const nouvelleCategorie =
+        document.getElementById("depNouvelleCategorie");
+
+    if(nouvelleCategorie){
+        nouvelleCategorie.value = "";
+        nouvelleCategorie.style.display = "none";
+    }
+
+    const memoriserCategorie =
+        document.getElementById("memoriserCategorie");
+
+    if(memoriserCategorie){
+        memoriserCategorie.style.display = "none";
+    }
+
+    const saveCategorie =
+        document.getElementById("saveCategorie");
+
+    if(saveCategorie){
+        saveCategorie.checked = true;
+    }
+
+    //
+    // FOURNISSEUR A MEMORISER
+    //
+    const memoriserFournisseur =
+        document.getElementById("memoriserFournisseur");
+
+    if(memoriserFournisseur){
+        memoriserFournisseur.style.display = "none";
+    }
+
+    const saveFournisseur =
+        document.getElementById("saveFournisseur");
+
+    if(saveFournisseur){
+        saveFournisseur.checked = false;
+    }
+
+    //
+    // SUGGESTIONS OCR
+    //
+    document.getElementById("ocrDates").innerHTML = "";
+    document.getElementById("ocrMontants").innerHTML = "";
+
+    //
+    // FICHIER
+    //
+    document.getElementById("pdfFile").value = "";
+
+    document.getElementById(
+        "selectedFile"
+    ).style.display = "none";
+
+    document.getElementById(
+        "dropzoneDepense"
+    ).style.display = "flex";
+
+    //
+    // APERCU
+    //
+    const pdf =
+        document.getElementById("pdfPreview");
+
+    const img =
+        document.getElementById("imagePreview");
+
+    const empty =
+        document.getElementById("previewEmpty");
+
+    pdf.src = "";
+    pdf.style.display = "none";
+
+    img.src = "";
+    img.style.display = "none";
+
+    empty.style.display = "flex";
+}
+
+function updateDate() {
+
+    const now = new Date();
+
+    const options = {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    };
+
+    let date = now.toLocaleDateString('fr-FR', options);
+
+    date =
+        date.charAt(0).toUpperCase() +
+        date.slice(1);
+
+    document.getElementById('currentDate').innerHTML =
+        '📅 ' + date;
+}
+
+updateDate();
+
+fetch("/settings")
+.then(r => r.json())
+.then(settings => {
+
+    document.getElementById(
+        "currentYear"
+    ).innerHTML =
+        "📚 Exercice " +
+        settings.Exercice;
+
+	document.getElementById(
+		"exerciceSelect"
+	).value =
+		settings.Exercice;
+
+});
+fetch("/api/environment")
+.then(r => r.json())
+.then(data => {
+
+    const badge =
+        document.getElementById(
+            "environmentBadge"
+        );
+
+    if(data.environment === "DEV"){
+
+        badge.innerHTML =
+            "🧪 DEV";
+
+        badge.className =
+            "google-badge";
+
+        badge.style.background =
+            "#f39c12";
+
+    }
+    else{
+
+        badge.style.display =
+            "none";
+
+    }
+
+});
+
+fetch("/google-status")
+.then(r => r.json())
+.then(data => {
+
+    console.log("Google status =", data);
+
+    if(data.connected){
+
+        const badge =
+            document.getElementById("googleBadge");
+
+        const btn =
+            document.getElementById("googleLoginBtn");
+
+        console.log("badge=", badge);
+        console.log("btn=", btn);
+
+        badge.classList.remove("disconnected");
+        badge.classList.add("connected");
+
+        badge.innerHTML =
+            "🟢 Google connecté";
+
+        if(btn){
+            btn.style.display = "none";
+        }
+    }
+});
+
+
+fetch("/google-user")
+.then(r => r.json())
+.then(user => {
+
+    if(user.given_name){
+
+        document.getElementById(
+            "welcomeTitle"
+        ).innerHTML =
+            `Bonjour ${user.given_name} 👋`;
+    }
+
+});
+
+document.getElementById(
+    "exerciceSelect"
+).addEventListener(
+    "change",
+    async function(){
+
+        const exercice =
+            this.value;
+
+        await loadDepenses(
+            exercice
+        );
+
+        await refreshStats(
+            exercice
+        );
+
+    }
+);
+
+function showLoader(){
+
+    document.getElementById(
+        "loadingOverlay"
+    ).style.display = "flex";
+}
+
+function hideLoader(){
+
+    document.getElementById(
+        "loadingOverlay"
+    ).style.display = "none";
+}
+
+async function loadDepenses() {
+
+    const response =
+        await fetch("/api/depenses");
+
+    const rows =
+        await response.json();
+
+    const tbody =
+        document.getElementById(
+            "operationsBody"
+        );
+
+    tbody.innerHTML = "";
+
+    rows.slice(1).reverse().forEach(row => {
+
+const pdfLink = row[5]
+    ? `<a  href="${row[5]}"
+			target="_blank" 
+			class="pdf-link"
+			title="Ouvrir le justificatif">📄</a>`
+    : "—";
+
+
+        const tr =
+            document.createElement("tr");
+			
+			tr.innerHTML = `
+				<td>${row[0] || ""}</td>
+				<td>${row[1] || ""}</td>
+				<td>${row[2] || ""}</td>
+				<td>${row[3] || ""}</td><!-- compte MEGA-->
+				<td>${row[4] || ""} CHF</td> <!-- compte montant-->
+				<td>${pdfLink}</td>
+				</td>
+			`;
+
+        tbody.appendChild(tr);
+
+    });
+
+}
+loadDepenses();
+refreshStats();
+
+async function refreshStats() {
+
+    const response =
+        await fetch("/api/depenses");
+
+    const rows =
+        await response.json();
+
+    let total = 0;
+
+    rows.slice(1).forEach(row => {
+
+        const montant =
+            parseFloat(row[4]) || 0;
+
+        total += montant;
+
+    });
+
+    document.getElementById(
+        "depensesTotal"
+    ).innerHTML =
+        total.toFixed(2) + " CHF";
+}
+
+let comptaCategories = {};
+
+async function loadCategories(){
+
+    try {
+
+        const response =
+            await fetch("/api/categories");
+
+        comptaCategories =
+            await response.json();
+
+        const select =
+            document.getElementById(
+                "depCategorie"
+            );
+
+        select.innerHTML = `
+            <option value="">
+                Sélectionner une catégorie...
+            </option>
+        `;
+
+        Object.keys(
+            comptaCategories
+        ).forEach(categorie => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                categorie;
+
+            option.textContent =
+                categorie;
+
+            select.appendChild(
+                option
+            );
+
+        });
+		
+		// Toujours mettre Nouvelle catégorie en dernier
+		const newOption =
+		document.createElement("option");
+		 
+		newOption.value = "__new__";
+		 
+		newOption.textContent =
+		"➕ Nouvelle catégorie...";
+		 
+		select.appendChild(newOption);
+
+    }
+    catch(err){
+
+        console.error(
+            "Erreur catégories :",
+            err
+        );
+
+    }
+
+}
+
+loadCategories();
+loadFournisseurs();
+
+
+
+function getCategorieSelectionnee(){
+
+    const select =
+        document.getElementById(
+            "depCategorie"
+        );
+
+    if(select.value === "__new__"){
+
+        return document
+            .getElementById(
+                "depNouvelleCategorie"
+            )
+            .value
+            .trim();
+    }
+
+    return select.value;
+}
+
+function openSettings(){
+
+    fetch("/settings")
+
+        .then(r => r.json())
+
+        .then(settings => {
+
+            document.getElementById(
+                "settingExercice"
+            ).value =
+                settings.Exercice || "";
+
+            document.getElementById(
+                "environmentMode"
+            ).value =
+                settings.Environment || "DEV";
+
+            document.getElementById(
+                "modalSettings"
+            ).style.display =
+                "flex";
+
+        });
+
+}
+
+function closeSettings(){
+
+    document.getElementById(
+        "modalSettings"
+    ).style.display =
+        "none";
+
+}
+async function saveSettings(){
+
+    const environment =
+        document.getElementById(
+            "environmentMode"
+        ).value;
+
+    const response =
+        await fetch(
+            "/api/environment",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    environment
+                })
+            }
+        );
+
+    const result =
+        await response.json();
+
+    if(result.success){
+
+        const badge =
+            document.getElementById(
+                "environmentBadge"
+            );
+
+        if(environment === "DEV"){
+
+            badge.innerHTML = "🧪 DEV";
+            badge.style.display = "block";
+
+        }
+        else{
+
+            badge.innerHTML = "";
+            badge.style.display = "none";
+
+        }
+
+        closeSettings();
+
+    }
+
+}
+
+
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const operationType =
+            document.getElementById(
+                "operationType"
+            );
+
+        if(!operationType){
+            return;
+        }
+
+        operationType.addEventListener(
+            "change",
+            function(){
+
+                const isRecette =
+                    this.value === "RECETTE";
+
+                document.getElementById(
+                    "operationTitle"
+                ).innerHTML =
+                    isRecette
+                        ? "💰 Nouvelle recette"
+                        : "🧾 Nouvelle dépense";
+
+                document.getElementById(
+                    "categorieGroup"
+                ).style.display =
+                    isRecette
+                        ? "none"
+                        : "block";
+
+                document.getElementById(
+                    "compteGroup"
+                ).style.display =
+                    isRecette
+                        ? "none"
+                        : "block";
+
+            }
+        );
+
+    }
+);
+</script>
+
+<!-- MODAL DEPENSE -->
+
+<div id="modalDepense" class="modal">
+
+    <div class="modal-content modal-large">
+
+        <div class="modal-header">
+            <h2 id="operationTitle">
+			🧾 Nouvelle opération
+			</h2>
+            <span class="close" onclick="closeDepense()">&times;</span>
+        </div>
+
+        <div class="modal-body">
+
+            <!-- COLONNE GAUCHE -->
+
+            <div class="modal-form">
+			<div id="queueInfo"></div>
+
+			<div class="form-group">
+				<label>Type d'opération</label>
+				<select id="operationType">
+					<option value="DEPENSE">
+						🧾 Dépense
+					</option>
+			
+					<option value="RECETTE">
+						💰 Recette
+					</option>
+				</select>
+			</div> 
+
+                <div class="form-group">
+                    <label>Date</label>
+
+                    <input type="date" id="depDate">
+
+                    <div id="ocrDates" class="ocr-suggestions"></div>
+
+                </div>
+
+                <div class="form-group">
+                    <label>Fournisseur</label>
+
+                    <input
+                        type="text"
+                        id="depFournisseur">
+                </div>
+				<div
+					id="memoriserFournisseur"
+					style="display:none; margin-top:6px; margin-bottom:8px;">
+				
+					<label style="
+						font-size:13px;
+						cursor:pointer;
+						display:flex;
+						align-items:center;
+						gap:7px;
+					">
+				
+						<input
+							type="checkbox"
+							id="saveFournisseur">
+				
+						💡 Mémoriser ce fournisseur pour la prochaine fois
+				
+					</label>
+				
+				</div>	
+				
+				<div class="form-group" id="categorieGroup">
+				
+					<label>Catégorie</label>
+				
+					<select id="depCategorie">
+				
+						<option value="">
+							Sélectionner une catégorie...
+						</option>
+				
+						<option value="__new__">
+							➕ Nouvelle catégorie...
+						</option>
+				
+					</select>
+				
+					<input
+						type="text"
+						id="depNouvelleCategorie"
+						placeholder="Nom de la nouvelle catégorie"
+						style="display:none; margin-top:6px;">
+				
+				</div>
+				<div
+					id="memoriserCategorie"
+					style="display:none; margin-top:5px; margin-bottom:8px;">
+				
+					<label style="
+						font-size:13px;
+						display:flex;
+						align-items:center;
+						gap:7px;
+						cursor:pointer;
+					">
+				
+						<input
+							type="checkbox"
+							id="saveCategorie"
+							checked>
+				
+						💡 Mémoriser cette nouvelle catégorie
+				
+					</label>
+				
+				</div>			
+				<div class="form-group" id="compteGroup">
+				
+					<label>Compte comptable MEGA</label>
+				
+					<input
+						type="text"
+						id="depCompte"
+						placeholder="Compte"
+						maxlength="10">
+				
+				</div>
+				
+				<div
+					id="ceesvInfo"
+					class="ceesv-box"
+					style="display:none;">
+				</div>
+				
+                <div class="form-group" id="montantGroup">
+
+                    <label>Montant CHF</label>
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        id="depMontant">
+
+                    <div
+                        id="ocrMontants"
+                        class="ocr-suggestions">
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>Justificatif</label>
+
+                    <div id="dropzoneDepense" class="dropzone-mini">
+
+						<span>📄</span>
+					
+						<span>
+							Déposer ou remplacer le justificatif
+						</span>
+					
+						<input
+							type="file"
+							id="pdfFile"
+							accept=".pdf,.jpg,.jpeg,.png"
+							hidden>
+					
+					</div>
+
+					<div
+						id="selectedFile"
+						class="selected-file">
+					</div>
+
+                </div>
+
+            </div>
+
+            <!-- COLONNE DROITE -->
+
+            <div class="modal-preview">
+
+                <div class="preview-title">
+                    👁️ Aperçu du justificatif
+                </div>
+
+                <iframe
+                    id="pdfPreview"
+                    class="pdf-preview">
+                </iframe>
+
+                <img
+                    id="imagePreview"
+                    class="image-preview"
+                    style="display:none;">
+
+                <div
+                    id="previewEmpty"
+                    class="preview-empty">
+
+                    <div style="font-size:70px;">
+                        📄
+                    </div>
+
+                    <div>
+                        Aucun document sélectionné
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="modal-actions">
+
+            <button
+                class="btn btn-grey"
+                onclick="closeDepense()">
+                Annuler
+            </button>
+
+            <button
+                class="btn"
+                onclick="saveOperation()">
+                Enregistrer
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div id="loadingOverlay" class="loading-overlay">
+
+    <div class="loading-box">
+
+        <div class="spinner"></div>
+
+        <div class="loading-text">
+            Envoi du justificatif vers Google Drive...
+        </div>
+
+    </div>
+
+</div>
+
+
+<div id="modalSettings" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>⚙️ Paramètres</h2>
+
+            <span class="close"
+                  onclick="closeSettings()">
+                &times;
+            </span>
+
+        </div>
+
+        <div class="modal-body">
+
+            <div class="form-group">
+
+                <label>
+                    Environnement
+                </label>
+
+                <select id="environmentMode">
+
+                    <option value="DEV">
+                        🧪 Développement
+                    </option>
+
+                    <option value="PROD">
+                        🚀 Production
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label>
+                    Exercice actif
+                </label>
+
+                <input
+                    type="text"
+                    id="settingExercice"
+                    readonly>
+
+            </div>
+
+            <div id="environmentInfo"
+                 class="info-box">
+
+                🧪 Mode développement
+
+            </div>
+
+        </div>
+
+        <div class="modal-actions">
+
+            <button
+                class="btn btn-grey"
+                onclick="closeSettings()">
+
+                Fermer
+
+            </button>
+
+            <button
+                class="btn"
+                onclick="saveSettings()">
+
+                Enregistrer
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+</body>
+</html>

@@ -1,0 +1,829 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Segoe UI',sans-serif;
+    background:#f4f6fb;
+    color:#222;
+}
+
+.layout{
+    display:flex;
+    min-height:100vh;
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+
+.sidebar{
+    width:260px;
+    background:linear-gradient(
+        180deg,
+        #183B63,
+        #1d497a
+    );
+    color:white;
+    display:flex;
+    flex-direction:column;
+    box-shadow:4px 0 15px rgba(0,0,0,.10);
+}
+
+.logo{
+    padding:25px;
+    border-bottom:1px solid rgba(255,255,255,.15);
+}
+
+.logo h1{
+    font-size:30px;
+    margin-bottom:5px;
+}
+
+.tagline{
+    font-size:13px;
+    color:#b6d0ee;
+}
+
+.signature{
+    text-align:right;
+    font-size:11px;
+    color:#8fb5dd;
+    margin-top:10px;
+}
+
+.menu{
+    flex:1;
+    padding:15px;
+}
+
+.menu a{
+    display:block;
+    color:white;
+    text-decoration:none;
+    padding:14px 18px;
+    border-radius:12px;
+    margin-bottom:8px;
+    transition:.2s;
+}
+
+.menu a:hover{
+    background:rgba(255,255,255,.15);
+    transform:translateX(5px);
+}
+
+.sidebar-footer{
+    padding:15px;
+    text-align:center;
+    border-top:1px solid rgba(255,255,255,.10);
+    font-size:11px;
+    color:#8fb5dd;
+}
+
+/* =========================
+   CONTENU
+========================= */
+
+.content{
+    flex:1;
+    padding:30px;
+}
+
+/* =========================
+   TOPBAR
+========================= */
+
+.topbar{
+    background:white;
+    border-radius:20px;
+    padding:20px 25px;
+    margin-bottom:25px;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    box-shadow:0 3px 15px rgba(0,0,0,.05);
+}
+
+.welcome-row{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.top-right{
+    text-align:right;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.current-date{
+    color:#666;
+    font-size:14px;
+}
+
+/* =========================
+   CARTES
+========================= */
+
+.cards{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    margin-bottom:30px;
+}
+
+.card{
+    flex:1;
+    min-width:250px;
+
+    background:white;
+
+    border-radius:20px;
+    padding:25px;
+
+    box-shadow:0 3px 15px rgba(0,0,0,.05);
+
+    transition:.2s;
+}
+
+.card:hover{
+    transform:translateY(-5px);
+}
+
+.card-title{
+    color:#777;
+    margin-bottom:10px;
+}
+
+.card-value{
+    font-size:34px;
+    font-weight:bold;
+}
+
+.green{
+    color:#2E7D32;
+}
+
+.red{
+    color:#D32F2F;
+}
+
+.blue{
+    color:#1976D2;
+}
+
+/* =========================
+   BOUTONS
+========================= */
+
+.btn{
+    background:#1976D2;
+    color:white;
+
+    border:none;
+    border-radius:12px;
+
+    padding:12px 20px;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.btn:hover{
+    background:#115293;
+}
+
+.btn-grey{
+    background:#888;
+}
+
+.btn-grey:hover{
+    background:#666;
+}
+
+.btn-small{
+    margin-left:10px;
+
+    padding:4px 10px;
+
+    border:none;
+    border-radius:8px;
+
+    background:#1976D2;
+    color:white;
+
+    cursor:pointer;
+}
+
+/* =========================
+   DROPZONE PRINCIPALE
+========================= */
+
+.dropzone{
+    background:white;
+
+    border:3px dashed #1E88E5;
+    border-radius:20px;
+
+    height:240px;
+
+    display:flex;
+    flex-direction:column;
+
+    justify-content:center;
+    align-items:center;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+    margin-bottom:30px;
+
+    box-shadow:0 3px 15px rgba(0,0,0,.05);
+}
+
+.dropzone:hover{
+    background:#eef5ff;
+    transform:scale(1.01);
+}
+
+.dragover{
+    background:#dceeff !important;
+}
+
+.dropicon{
+    font-size:60px;
+}
+
+/* =========================
+   PANELS
+========================= */
+
+.panel{
+    background:white;
+
+    border-radius:20px;
+
+    padding:25px;
+
+    box-shadow:0 3px 15px rgba(0,0,0,.05);
+}
+
+.panel h3{
+    margin-bottom:15px;
+}
+
+/* =========================
+   TABLEAU
+========================= */
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th{
+    background:#f7f9fc;
+    text-align:left;
+    padding:12px;
+}
+
+td{
+    padding:12px;
+    border-bottom:1px solid #eee;
+}
+
+tr:hover{
+    background:#f9fbff;
+}
+
+/* =========================
+   MODAL OCR
+========================= */
+
+.modal{
+    display:none;
+
+    position:fixed;
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    justify-content:center;
+    align-items:center;
+
+    padding:14px;
+
+    z-index:9999;
+}
+
+/*
+   IMPORTANT :
+   Le grand panneau blanc est ici.
+*/
+
+.modal-content{
+    background:#ffffff;
+
+    width:94vw;
+    max-width:1280px;
+
+    height:95vh;
+    max-height:750px;
+
+    border-radius:20px;
+
+    padding:20px 26px;
+
+    box-shadow:0 15px 50px rgba(0,0,0,.30);
+
+    display:flex;
+    flex-direction:column;
+
+    overflow:hidden;
+
+    position:relative;
+}
+
+/*
+   modal-large reste présent dans le HTML,
+   mais on n'a plus besoin de lui faire
+   gérer le layout.
+*/
+
+.modal-large{
+    width:94vw;
+    max-width:1280px;
+}
+
+.info-box{
+
+    padding:12px;
+    margin-top:10px;
+
+    background:#f5f5f5;
+
+    border-radius:8px;
+
+    font-size:13px;
+
+}
+
+/* =========================
+   HEADER MODAL
+========================= */
+
+.modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    flex-shrink:0;
+
+    margin-bottom:10px;
+    padding-bottom:10px;
+
+    border-bottom:1px solid #eee;
+}
+
+.modal-header h2{
+    font-size:24px;
+    margin:0;
+}
+
+.close{
+    font-size:30px;
+    line-height:30px;
+    cursor:pointer;
+}
+
+/* =========================
+   CORPS MODAL
+========================= */
+
+.modal-body{
+    display:flex;
+
+    flex:1;
+
+    min-height:0;
+
+    gap:25px;
+
+    overflow:hidden;
+}
+
+/* =========================
+   FORMULAIRE GAUCHE
+========================= */
+
+.modal-form{
+    flex:1;
+
+    min-width:0;
+
+    padding:4px 20px 4px 24px;
+
+    overflow:hidden;
+}
+
+/* =========================
+   APERCU DROITE
+========================= */
+
+.modal-preview{
+    flex:0 0 42%;
+
+    min-width:380px;
+    min-height:0;
+
+    border-left:1px solid #eee;
+
+    padding:4px 0 4px 25px;
+
+    display:flex;
+    flex-direction:column;
+
+    overflow:hidden;
+}
+
+.preview-title{
+    font-weight:600;
+    font-size:14px;
+
+    margin-bottom:8px;
+
+    flex-shrink:0;
+}
+
+.ceesv-box{
+    margin-top:10px;
+    padding:10px;
+    border-radius:8px;
+    background:#eef6ff;
+    border:1px solid #c9dfff;
+    line-height:1.8;
+}
+
+/* =========================
+   PDF
+========================= */
+
+.pdf-preview{
+    display:none;
+	
+
+    width:100%;
+
+    flex:1;
+    min-height:0;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#f6f8fb;
+}
+
+/* =========================
+   IMAGE
+========================= */
+
+.image-preview{
+    display:none;
+
+    width:100%;
+
+    flex:1;
+    min-height:0;
+
+    object-fit:contain;
+
+    border-radius:12px;
+
+    background:#f6f8fb;
+}
+
+/* =========================
+   APERCU VIDE
+========================= */
+
+.preview-empty{
+    flex:1;
+
+    min-height:0;
+
+    display:flex;
+    flex-direction:column;
+
+    justify-content:center;
+    align-items:center;
+
+    gap:15px;
+
+    border:2px dashed #ddd;
+
+    border-radius:16px;
+
+    background:#fafcff;
+
+    color:#888;
+}
+
+/* =========================
+   FORMULAIRE
+========================= */
+
+.form-group{
+    margin-bottom:8px;
+}
+
+.form-group label{
+    display:block;
+
+    margin-bottom:4px;
+
+    font-weight:600;
+    font-size:14px;
+}
+
+.form-group input,
+.form-group select{
+    width:100%;
+
+    height:37px;
+
+    padding:6px 10px;
+
+    border:1px solid #ddd;
+    border-radius:10px;
+
+    font-size:14px;
+
+    background:white;
+}
+
+.form-group input:focus,
+.form-group select:focus{
+    outline:none;
+
+    border-color:#1976D2;
+
+    box-shadow:0 0 0 3px rgba(25,118,210,.15);
+}
+
+/* =========================
+   OCR
+========================= */
+
+.ocr-suggestions{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+
+    gap:6px;
+
+    margin-top:5px;
+}
+
+.ocr-chip{
+    padding:4px 9px;
+
+    border:1px solid #1976D2;
+    border-radius:18px;
+
+    background:#eef5ff;
+    color:#1976D2;
+
+    font-size:12px;
+    font-weight:600;
+
+    cursor:pointer;
+}
+
+.ocr-chip:hover{
+    background:#1976D2;
+    color:white;
+}
+
+.ocr-chip.active{
+    background:#1976D2;
+    color:white;
+}
+
+/* =========================
+   DROPZONE MODAL
+========================= */
+
+.dropzone-mini{
+    border:2px dashed #1976D2;
+    border-radius:10px;
+
+    min-height:40px;
+
+    padding:6px 10px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    gap:8px;
+
+    text-align:center;
+
+    cursor:pointer;
+
+    background:#fafcff;
+}
+
+.dropzone-mini:hover{
+    background:#eef5ff;
+}
+
+/* =========================
+   FICHIER SELECTIONNE
+========================= */
+
+.selected-file{
+    display:none;
+
+    margin-top:5px;
+
+    padding:6px 10px;
+
+    background:#eef5ff;
+
+    border-radius:8px;
+
+    font-size:13px;
+}
+
+/* =========================
+   ACTIONS MODAL
+========================= */
+
+.modal-actions{
+    flex-shrink:0;
+
+    display:flex;
+
+    justify-content:flex-end;
+    align-items:center;
+
+    gap:10px;
+
+    margin-top:8px;
+    padding-top:10px;
+
+    border-top:1px solid #eee;
+
+    background:white;
+}
+
+/* =========================
+   LOADER
+========================= */
+
+.loading-overlay{
+    display:none;
+
+    position:fixed;
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    z-index:99999;
+
+    justify-content:center;
+    align-items:center;
+}
+
+.loading-box{
+    background:white;
+
+    padding:30px;
+
+    border-radius:20px;
+
+    min-width:320px;
+
+    text-align:center;
+
+    box-shadow:0 10px 30px rgba(0,0,0,.20);
+}
+
+.spinner{
+    width:60px;
+    height:60px;
+
+    margin:auto;
+
+    border:6px solid #e5e5e5;
+    border-top:6px solid #1976D2;
+
+    border-radius:50%;
+
+    animation:spin 1s linear infinite;
+}
+
+@keyframes spin{
+    from{
+        transform:rotate(0deg);
+    }
+
+    to{
+        transform:rotate(360deg);
+    }
+}
+
+/* =========================
+   GOOGLE
+========================= */
+
+.google-badge{
+    padding:8px 14px;
+
+    border-radius:10px;
+
+    font-size:12px;
+    font-weight:600;
+}
+
+.google-badge.disconnected{
+    background:#ffeaea;
+    color:#c62828;
+}
+
+.google-badge.connected{
+    background:#e7f8eb;
+    color:#2e7d32;
+}
+
+.btn-google{
+    text-decoration:none;
+
+    padding:10px 16px;
+
+    border-radius:10px;
+
+    border:1px solid #ddd;
+
+    background:white;
+    color:#333;
+
+    transition:.2s;
+}
+
+.btn-google:hover{
+    background:#f4f6f8;
+
+    transform:translateY(-2px);
+}
+
+/* =========================
+   MOBILE / PETITS ECRANS
+========================= */
+
+@media(max-width:1100px){
+
+    .modal-content{
+        height:94vh;
+        max-height:none;
+    }
+
+    .modal-body{
+        flex-direction:column;
+        overflow:auto;
+    }
+
+    .modal-form{
+        overflow:visible;
+    }
+
+    .modal-preview{
+        width:100%;
+        min-width:0;
+
+        flex:none;
+
+        height:450px;
+
+        border-left:none;
+        border-top:1px solid #eee;
+
+        padding:15px 0 0 0;
+    }
+
+    .pdf-preview,
+    .image-preview,
+    .preview-empty{
+        height:400px;
+        flex:none;
+    }
+}
