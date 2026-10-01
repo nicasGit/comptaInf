@@ -554,6 +554,7 @@ tr:hover{
 }
 
 .form-group input,
+.form-group textarea,
 .form-group select{
     width:100%;
 
@@ -826,4 +827,84 @@ tr:hover{
         height:400px;
         flex:none;
     }
+}
+
+#toastContainer {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    min-width: 300px;
+    padding: 14px 18px;
+    border-radius: 10px;
+
+    color: white;
+    font-weight: 600;
+
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+
+    animation: slideIn 0.3s ease;
+}
+
+.toast.success {
+    background: #2ecc71;
+}
+
+.toast.error {
+    background: #e74c3c;
+}
+
+.toast.info {
+    background: #3498db;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.autocomplete-box {
+
+    position: absolute;
+
+    background: white;
+
+    border: 1px solid #ddd;
+
+    border-radius: 6px;
+
+    width: 100%;
+
+    z-index: 1000;
+
+    max-height: 200px;
+
+    overflow-y: auto;
+
+    display: none;
+}
+
+.autocomplete-item {
+
+    padding: 8px 10px;
+
+    cursor: pointer;
+}
+
+.autocomplete-item:hover {
+
+    background: #f4f6f8;
 }

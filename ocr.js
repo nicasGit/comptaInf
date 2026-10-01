@@ -96,6 +96,19 @@ function extractDateValeurOLD(texte){
 
 }
 
+function extractDateValeurOLD2(texte){
+
+    const match =
+        texte.match(
+            /Date de valeur\s*([0-9]{2}\.[0-9]{2}\.[0-9]{4})/i
+        );
+
+    return match
+        ? match[1]
+        : null;
+}
+
+
 function extractDateValeur(texte){
 
     const match =
@@ -105,6 +118,23 @@ function extractDateValeur(texte){
 
     return match
         ? match[1]
+        : null;
+}
+
+function extractDateValeurCEESVUBS(texte) {
+
+    const bloc = texte.match(
+        /Date de transaction.*?Date de comptabilisation.*?Date de valeur.*?Réception de l'ordre(.*)/is
+    );
+
+    if (!bloc) {
+        return null;
+    }
+
+    const dates = bloc[1].match(/\d{2}\.\d{2}\.\d{4}/g);
+
+    return (dates && dates.length >= 3)
+        ? dates[2]
         : null;
 }
 
@@ -140,17 +170,6 @@ function extractFournisseur(texte){
     return lignes[0] || "";
 }
 
-function extractDateValeurOLD2(texte){
-
-    const match =
-        texte.match(
-            /Date de valeur\s*([0-9]{2}\.[0-9]{2}\.[0-9]{4})/i
-        );
-
-    return match
-        ? match[1]
-        : null;
-}
 
 
 function extractMontantEtat(texte){
@@ -209,7 +228,31 @@ function extractFournisseurOld(text) {
 
 function extractCEESVData(texte){
 
-    const result = {};
+    //
+    // CAS UBS
+    //
+    if(
+        /centrale.*encaissement/i.test(texte) &&
+        /date de transaction/i.test(texte)
+    ){
+
+        return {
+            type: "CEESV_UBS",
+
+            dateValeur:
+                extractDateValeurCEESVUBS(texte),
+
+            montantBanque:
+                extractMontants(texte)[0] || null
+        };
+    }
+
+    //
+    // CAS ETAT CEESV
+    //
+    const result = {
+        type: "CEESV_ETAT"
+    };
 
     const date =
         texte.match(
@@ -240,18 +283,48 @@ function extractCEESVData(texte){
             parseInt(recap[1], 10);
 
         result.montantFacture =
-            recap[2]
-                .replace(/\s/g, "")
-                .replace(",", ".");
+            parseFloat(
+                recap[2]
+                    .replace(/\s/g, "")
+                    .replace(",", ".")
+            );
 
         result.montantEtat =
-            recap[3]
-                .replace(/\s/g, "")
-                .replace(",", ".");
+            parseFloat(
+                recap[3]
+                    .replace(/\s/g, "")
+                    .replace(",", ".")
+            );
+    }
+
+    //
+    // Aucun CEESV reconnu
+    //
+    if(
+        !result.dateValeur &&
+        !result.reference &&
+        !result.montantFacture
+    ){
+        return null;
     }
 
     return result;
 }
+function isUBSCEESV(texte){
+    return (
+        /centrale.*encaissement/i.test(texte) &&
+        /date de transaction/i.test(texte) &&
+        /ubs/i.test(texte)
+    );
+}
+
+function isEtatCEESV(texte){
+    return (
+        /ceesv/i.test(texte) &&
+        /factures/i.test(texte)
+    );
+}
+
 
 module.exports = {
     analysePdf,
@@ -261,5 +334,8 @@ module.exports = {
     extractFournisseur,
 	extractDateValeur,
 	detectDocumentType,
-	extractCEESVData
+	extractCEESVData, 
+    extractDateValeurCEESVUBS,
+    isEtatCEESV,
+    isUBSCEESV
 };

@@ -31,7 +31,7 @@ function getConfigSpreadsheetId(){
 }
 
 
-async function addDepense(date, fournisseur, categorie, compte, montant, pdf, operationType) {
+async function addDepense(date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire="", justifBanque = "") {
 
     const client = await auth.getClient();
 
@@ -52,7 +52,7 @@ async function addDepense(date, fournisseur, categorie, compte, montant, pdf, op
 
     await sheets.spreadsheets.values.append({
         spreadsheetId: getSpreadsheetId(),
-        range: "DEPENSES!A:F",
+        range: "DEPENSES!A:M",
         valueInputOption: "USER_ENTERED",
         requestBody: {
             values: [
@@ -62,15 +62,224 @@ async function addDepense(date, fournisseur, categorie, compte, montant, pdf, op
                     categorie,
 					compte,
                     montantFinal,
-					pdf
+					pdf,
+                    operationType,
+                    commentaire,
+                    justifBanque
                 ]
             ]
         }
     });
 	console.log("✅ Dépense ajoutée " +operationType +"  "+montantFinal);
 }
+async function updateCEESVUBS(ligne, pdfUrl) {
+
+    const client = await auth.getClient();
+
+    const sheetsApi = google.sheets({
+        version: "v4",
+        auth: client
+    });
+
+    await sheetsApi.spreadsheets.values.update({
+
+        spreadsheetId: getSpreadsheetId(),
+
+        range: `DEPENSES!I${ligne}`,
+
+        valueInputOption: "USER_ENTERED",
+
+        requestBody: {
+            values: [[pdfUrl]]
+        }
+
+    });
+
+    console.log(
+        "✅ Justif Banque mise à jour ligne",
+        ligne
+    );
+}
 
 
+async function findCEESVMatch(ceesv) {
+
+    const client = await auth.getClient();
+
+    const sheetsApi = google.sheets({
+        version: "v4",
+        auth: client
+    });
+
+    const response =
+        await sheetsApi.spreadsheets.values.get({
+
+            spreadsheetId: getSpreadsheetId(),
+
+            range: "DEPENSES!A:M"
+
+        });
+
+    const rows = response.data.values || [];
+
+    const result = {
+
+        matchFacture: false,
+        matchEtat: false,
+
+        ligneFacture: null,
+        ligneEtat: null
+
+    };
+
+
+
+    const dateOCR =
+        convertDateCEESV(
+            ceesv.dateValeur
+        );
+
+
+    for (let i = 1; i < rows.length; i++) {
+
+        const row = rows[i];
+
+        const dateSheet =
+            row[0] || "";
+
+        const fournisseur =
+            row[1] || "";
+
+        const montantSheet =
+            Number(
+                String(row[4] || "0")
+                    .replace(",", ".")
+            );
+
+
+        if (
+            dateSheet === dateOCR &&
+            fournisseur === "UBS - Centrale d'encaissement" &&
+            montantSheet === Number(ceesv.montantFacture)
+        ) {
+
+            result.matchFacture = true;
+            result.ligneFacture = i + 1;
+            result.pdfFacture = row[5];
+            console.log(
+                "✅ Match Facture trouvé",
+                montantSheet
+            );
+        }
+
+        if (
+            dateSheet === dateOCR &&
+            fournisseur === "UBS - Centrale d'encaissement" &&
+            montantSheet === Number(ceesv.montantEtat)
+        ) {
+
+            result.matchEtat = true;
+            result.ligneEtat = i + 1;
+            result.pdfEtat = row[5];
+            console.log(
+                "✅ Match Etat trouvé",
+                montantSheet
+            );
+        }
+    }
+
+    return result;
+}
+
+function convertDateCEESV(dateStr){
+
+    if(!dateStr){
+        return "";
+    }
+
+    const p = dateStr.split(".");
+
+    return `${p[2]}-${p[1]}-${p[0]}`;
+}
+
+async function findUBSMatch(ceesv) {
+
+    const client = await auth.getClient();
+
+    const sheetsApi = google.sheets({
+        version: "v4",
+        auth: client
+    });
+
+    const response =
+        await sheetsApi.spreadsheets.values.get({
+
+            spreadsheetId: getSpreadsheetId(),
+
+            range: "DEPENSES!A:M"
+
+        });
+
+    const rows = response.data.values || [];
+
+    const result = {
+        trouve: false,
+        ligne: null,
+        pdfUrl: ""
+    };
+
+    const dateOCR =
+        convertDateCEESV(
+            ceesv.dateValeur
+        );
+
+
+    for(let i = 1; i < rows.length; i++){
+
+        const row = rows[i];
+
+        const dateSheet = row[0] || "";
+        const fournisseur = row[1] || "";
+
+        const montant =
+            Number(
+                String(row[4] || "0")
+                    .replace(",", ".")
+            );
+
+        const montantBanque =
+            Number(
+                String(ceesv.montantBanque)
+                    .replace(",", ".")
+            );
+
+        if(
+            fournisseur ===
+                "UBS - Centrale d'encaissement"
+            &&
+            dateSheet === dateOCR
+            &&
+            montant === montantBanque
+        ){
+
+            result.trouve = true;
+            result.ligne = i + 1;
+            result.pdfUrl = row[5] || "";
+
+            break;
+        }
+    }
+
+    return result;
+}
+
+function convertDateCEESV(dateStr){
+
+    const p = dateStr.split(".");
+
+    return `${p[2]}-${p[1]}-${p[0]}`;
+
+}
 
 async function getDepenses() {
 
@@ -86,7 +295,7 @@ async function getDepenses() {
 
             spreadsheetId: getSpreadsheetId(),
 
-            range: "DEPENSES!A:F"
+            range: "DEPENSES!A:L"
 
         });
 
@@ -367,7 +576,64 @@ async function saveSetting(cle, valeur){
     }
 
 }
-                   
+      
+
+async function deleteRow(rowNumber){
+
+    const client = await auth.getClient();
+
+    const sheetsApi = google.sheets({
+        version: "v4",
+        auth: client
+    });
+
+    const spreadsheet =
+        await sheetsApi
+            .spreadsheets
+            .get({
+                spreadsheetId:
+                    getSpreadsheetId()
+            });
+
+    const sheetId =
+        spreadsheet.data.sheets[0]
+            .properties.sheetId;
+
+    await sheetsApi.spreadsheets.batchUpdate({
+
+        spreadsheetId:
+            getSpreadsheetId(),
+
+        requestBody: {
+
+            requests: [
+
+                {
+                    deleteDimension: {
+
+                        range: {
+                            sheetId,
+                            dimension:
+                                "ROWS",
+
+                            startIndex:
+                                rowNumber - 1,
+
+                            endIndex:
+                                rowNumber
+                        }
+
+                    }
+                }
+
+            ]
+
+        }
+
+    });
+
+}
+
 
 module.exports = {
     addDepense,
@@ -380,5 +646,10 @@ module.exports = {
 	getFournisseurs,
 	
 	getSettings,
-	saveSetting
+	saveSetting,
+
+    updateCEESVUBS,
+    findCEESVMatch, 
+    findUBSMatch, 
+    deleteRow
 };

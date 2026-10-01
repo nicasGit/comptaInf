@@ -1,4 +1,5 @@
 const express = require("express");
+const { exec } = require("child_process");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
@@ -426,7 +427,9 @@ app.post(
 				depense.compte,
                 depense.montant,
 				depense.pdf,
-				depense.operationType
+				depense.operationType,
+                depense.commentaire, 
+                depense.justifBanque
             );
 
             res.send(
@@ -447,9 +450,91 @@ app.post(
     }
 );
 
-//
-// UPLOAD PDF
-//
+app.post("/updateCEESVUBS", async (req, res) => {
+
+    try {
+
+        await sheets.updateCEESVUBS(
+            req.body.ligne,
+            req.body.pdfUrl
+        );
+
+        res.json({
+            success: true
+        });
+
+    } catch(err){
+
+        console.error(err);
+
+        res.status(500).json({
+            success: false,
+            error: err.message
+        });
+
+    }
+
+});
+
+app.post("/findUBSMatch", async (req, res) => {
+
+    try {
+
+        const result =
+            await sheets.findUBSMatch(
+                req.body.ceesv
+            );
+
+        res.json(result);
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+});
+
+app.post("/deleteRow", async(req,res)=>{
+
+    await sheets.deleteRow(
+        req.body.row
+    );
+
+    res.json({
+        success:true
+    });
+
+});
+
+app.post("/findCEESVMatch", async (req, res) => {
+
+    try {
+
+        const result =
+            await sheets.findCEESVMatch(
+                req.body.ceesv
+            );
+
+        res.json(result);
+
+    } catch(err){
+
+        console.error(err);
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+});
+
 app.post(
     "/upload",
     upload.single("pdf"),
@@ -459,97 +544,37 @@ app.post(
 
             console.log("✅ PDF reçu");
 
-			const settings =
-				await sheets.getSettings();
-			
-			const exercice =
-				settings.Exercice;
-			
-			const fileName =
-				req.body.fileName ||
-				req.file.originalname;
-			
-			console.log(
-				"Nom Drive :",
-				fileName
-			);
-			
-			const fileId =
-				await drive.uploadFile(
-					req.file.path,
-					fileName,
-					exercice
-				);
+            const settings =
+                await sheets.getSettings();
 
+            const exercice =
+                settings.Exercice;
+
+            const fileName =
+                req.body.fileName ||
+                req.file.originalname;
+
+            const fileId =
+                await drive.uploadFile(
+                    req.file.path,
+                    fileName,
+                    exercice
+                );
 
             const pdfUrl =
                 `https://drive.google.com/file/d/${fileId}/view`;
 
-            const driveUrl = pdfUrl;
-                //`=HYPERLINK("${pdfUrl}";"📄 Justificatif")`;
-			
-            //
-            // OCR PDF
-            //
-            let texte = "";
+            res.json({
 
-            try {
+                success: true,
 
-                texte =
-                    await ocr.analysePdf(
-                        req.file.path
-                    );
+                fileId,
 
-                //console.log(     "=== TEXTE PDF ===" );
-                //console.log(texte);
+                pdfUrl,
 
-            }
-            catch(ocrError){
+                driveUrl: pdfUrl
 
-                console.error(
-                    "Erreur OCR PDF :",
-                    ocrError.message
-                );
-
-            }
-
-            const analyse = {
-
-                fournisseur:
-                    ocr.extractFournisseur(
-                        texte
-                    ),
-
-                montants:
-                    ocr.extractMontants(
-                        texte
-                    ),
-
-                dates:
-                    ocr.extractDates(
-                        texte
-                    )
-
-            };
-
-            //console.log(
-            //    "=== ANALYSE ==="
-            //);
-			//
-            //console.log(analyse);
-
-			res.json({
-				success: true,
-				fileId,
-				pdfUrl,
-				driveUrl,
-			
-				texte,
-			
-				fournisseur: analyse.fournisseur,
-				montants: analyse.montants,
-				dates: analyse.dates
-			});
+            });
 
         }
         catch(err){
@@ -557,12 +582,8 @@ app.post(
             console.error(err);
 
             res.status(500).json({
-
-                success: false,
-
-                error:
-                    err.message
-
+                success:false,
+                error:err.message
             });
 
         }
@@ -656,8 +677,8 @@ app.post(
 
             }
 			
-console.log("=== TEXTE OCR ===");
-console.log(text);
+//console.log("=== TEXTE OCR ===");
+//console.log(text);
 			
 			const ceesvData =
 				ocr.extractCEESVData(text);
@@ -676,7 +697,7 @@ console.log(text);
 					ocr.extractMontants(text),
 					
 				ceesv:
-					ceesvData	
+					ceesvData,	
 
             });
 
@@ -827,5 +848,7 @@ app.listen(PORT, () => {
     console.log(
         `🚀 ComptaInf lancé sur http://localhost:${PORT}`
     );
+
+    exec('start chrome http://localhost:3000');
 
 });
