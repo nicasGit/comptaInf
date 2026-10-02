@@ -38,9 +38,11 @@ const SERVICE_ACCOUNT_FILE =
     path.join(DATA_DIR, "service-account.json");
 
 const upload = multer({
-    dest: "uploads/"
+    dest: path.join(
+        DATA_DIR,
+        "uploads"
+    )
 });
-
 
 function getCurrentUser(req) {
 
