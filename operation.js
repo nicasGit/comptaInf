@@ -2172,6 +2172,15 @@ function updateDate() {
 
 updateDate();
 
+
+function logoutGoogle() {
+
+    window.location.href =
+        "/logout";
+
+}
+
+
 fetch("/settings")
     .then(r => r.json())
     .then(settings => {
@@ -2232,6 +2241,12 @@ fetch("/google-status")
             const btn =
                 document.getElementById("googleLoginBtn");
 
+            const logoutBtn =
+                document.getElementById(
+                    "googleLogoutBtn"
+                );
+
+
             console.log("badge=", badge);
             console.log("btn=", btn);
 
@@ -2244,6 +2259,10 @@ fetch("/google-status")
             if (btn) {
                 btn.style.display = "none";
             }
+            if (logoutBtn) {
+                logoutBtn.style.display =
+                    "block";
+            }
         }
     });
 
@@ -2252,12 +2271,12 @@ fetch("/google-user")
     .then(r => r.json())
     .then(user => {
 
-        if (user.given_name) {
+        if (user.name) {
 
             document.getElementById(
                 "welcomeTitle"
             ).innerHTML =
-                `Bonjour ${user.given_name} 👋`;
+                `Bonjour ${user.name} 👋`;
         }
 
     });
@@ -2518,7 +2537,6 @@ function openSettings() {
             document.getElementById(
                 "settingExercice"
             ).value = exerciceData.exercice;
-
 
             const envResponse =
                 await fetch("/api/environment");

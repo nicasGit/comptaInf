@@ -91,59 +91,73 @@ async function uploadFile(
     fileName,
     year
 ) {
-    const config = getConfig();
-    const drive = getDrive();
 
-    //
-    // 2026
-    //
-    const yearFolderId =
-        await getOrCreateFolder(
-            drive,
-            getRootFolderId(),
-            year.toString()
-        );
+    try {
+        const config = getConfig();
+        const drive = getDrive();
 
-    //
-    // Justificatifs
-    //
-    const justificatifsFolderId =
-        await getOrCreateFolder(
-            drive,
-            yearFolderId,
-            config.FolderJustificatifs
-        );
-    //
-    // Upload
-    //
-    const response =
-        await drive.files.create({
+        //
+        // 2026
+        //
+        const yearFolderId =
+            await getOrCreateFolder(
+                drive,
+                getRootFolderId(),
+                year.toString()
+            );
 
-            requestBody: {
+        //
+        // Justificatifs
+        //
+        const justificatifsFolderId =
+            await getOrCreateFolder(
+                drive,
+                yearFolderId,
+                config.FolderJustificatifs
+            );
+        //
+        // Upload
+        //
+        const response =
+            await drive.files.create({
 
-                name: fileName,
+                requestBody: {
 
-                parents: [
-                    justificatifsFolderId
-                ]
+                    name: fileName,
 
-            },
+                    parents: [
+                        justificatifsFolderId
+                    ]
 
-            media: {
+                },
 
-                mimeType:
-                    "application/pdf",
+                media: {
 
-                body:
-                    fs.createReadStream(
-                        filePath
-                    )
+                    mimeType:
+                        "application/pdf",
 
-            },
+                    body:
+                        fs.createReadStream(
+                            filePath
+                        )
 
-            fields: "id"
+                },
 
-        });
+                fields: "id"
+
+            });
+    }
+    finally {
+        if (
+            filePath &&
+            fs.existsSync(filePath)
+        ) {
+
+            fs.unlinkSync(filePath);
+
+        }
+
+    }
 
     return response.data.id;
 }

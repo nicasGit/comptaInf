@@ -11,6 +11,7 @@ const {
     getEnvironment,
     setEnvironment
 } = require("./config");
+const session = require("express-session");
 
 const app = express();
 const PORT = 3000;
@@ -31,8 +32,7 @@ if (!fs.existsSync(DATA_DIR)) {
 const OAUTH_TOKEN_FILE =
     path.join(DATA_DIR, "oauth-token.json");
 
-const GOOGLE_USER_FILE =
-    path.join(DATA_DIR, "google-user.json");
+
 
 const SERVICE_ACCOUNT_FILE =
     path.join(DATA_DIR, "service-account.json");
@@ -42,7 +42,11 @@ const upload = multer({
 });
 
 
-function getCurrentUser() {
+function getCurrentUser(req) {
+
+    if (!req.session.email) {
+        return null;
+    }
 
     const users = JSON.parse(
         fs.readFileSync(
@@ -51,14 +55,44 @@ function getCurrentUser() {
         )
     );
 
-    return users.users[0];
+    return users.users.find(
+        u =>
+            u.email.toLowerCase() ===
+            req.session.email.toLowerCase()
+    );
+
 }
 
+app.use(session({
+    secret: "ComptaInfSecretSessionNJO",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000
+    }
+}));
 
+function requireAuth(
+    req,
+    res,
+    next
+) {
+
+    if (!req.session?.email) {
+
+        return res.status(401).json({
+            error: "Non connecté"
+        });
+
+    }
+
+    next();
+
+}
 //
 // PAGE PRINCIPALE
 //
-app.get("/", (req, res) => {
+app.get("/", requireAuth, (req, res) => {
 
     res.sendFile(
         path.join(__dirname, "index.html")
@@ -68,7 +102,7 @@ app.get("/", (req, res) => {
 //
 // PAGE Setting
 //
-app.get("/settings", async (req, res) => {
+app.get("/settings", requireAuth, async (req, res) => {
 
     try {
 
@@ -92,34 +126,20 @@ app.get("/settings", async (req, res) => {
 //
 // STATUS GOOGLE
 //
-app.get("/google-status", (req, res) => {
-
-    const connected =
-        fs.existsSync(OAUTH_TOKEN_FILE);
+app.get("/google-status", requireAuth, (req, res) => {
 
     res.json({
-        connected
+        connected:
+            !!req.session?.email
     });
 
 });
-//
-// User GOOGLE
-//
 app.get("/google-user", (req, res) => {
 
-    if (!fs.existsSync(GOOGLE_USER_FILE)) {
-
-        return res.json({});
-    }
-
-    const user = JSON.parse(
-        fs.readFileSync(
-            GOOGLE_USER_FILE,
-            "utf8"
-        )
+    res.json(
+        getCurrentUser(req) || {}
     );
 
-    res.json(user);
 });
 //
 // LOGIN GOOGLE
@@ -144,18 +164,40 @@ app.get("/login", (req, res) => {
     res.redirect(url);
 
 });
-app.get("/api/environment", (req, res) => {
 
-    res.json({
-        environment: getEnvironment()
+app.get("/logout", (req, res) => {
+
+    req.session.destroy(err => {
+
+        if (err) {
+
+            console.error(err);
+
+            return res.redirect("/");
+
+        }
+
+        res.redirect("/");
+
     });
 
 });
 
-app.post("/api/environment", (req, res) => {
+app.get("/api/environment", requireAuth, (req, res) => {
+
+    res.json({
+        environment:
+            getEnvironment(
+                req.session.email
+            )
+    });
+
+});
+
+app.post("/api/environment", requireAuth, (req, res) => {
 
     const currentUser =
-        getCurrentUser();
+        getCurrentUser(req);
 
     setEnvironment(
         currentUser.email,
@@ -169,23 +211,25 @@ app.post("/api/environment", (req, res) => {
 
 });
 
-app.get("/api/exercice", (req, res) => {
+app.get("/api/exercice", requireAuth, (req, res) => {
+
+    const user =
+        getCurrentUser(req);
 
     res.json({
-        exercice: getCurrentUser().exercice
+        exercice:
+            user?.exercice
     });
 
 });
 
-app.get("/api/user", (req, res) => {
+app.get("/api/user", requireAuth, (req, res) => {
 
-    const user = getCurrentUser();
-
-    res.json({
-        email: user.email,
-        environment: user.environment,
-        exercice: user.exercice
-    });
+    res.json(
+        getCurrentUser(
+            req.session.email
+        )
+    );
 
 });
 
@@ -228,16 +272,17 @@ app.get(
             const userInfo =
                 await oauth2.userinfo.get();
 
+            req.session.email =
+                userInfo.data.email;
+
+            console.log(
+                "✅ Session créée pour",
+                req.session.email
+            );
+
             console.log(userInfo.data);
 
-            fs.writeFileSync(
-                GOOGLE_USER_FILE,
-                JSON.stringify(
-                    userInfo.data,
-                    null,
-                    2
-                )
-            );
+
 
             res.redirect("/");
 
@@ -256,7 +301,7 @@ app.get(
 //
 // categories
 //
-app.get("/api/categories", async (req, res) => {
+app.get("/api/categories", requireAuth, async (req, res) => {
 
     try {
 
@@ -278,7 +323,7 @@ app.get("/api/categories", async (req, res) => {
 
 });
 app.post(
-    "/api/categories",
+    "/api/categories", requireAuth,
     async (req, res) => {
 
         try {
@@ -342,6 +387,7 @@ app.post(
 //
 app.get(
     "/api/fournisseurs",
+    requireAuth,
     async (req, res) => {
 
         try {
@@ -365,7 +411,7 @@ app.get(
     }
 );
 app.post(
-    "/api/fournisseurs",
+    "/api/fournisseurs", requireAuth,
     async (req, res) => {
 
         try {
@@ -427,7 +473,7 @@ app.post(
 //
 // affiches DEPENSES
 //
-app.get("/depenses", (req, res) => {
+app.get("/depenses", requireAuth, (req, res) => {
 
     res.sendFile(
         path.join(
@@ -442,6 +488,7 @@ app.get("/depenses", (req, res) => {
 //
 app.get(
     "/api/depenses",
+    requireAuth,
     async (req, res) => {
 
         try {
@@ -468,7 +515,7 @@ app.get(
 // AJOUT DEPENSE
 //
 app.post(
-    "/addDepense",
+    "/addDepense", requireAuth,
     async (req, res) => {
 
         try {
@@ -524,7 +571,7 @@ app.post(
     }
 );
 
-app.post("/updateCEESVUBS", async (req, res) => {
+app.post("/updateCEESVUBS", requireAuth, async (req, res) => {
 
     try {
 
@@ -550,7 +597,7 @@ app.post("/updateCEESVUBS", async (req, res) => {
 
 });
 
-app.post("/findUBSMatch", async (req, res) => {
+app.post("/findUBSMatch", requireAuth, async (req, res) => {
 
     try {
 
@@ -574,7 +621,7 @@ app.post("/findUBSMatch", async (req, res) => {
 
 });
 
-app.post("/deleteRow", async (req, res) => {
+app.post("/deleteRow", requireAuth, async (req, res) => {
 
     await sheets.deleteRow(
         req.body.row
@@ -586,7 +633,7 @@ app.post("/deleteRow", async (req, res) => {
 
 });
 
-app.post("/findCEESVMatch", async (req, res) => {
+app.post("/findCEESVMatch", requireAuth, async (req, res) => {
 
     try {
 
@@ -611,6 +658,7 @@ app.post("/findCEESVMatch", async (req, res) => {
 
 app.post(
     "/upload",
+    requireAuth,
     upload.single("pdf"),
     async (req, res) => {
 
@@ -667,7 +715,7 @@ app.post(
 //
 // exercices
 //
-app.get("/api/exercices", async (req, res) => {
+app.get("/api/exercices", requireAuth, async (req, res) => {
 
     try {
 
@@ -691,6 +739,7 @@ app.get("/api/exercices", async (req, res) => {
 
 app.post(
     "/api/settings",
+    requireAuth,
     async (req, res) => {
 
         try {
@@ -722,7 +771,7 @@ app.post(
 // analyse
 //
 app.post(
-    "/analyse-document",
+    "/analyse-document", requireAuth,
     upload.single("pdf"),
     async (req, res) => {
 

@@ -3,7 +3,6 @@
 const fs = require("fs");
 const path = require("path");
 
-let currentEnvironment = null;
 
 const DATA_DIR =
     process.env.DATA_DIR ||
@@ -17,8 +16,7 @@ const SETTINGS_FILE =
     path.join(DATA_DIR, "settings.json");
 
 
-const GOOGLE_USER_FILE =
-    path.join(DATA_DIR, "google-user.json");
+
 
 
 function getSettings() {
@@ -31,15 +29,11 @@ function getSettings() {
     );
 
 }
+function getCurrentUser(email) {
 
-function getCurrentUser() {
-
-    const googleUser = JSON.parse(
-        fs.readFileSync(
-            GOOGLE_USER_FILE,
-            "utf8"
-        )
-    );
+    if (!email) {
+        return null;
+    }
 
     const users = JSON.parse(
         fs.readFileSync(
@@ -51,35 +45,24 @@ function getCurrentUser() {
     return users.users.find(
         u =>
             u.email.toLowerCase() ===
-            googleUser.email.toLowerCase()
-    );
+            email.toLowerCase()
+    ) || null;
 
 }
 
-function getEnvironment() {
+function getEnvironment(email) {
 
-    if (currentEnvironment) {
-        return currentEnvironment;
-    }
-
-    const user = getCurrentUser();
+    const user =
+        getCurrentUser(email);
 
     return (
-        user.environment ||
-        user.defaultEnvironment ||
+        user?.environment ||
         "DEV"
     );
-}
-
-function setEnvironmentOLD(env) {
-
-    currentEnvironment = env;
 
 }
 
 function setEnvironment(email, environment) {
-
-    currentEnvironment = environment;
 
     const users = JSON.parse(
         fs.readFileSync(USERS_FILE, "utf8")
@@ -104,34 +87,61 @@ function setEnvironment(email, environment) {
 }
 
 
-function getConfig() {
+function getConfig(email) {
 
-    const settings = getSettings();
-    const environment = getEnvironment();
+    const settings =
+        getSettings();
+
+    const environment =
+        getEnvironment(email);
 
     return settings[environment];
 
 }
 
-function getExercice() {
+function getExercice(email) {
 
-    const user = getCurrentUser();
+    const user =
+        getCurrentUser(email);
 
-    return user.exercice;
+    return user?.exercice;
 
 }
-function setExercice(email, exercice) {
+function setExercice(
+    email,
+    exercice
+) {
 
-    const users = getUsers();
+    const users = JSON.parse(
+        fs.readFileSync(
+            USERS_FILE,
+            "utf8"
+        )
+    );
 
     const user =
         users.users.find(
             u => u.email === email
         );
 
+    if (!user) {
+
+        throw new Error(
+            "Utilisateur introuvable"
+        );
+
+    }
+
     user.exercice = exercice;
 
-    saveUsers(users);
+    fs.writeFileSync(
+        USERS_FILE,
+        JSON.stringify(
+            users,
+            null,
+            2
+        )
+    );
 
 }
 
