@@ -329,7 +329,12 @@
 
                         <label>Montant CHF</label>
 
-                        <input type="number" step="0.01" id="depMontant">
+                        <input type="text" id="depMontant" inputmode="decimal" oninput="
+        this.value =
+        this.value
+            .replace(/[^0-9,.-]/g,'')
+            .replace(/(?!^)-/g,'');
+    ">
 
                         <div id="ocrMontants" class="ocr-suggestions">
                         </div>

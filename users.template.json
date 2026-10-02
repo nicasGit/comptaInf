@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "email": "XXXXX@gmail.com",
+      "name": "Nicolas",
+      "role": "ADMIN",
+      "exercice": "2026",
+      "environments": [
+        "DEV",
+        "PROD"
+      ],
+      "defaultEnvironment": "DEV",
+      "environment": "PROD"
+    },
+    {
+      "email": "XXXXX@gmail.com",
+      "name": "Florence",
+      "role": "USER",
+      "exercice": "2026",
+      "environments": [
+        "PROD"
+      ],
+      "defaultEnvironment": "PROD"
+    }
+  ]
+}

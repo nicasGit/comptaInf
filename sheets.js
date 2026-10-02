@@ -1,54 +1,61 @@
 const { google } = require("googleapis");
 const { getEnvironment } = require("./config");
+const path = require("path");
+const { getConfig } = require("./config");
+
+const DATA_DIR =
+    process.env.DATA_DIR ||
+    path.join(__dirname, "data");
+
+const SERVICE_ACCOUNT_FILE =
+    path.join(
+        DATA_DIR,
+        "service-account.json"
+    );
+
 
 const auth = new google.auth.GoogleAuth({
-    keyFile: "service-account.json",
+    keyFile: SERVICE_ACCOUNT_FILE,
     scopes: [
         "https://www.googleapis.com/auth/spreadsheets"
     ]
 });
 
-//PROD
-const spreadsheetId = "1iZHcGtKdXN8itSSNUv4_j16k16Yx5BbRbOMNKDxcGAw";
-const spreadsheetIdConfig =  "1j8veCGCftsk5p2E0691-XU4vzbFL15oxRQLKz1BgbrE";
-//DEV
-const spreadsheetDEVId = "1oCW3pak3WYV-7YQQNtogvEFemI-6SY_X9UlfnY3HD5s";
-const spreadsheetDEVIdConfig =  "1uqwrtwrWVA9n1z_OtZY8JAnoV4GQhcgRXArNG2YnGnw";
 
-function getSpreadsheetId(){
 
-    return getEnvironment() === "DEV"
-        ? spreadsheetDEVId
-        : spreadsheetId;
+function getSpreadsheetId() {
+
+    return getConfig().SpreadsheetId;
 
 }
-function getConfigSpreadsheetId(){
+function getConfigSpreadsheetId() {
 
-    return getEnvironment() === "DEV"
-        ? spreadsheetDEVIdConfig
-        : spreadsheetIdConfig;
+    return getConfig().SpreadsheetIdConfig;
 
 }
 
+function getSheets() {
+    return google.sheets({
+        version: "v4",
+        auth: auth
+    });
+}
 
-async function addDepense(date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire="", justifBanque = "") {
+
+async function addDepense(date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "") {
 
     const client = await auth.getClient();
 
-    const sheets = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheets = getSheets();
 
-
-	const montantFinal =
-    (
-        operationType === "RECETTE"
-            ? Math.abs(parseFloat(montant))
-            : -Math.abs(parseFloat(montant))
-    )
-    .toFixed(2)
-    .replace(".", ",");
+    const montantFinal =
+        (
+            operationType === "RECETTE"
+                ? Math.abs(parseFloat(montant))
+                : -Math.abs(parseFloat(montant))
+        )
+            .toFixed(2)
+            .replace(".", ",");
 
     await sheets.spreadsheets.values.append({
         spreadsheetId: getSpreadsheetId(),
@@ -60,9 +67,9 @@ async function addDepense(date, fournisseur, categorie, compte, montant, pdf, op
                     date,
                     fournisseur,
                     categorie,
-					compte,
+                    compte,
                     montantFinal,
-					pdf,
+                    pdf,
                     operationType,
                     commentaire,
                     justifBanque
@@ -70,16 +77,13 @@ async function addDepense(date, fournisseur, categorie, compte, montant, pdf, op
             ]
         }
     });
-	console.log("✅ Dépense ajoutée " +operationType +"  "+montantFinal);
+    console.log("✅ Dépense ajoutée " + operationType + "  " + montantFinal);
 }
 async function updateCEESVUBS(ligne, pdfUrl) {
 
     const client = await auth.getClient();
 
-    const sheetsApi = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheetsApi = getSheets();
 
     await sheetsApi.spreadsheets.values.update({
 
@@ -106,10 +110,7 @@ async function findCEESVMatch(ceesv) {
 
     const client = await auth.getClient();
 
-    const sheetsApi = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheetsApi = getSheets();
 
     const response =
         await sheetsApi.spreadsheets.values.get({
@@ -191,9 +192,9 @@ async function findCEESVMatch(ceesv) {
     return result;
 }
 
-function convertDateCEESV(dateStr){
+function convertDateCEESV(dateStr) {
 
-    if(!dateStr){
+    if (!dateStr) {
         return "";
     }
 
@@ -206,10 +207,7 @@ async function findUBSMatch(ceesv) {
 
     const client = await auth.getClient();
 
-    const sheetsApi = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheetsApi = getSheets();
 
     const response =
         await sheetsApi.spreadsheets.values.get({
@@ -234,7 +232,7 @@ async function findUBSMatch(ceesv) {
         );
 
 
-    for(let i = 1; i < rows.length; i++){
+    for (let i = 1; i < rows.length; i++) {
 
         const row = rows[i];
 
@@ -253,14 +251,14 @@ async function findUBSMatch(ceesv) {
                     .replace(",", ".")
             );
 
-        if(
+        if (
             fournisseur ===
-                "UBS - Centrale d'encaissement"
+            "UBS - Centrale d'encaissement"
             &&
             dateSheet === dateOCR
             &&
             montant === montantBanque
-        ){
+        ) {
 
             result.trouve = true;
             result.ligne = i + 1;
@@ -273,7 +271,7 @@ async function findUBSMatch(ceesv) {
     return result;
 }
 
-function convertDateCEESV(dateStr){
+function convertDateCEESV(dateStr) {
 
     const p = dateStr.split(".");
 
@@ -285,10 +283,7 @@ async function getDepenses() {
 
     const client = await auth.getClient();
 
-    const sheets = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheets = getSheets();
 
     const response =
         await sheets.spreadsheets.values.get({
@@ -307,10 +302,7 @@ async function getCategories() {
 
     const client = await auth.getClient();
 
-    const sheets = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheets = getSheets();
 
     const response =
         await sheets.spreadsheets.values.get({
@@ -341,10 +333,7 @@ async function getFournisseurs() {
 
     const client = await auth.getClient();
 
-    const sheets = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheets = getSheets();
 
     const response =
         await sheets.spreadsheets.values.get({
@@ -375,10 +364,7 @@ async function getSettings() {
 
     const client = await auth.getClient();
 
-    const sheets = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheets = getSheets();
 
     const response =
         await sheets.spreadsheets.values.get({
@@ -413,13 +399,7 @@ async function addCategorie(
     const client =
         await auth.getClient();
 
-    const sheetsApi =
-        google.sheets({
-
-            version: "v4",
-            auth: client
-
-        });
+    const sheetsApi = getSheets();
 
     await sheetsApi
         .spreadsheets
@@ -460,13 +440,7 @@ async function addFournisseur(
     const client =
         await auth.getClient();
 
-    const sheetsApi =
-        google.sheets({
-
-            version: "v4",
-            auth: client
-
-        });
+    const sheetsApi = getSheets();
 
     await sheetsApi
         .spreadsheets
@@ -500,16 +474,12 @@ async function addFournisseur(
 
 }
 
-async function saveSetting(cle, valeur){
+async function saveSetting(cle, valeur) {
 
     const client =
         await auth.getClient();
 
-    const sheetsApi =
-        google.sheets({
-            version: "v4",
-            auth: client
-        });
+    const sheetsApi = getSheets();
 
     const response =
         await sheetsApi.spreadsheets.values.get({
@@ -530,7 +500,7 @@ async function saveSetting(cle, valeur){
             row => row[0] === cle
         );
 
-    if(index === -1){
+    if (index === -1) {
 
         await sheetsApi.spreadsheets.values.append({
 
@@ -543,8 +513,8 @@ async function saveSetting(cle, valeur){
             valueInputOption:
                 "USER_ENTERED",
 
-            requestBody:{
-                values:[
+            requestBody: {
+                values: [
                     [cle, valeur]
                 ]
             }
@@ -552,7 +522,7 @@ async function saveSetting(cle, valeur){
         });
 
     }
-    else{
+    else {
 
         await sheetsApi.spreadsheets.values.update({
 
@@ -565,8 +535,8 @@ async function saveSetting(cle, valeur){
             valueInputOption:
                 "USER_ENTERED",
 
-            requestBody:{
-                values:[
+            requestBody: {
+                values: [
                     [valeur]
                 ]
             }
@@ -576,16 +546,13 @@ async function saveSetting(cle, valeur){
     }
 
 }
-      
 
-async function deleteRow(rowNumber){
+
+async function deleteRow(rowNumber) {
 
     const client = await auth.getClient();
 
-    const sheetsApi = google.sheets({
-        version: "v4",
-        auth: client
-    });
+    const sheetsApi = getSheets();
 
     const spreadsheet =
         await sheetsApi
@@ -638,18 +605,18 @@ async function deleteRow(rowNumber){
 module.exports = {
     addDepense,
     getDepenses,
-	
-	addCategorie,
-	getCategories,
-	
-	addFournisseur,
-	getFournisseurs,
-	
-	getSettings,
-	saveSetting,
+
+    addCategorie,
+    getCategories,
+
+    addFournisseur,
+    getFournisseurs,
+
+    getSettings,
+    saveSetting,
 
     updateCEESVUBS,
-    findCEESVMatch, 
-    findUBSMatch, 
+    findCEESVMatch,
+    findUBSMatch,
     deleteRow
 };

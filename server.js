@@ -3,11 +3,14 @@ const { exec } = require("child_process");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-
+const ocr = require("./ocr");
 const oauth2Client = require("./oauth");
 const sheets = require("./sheets");
 const drive = require("./drive");
-const { getEnvironment } =  require("./config");
+const {
+    getEnvironment,
+    setEnvironment
+} = require("./config");
 
 const app = express();
 const PORT = 3000;
@@ -16,13 +19,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
- 
+const DATA_DIR =
+    process.env.DATA_DIR ||
+    path.join(__dirname, "data");
+
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+
+const OAUTH_TOKEN_FILE =
+    path.join(DATA_DIR, "oauth-token.json");
+
+const GOOGLE_USER_FILE =
+    path.join(DATA_DIR, "google-user.json");
+
+const SERVICE_ACCOUNT_FILE =
+    path.join(DATA_DIR, "service-account.json");
 
 const upload = multer({
     dest: "uploads/"
 });
 
-const ocr = require("./ocr");
+
+function getCurrentUser() {
+
+    const users = JSON.parse(
+        fs.readFileSync(
+            path.join(DATA_DIR, "users.json"),
+            "utf8"
+        )
+    );
+
+    return users.users[0];
+}
 
 
 //
@@ -48,7 +78,7 @@ app.get("/settings", async (req, res) => {
         res.json(settings);
 
     }
-    catch(err){
+    catch (err) {
 
         console.error(err);
 
@@ -65,7 +95,7 @@ app.get("/settings", async (req, res) => {
 app.get("/google-status", (req, res) => {
 
     const connected =
-        fs.existsSync("oauth-token.json");
+        fs.existsSync(OAUTH_TOKEN_FILE);
 
     res.json({
         connected
@@ -77,14 +107,14 @@ app.get("/google-status", (req, res) => {
 //
 app.get("/google-user", (req, res) => {
 
-    if(!fs.existsSync("google-user.json")){
+    if (!fs.existsSync(GOOGLE_USER_FILE)) {
 
         return res.json({});
     }
 
     const user = JSON.parse(
         fs.readFileSync(
-            "google-user.json",
+            GOOGLE_USER_FILE,
             "utf8"
         )
     );
@@ -105,13 +135,57 @@ app.get("/login", (req, res) => {
         scope: [
             "https://www.googleapis.com/auth/drive",
             "https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile"
-			
+            "https://www.googleapis.com/auth/userinfo.profile"
+
         ]
 
     });
 
     res.redirect(url);
+
+});
+app.get("/api/environment", (req, res) => {
+
+    res.json({
+        environment: getEnvironment()
+    });
+
+});
+
+app.post("/api/environment", (req, res) => {
+
+    const currentUser =
+        getCurrentUser();
+
+    setEnvironment(
+        currentUser.email,
+        req.body.environment
+    );
+
+    res.json({
+        success: true,
+        environment: req.body.environment
+    });
+
+});
+
+app.get("/api/exercice", (req, res) => {
+
+    res.json({
+        exercice: getCurrentUser().exercice
+    });
+
+});
+
+app.get("/api/user", (req, res) => {
+
+    const user = getCurrentUser();
+
+    res.json({
+        email: user.email,
+        environment: user.environment,
+        exercice: user.exercice
+    });
 
 });
 
@@ -130,7 +204,7 @@ app.get(
                 await oauth2Client.getToken(code);
 
             fs.writeFileSync(
-                "oauth-token.json",
+                OAUTH_TOKEN_FILE,
                 JSON.stringify(
                     tokens,
                     null,
@@ -142,33 +216,33 @@ app.get(
                 "✅ Token sauvegardé"
             );
 
-			oauth2Client.setCredentials(tokens);
-			
-			const { google } = require("googleapis");
-			
-			const oauth2 = google.oauth2({
-				version: "v2",
-				auth: oauth2Client
-			});
-			
-			const userInfo =
-				await oauth2.userinfo.get();
-			
-			console.log(userInfo.data);
-			
-			fs.writeFileSync(
-				"google-user.json",
-				JSON.stringify(
-					userInfo.data,
-					null,
-					2
-				)
-			);
+            oauth2Client.setCredentials(tokens);
+
+            const { google } = require("googleapis");
+
+            const oauth2 = google.oauth2({
+                version: "v2",
+                auth: oauth2Client
+            });
+
+            const userInfo =
+                await oauth2.userinfo.get();
+
+            console.log(userInfo.data);
+
+            fs.writeFileSync(
+                GOOGLE_USER_FILE,
+                JSON.stringify(
+                    userInfo.data,
+                    null,
+                    2
+                )
+            );
 
             res.redirect("/");
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
@@ -192,7 +266,7 @@ app.get("/api/categories", async (req, res) => {
         res.json(categories);
 
     }
-    catch(err){
+    catch (err) {
 
         console.error(err);
 
@@ -215,47 +289,47 @@ app.post(
             const compte =
                 req.body.compte?.trim();
 
-			const categories =
-				await sheets.getCategories();
+            const categories =
+                await sheets.getCategories();
 
-            if(!categorie){
+            if (!categorie) {
 
                 return res
                     .status(400)
                     .json({
-                        success:false,
-                        error:"Catégorie manquante"
+                        success: false,
+                        error: "Catégorie manquante"
                     });
 
             }
 
 
-			if(!categories[categorie]){
-				
-				await sheets.addCategorie(
-					categorie,
-					compte
-				);
-				
-				console.log(
-					"📚 Catégorie mémorisée :",
-					categorie,
-					"→",
-					compte
-				);
-			}
+            if (!categories[categorie]) {
+
+                await sheets.addCategorie(
+                    categorie,
+                    compte
+                );
+
+                console.log(
+                    "📚 Catégorie mémorisée :",
+                    categorie,
+                    "→",
+                    compte
+                );
+            }
             res.json({
-                success:true
+                success: true
             });
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
             res.status(500).json({
-                success:false,
-                error:err.message
+                success: false,
+                error: err.message
             });
 
         }
@@ -278,7 +352,7 @@ app.get(
             res.json(fournisseurs);
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
@@ -302,49 +376,49 @@ app.post(
             const categorie =
                 req.body.categorie?.trim();
 
-            if(!fournisseur || !categorie){
+            if (!fournisseur || !categorie) {
 
                 return res
                     .status(400)
                     .json({
-                        success:false,
-                        error:"Fournisseur ou catégorie manquant"
+                        success: false,
+                        error: "Fournisseur ou catégorie manquant"
                     });
             }
 
-			const fournisseurs =
-				await sheets.getFournisseurs();
+            const fournisseurs =
+                await sheets.getFournisseurs();
 
-			if(!fournisseurs[fournisseur]){	
-				fournisseurs[fournisseur] = {
-					categorie
-				};
-	
-				await sheets.addFournisseur(
-					fournisseur,
-					categorie
-					);		
-	
-				console.log(
-					"🧠 Fournisseur mémorisé :",
-					fournisseur,
-					"→",
-					categorie
-				);
-			}
+            if (!fournisseurs[fournisseur]) {
+                fournisseurs[fournisseur] = {
+                    categorie
+                };
+
+                await sheets.addFournisseur(
+                    fournisseur,
+                    categorie
+                );
+
+                console.log(
+                    "🧠 Fournisseur mémorisé :",
+                    fournisseur,
+                    "→",
+                    categorie
+                );
+            }
 
             res.json({
-                success:true
+                success: true
             });
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
             res.status(500).json({
-                success:false,
-                error:err.message
+                success: false,
+                error: err.message
             });
         }
     }
@@ -378,7 +452,7 @@ app.get(
             res.json(depenses);
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
@@ -401,34 +475,34 @@ app.post(
 
             const depense = req.body;
 
-			const settings =
-				await sheets.getSettings();
-			
-			const EXERCICE_COURANT =
-				settings.Exercice.toString();
+            const settings =
+                await sheets.getSettings();
 
-			const anneeDepense = depense.date.substring(0, 4);
-			
-			if(anneeDepense !== EXERCICE_COURANT){
-			
-				return res
-					.status(400)
-					.send(
-						`Probleme de date de facture ${anneeDepense} Different de l'Exercice actif : ${EXERCICE_COURANT}`
-					);
-			
-			}
+            const EXERCICE_COURANT =
+                settings.Exercice.toString();
+
+            const anneeDepense = depense.date.substring(0, 4);
+
+            if (anneeDepense !== EXERCICE_COURANT) {
+
+                return res
+                    .status(400)
+                    .send(
+                        `Probleme de date de facture ${anneeDepense} Different de l'Exercice actif : ${EXERCICE_COURANT}`
+                    );
+
+            }
 
 
             await sheets.addDepense(
                 depense.date,
                 depense.fournisseur,
                 depense.categorie,
-				depense.compte,
+                depense.compte,
                 depense.montant,
-				depense.pdf,
-				depense.operationType,
-                depense.commentaire, 
+                depense.pdf,
+                depense.operationType,
+                depense.commentaire,
                 depense.justifBanque
             );
 
@@ -437,13 +511,13 @@ app.post(
             );
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
             res
-            .status(500)
-            .send("Erreur");
+                .status(500)
+                .send("Erreur");
 
         }
 
@@ -463,7 +537,7 @@ app.post("/updateCEESVUBS", async (req, res) => {
             success: true
         });
 
-    } catch(err){
+    } catch (err) {
 
         console.error(err);
 
@@ -488,7 +562,7 @@ app.post("/findUBSMatch", async (req, res) => {
         res.json(result);
 
     }
-    catch(err){
+    catch (err) {
 
         console.error(err);
 
@@ -500,14 +574,14 @@ app.post("/findUBSMatch", async (req, res) => {
 
 });
 
-app.post("/deleteRow", async(req,res)=>{
+app.post("/deleteRow", async (req, res) => {
 
     await sheets.deleteRow(
         req.body.row
     );
 
     res.json({
-        success:true
+        success: true
     });
 
 });
@@ -523,7 +597,7 @@ app.post("/findCEESVMatch", async (req, res) => {
 
         res.json(result);
 
-    } catch(err){
+    } catch (err) {
 
         console.error(err);
 
@@ -577,13 +651,13 @@ app.post(
             });
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
             res.status(500).json({
-                success:false,
-                error:err.message
+                success: false,
+                error: err.message
             });
 
         }
@@ -603,7 +677,7 @@ app.get("/api/exercices", async (req, res) => {
         res.json(exercices);
 
     }
-    catch(err){
+    catch (err) {
 
         console.error(err);
 
@@ -617,9 +691,9 @@ app.get("/api/exercices", async (req, res) => {
 
 app.post(
     "/api/settings",
-    async (req,res) => {
+    async (req, res) => {
 
-        try{
+        try {
 
             await sheets.saveSetting(
                 "Environment",
@@ -627,17 +701,17 @@ app.post(
             );
 
             res.json({
-                success:true
+                success: true
             });
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
             res.status(500).json({
-                success:false,
-                error:err.message
+                success: false,
+                error: err.message
             });
 
         }
@@ -661,7 +735,7 @@ app.post(
 
             let text = "";
 
-            if(ext === ".pdf"){
+            if (ext === ".pdf") {
 
                 text =
                     await ocr.analysePdf(
@@ -676,33 +750,33 @@ app.post(
                     );
 
             }
-			
-//console.log("=== TEXTE OCR ===");
-//console.log(text);
-			
-			const ceesvData =
-				ocr.extractCEESVData(text);
-				
+
+            //console.log("=== TEXTE OCR ===");
+            //console.log(text);
+
+            const ceesvData =
+                ocr.extractCEESVData(text);
+
             res.json({
-				type:
-					ocr.detectDocumentType(text),
-				
+                type:
+                    ocr.detectDocumentType(text),
+
                 fournisseur:
                     ocr.extractFournisseur(text),
 
-				dates:
-					ocr.extractDates(text),
-				
-				montants:
-					ocr.extractMontants(text),
-					
-				ceesv:
-					ceesvData,	
+                dates:
+                    ocr.extractDates(text),
+
+                montants:
+                    ocr.extractMontants(text),
+
+                ceesv:
+                    ceesvData,
 
             });
 
         }
-        catch(err){
+        catch (err) {
 
             console.error(err);
 
@@ -758,23 +832,23 @@ app.use(
 
 app.get("/test-sheet", async (req, res) => {
 
-    try{
+    try {
 
         const depenses =
             await sheets.getDepenses();
 
         res.json({
-            ok:true,
+            ok: true,
             lignes: depenses.length
         });
 
     }
-    catch(err){
+    catch (err) {
 
         console.error(err);
 
         res.status(500).json({
-            ok:false,
+            ok: false,
             error: err.message
         });
 
@@ -783,7 +857,7 @@ app.get("/test-sheet", async (req, res) => {
 });
 app.get("/test-drive", async (req, res) => {
 
-    try{
+    try {
 
         const exercices =
             await drive.getExercices();
@@ -791,7 +865,7 @@ app.get("/test-drive", async (req, res) => {
         res.json(exercices);
 
     }
-    catch(err){
+    catch (err) {
 
         console.error(err);
 
@@ -803,43 +877,115 @@ app.get("/test-drive", async (req, res) => {
 
 });
 
-app.get("/api/environment", (req, res) => {
-
-    res.json({
-        environment:
-            getEnvironment()
-    });
-
-});
-
-app.post("/api/environment", (req, res) => {
-
-    fs.writeFileSync(
-        "appsettings.json",
-        JSON.stringify({
-            environment:
-                req.body.environment
-        }, null, 4)
-    );
-
-    res.json({
-        success: true
-    });
-
-});
-
-function saveEnvironment(mode){
-
-    fs.writeFileSync(
-        "appsettings.json",
-        JSON.stringify({
-            environment: mode
-        }, null, 4)
-    );
-
-}
 
 
+//app.get("/api/drive/aCharger", async (req, res) => {
+//
+//    try {
+//
+//        const folderId =
+//            settings.GoogleDrive.FolderACharger;
+//
+//        const response =
+//            await drive.files.list({
+//
+//                q: `'${folderId}' in parents
+//                    and mimeType='application/pdf'
+//                    and trashed=false`,
+//
+//                fields:
+//                    "files(id,name)"
+//
+//            });
+//
+//        res.json(
+//            response.data.files
+//        );
+//
+//    }
+//    catch (err) {
+//
+//        console.error(err);
+//
+//        res.status(500).json([]);
+//
+//    }
+//
+//});
+app.get(
+    "/api/drive/download/:id",
+    async (req, res) => {
+
+        const fileId =
+            req.params.id;
+
+        const response =
+            await drive.files.get(
+                {
+                    fileId,
+                    alt: "media"
+                },
+                {
+                    responseType:
+                        "arraybuffer"
+                }
+            );
+
+        res.send(
+            Buffer.from(
+                response.data
+            )
+        );
+
+    }
+);
+app.post(
+    "/api/drive/archive",
+    async (req, res) => {
+
+        try {
+
+            const fileId =
+                req.body.fileId;
+
+            const folderTraites =
+                settings.GoogleDrive.FolderTraites;
+
+            const file =
+                await drive.files.get({
+                    fileId,
+                    fields: "parents"
+                });
+
+            await drive.files.update({
+
+                fileId,
+
+                addParents:
+                    folderTraites,
+
+                removeParents:
+                    file.data.parents.join(",")
+
+            });
+
+            res.json({
+                success: true
+            });
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            res.json({
+                success: false
+            });
+
+        }
+
+    }
+);
 //
 // DEMARRAGE
 //

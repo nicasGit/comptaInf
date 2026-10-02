@@ -1,0 +1,14 @@
+{
+  "DEV": {
+    "SpreadsheetId": "",
+    "SpreadsheetIdConfig": "",
+    "RootFolderId": "",
+    "FolderJustificatifs": "Justificatifs"
+  },
+  "PROD": {
+    "SpreadsheetId": "",
+    "SpreadsheetIdConfig": "",
+    "RootFolderId": "",
+    "FolderJustificatifs": "Justificatifs"
+  }
+}

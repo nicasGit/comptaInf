@@ -4,6 +4,7 @@ let currentCEESV = null;
 
 let comptaFournisseurs = {};
 let comptaCategories = {};
+let currentDriveFileId = null;
 
 const dropzone = document.getElementById("dropzone");
 
@@ -1086,6 +1087,16 @@ async function processNextFile() {
     currentFile =
         pendingFiles.shift();
 
+    if (currentFile.file) {
+
+        currentDriveFileId =
+            currentFile.driveId;
+
+        currentFile =
+            currentFile.file;
+
+    }
+
     console.log(
         "Traitement :",
         currentFile.name
@@ -1541,6 +1552,9 @@ async function uploadCurrentFile() {
 
 
 function buildDepense(driveUrl) {
+
+    const erreurs = [];
+
     let montant =
         parseFloat(
             document.getElementById(
@@ -1553,14 +1567,54 @@ function buildDepense(driveUrl) {
             "operationType"
         ).value;
 
-    // Blocage si pas de montant
-    if (isNaN(montant)) {
-        throw new Error(
-            "Veuillez saisir un montant."
+    const categorie =
+        getCategorieSelectionnee();
+
+    const fournisseur =
+        document.getElementById(
+            "depFournisseur"
+        ).value.trim();
+
+    const date =
+        document.getElementById(
+            "depDate"
+        ).value;
+
+    if (!date) {
+        erreurs.push(
+            "📅 Date obligatoire"
         );
     }
 
-    // Une dépense doit être négative
+    if (!fournisseur) {
+        erreurs.push(
+            "🏢 Fournisseur obligatoire"
+        );
+    }
+
+    if (isNaN(montant)) {
+        erreurs.push(
+            "💰 Montant obligatoire"
+        );
+    }
+
+    if (
+        operationType === "DEPENSE" &&
+        !categorie
+    ) {
+        erreurs.push(
+            "📂 Catégorie obligatoire"
+        );
+    }
+
+    if (erreurs.length) {
+
+        throw new Error(
+            erreurs.join("<br>")
+        );
+    }
+
+    // Dépense => négatif
     if (
         operationType === "DEPENSE" &&
         montant > 0
@@ -1568,51 +1622,37 @@ function buildDepense(driveUrl) {
         montant = -montant;
     }
 
-
-    // Une recette doit être positive
+    // Recette => positif
     if (
         operationType === "RECETTE" &&
         montant < 0
     ) {
         montant = Math.abs(montant);
     }
+
     return {
 
-        date:
-            document.getElementById(
-                "depDate"
-            ).value,
-
-        fournisseur:
-            document.getElementById(
-                "depFournisseur"
-            ).value,
-
-        categorie:
-            getCategorieSelectionnee(),
+        date,
+        fournisseur,
+        categorie,
 
         compte:
             document.getElementById(
                 "depCompte"
             ).value,
 
-        montant: montant,
+        montant,
 
         commentaire:
             document.getElementById(
                 "depComment"
             ).value,
 
-        pdf:
-            driveUrl,
+        pdf: driveUrl,
 
-        operationType:
-            document.getElementById(
-                "operationType"
-            ).value
+        operationType
     };
 }
-
 
 async function handleCEESV(depense) {
 
@@ -1857,6 +1897,7 @@ async function deleteRow(row) {
     );
 }
 
+
 async function refreshAfterSave() {
 
     await loadDepenses();
@@ -1865,7 +1906,29 @@ async function refreshAfterSave() {
     await loadFournisseurs();
 
     closeDepense();
+    if (currentDriveFileId) {
 
+        await fetch(
+            "/api/drive/archive",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    fileId:
+                        currentDriveFileId
+
+                })
+            }
+        );
+
+        currentDriveFileId = null;
+    }
     currentFile = null;
 
     processNextFile();
@@ -1883,6 +1946,14 @@ async function memoriserFournisseur(depense) {
         !depense.fournisseur ||
         !depense.categorie
     ) {
+        console.log(
+            "Fournisseur non mémorisé",
+            {
+                checked: saveFournisseur.checked,
+                fournisseur: depense.fournisseur,
+                categorie: depense.categorie
+            }
+        );
         return;
     }
 
@@ -1912,6 +1983,8 @@ async function memoriserFournisseur(depense) {
     const result =
         await response.json();
 
+
+    console.log("MEMORISATION LA");
     if (result.success) {
 
         console.log(
@@ -2433,17 +2506,29 @@ function openSettings() {
 
         .then(r => r.json())
 
-        .then(settings => {
+        .then(async settings => {
+
+
+            const exerciceResponse =
+                await fetch("/api/exercice");
+
+            const exerciceData =
+                await exerciceResponse.json();
 
             document.getElementById(
                 "settingExercice"
-            ).value =
-                settings.Exercice || "";
+            ).value = exerciceData.exercice;
+
+
+            const envResponse =
+                await fetch("/api/environment");
+
+            const envData =
+                await envResponse.json();
 
             document.getElementById(
                 "environmentMode"
-            ).value =
-                settings.Environment || "DEV";
+            ).value = envData.environment;
 
             document.getElementById(
                 "modalSettings"
@@ -2510,6 +2595,7 @@ async function saveSettings() {
         }
 
         closeSettings();
+        location.reload();
 
     }
 
@@ -2595,4 +2681,98 @@ function showToast(message, type = "info") {
     }, 3000);
 }
 
+async function checkDriveFiles() {
 
+    try {
+
+        const response =
+            await fetch(
+                "/api/drive/aCharger"
+            );
+
+        const files =
+            await response.json();
+
+        if (
+            !files ||
+            files.length === 0
+        ) {
+            return;
+        }
+
+        showDriveImportModal(
+            files
+        );
+
+    }
+    catch (err) {
+
+        console.error(
+            "Erreur Drive",
+            err
+        );
+
+    }
+
+}
+function showDriveImportModal(files) {
+
+    const noms =
+        files
+            .map(f => `• ${f.name}`)
+            .join("\n");
+
+    const ok =
+        confirm(
+            `${files.length} fichier(s) trouvé(s) dans A_CHARGER\n\n${noms}\n\nImporter ?`
+        );
+
+    if (ok) {
+
+        importDriveFiles(files);
+
+    }
+
+}
+window.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+
+        await checkDriveFiles();
+
+
+    }
+);
+
+async function importDriveFiles(files) {
+
+    for (const file of files) {
+
+        const response =
+            await fetch(
+                `/api/drive/download/${file.id}`
+            );
+
+        const blob =
+            await response.blob();
+
+        const pdf =
+            new File(
+                [blob],
+                file.name,
+                {
+                    type:
+                        "application/pdf"
+                }
+            );
+
+        pendingFiles.push({
+            file: pdf,
+            driveId: file.id
+        });
+
+    }
+
+    processNextFile();
+
+}

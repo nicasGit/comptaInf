@@ -1,23 +1,43 @@
 const fs = require("fs");
 const { google } = require("googleapis");
-const { getEnvironment } =  require("./config");
-
+const { getEnvironment } = require("./config");
+const { getConfig } = require("./config");
+const path = require("path");
 const oauth2Client = require("./oauth");
 
-const ROOT_FOLDER_ID =
-    "1TlTV_Q-FPtPjxSRTazLLCeLhOEyEL-70";
-const ROOT_FOLDER_DEV_ID =
-    "1XDq_HxRtHYukIPeon7bsm_TwlUEWh8o6";
+function getDrive() {
+    return google.drive({
+        version: "v3",
+        auth: oauth2Client
+    });
+}
 
-function getRootFolderId(){
 
-    const environment =
-        getEnvironment();
+function getRootFolderId() {
 
-    return environment === "DEV"
-        ? ROOT_FOLDER_DEV_ID
-        : ROOT_FOLDER_ID;
+    return getConfig().RootFolderId;
 
+}
+
+
+async function getFolderIdByName(
+    drive,
+    parentId,
+    folderName
+) {
+
+    const result =
+        await drive.files.list({
+            q: `
+                '${parentId}' in parents
+                and name='${folderName}'
+                and mimeType='application/vnd.google-apps.folder'
+                and trashed=false
+            `,
+            fields: "files(id,name)"
+        });
+
+    return result.data.files[0]?.id;
 }
 
 async function getOrCreateFolder(
@@ -40,7 +60,7 @@ async function getOrCreateFolder(
 
         });
 
-    if(result.data.files.length > 0){
+    if (result.data.files.length > 0) {
 
         return result.data.files[0].id;
     }
@@ -71,13 +91,8 @@ async function uploadFile(
     fileName,
     year
 ) {
-
-    const drive = google.drive({
-
-        version: "v3",
-        auth: oauth2Client
-
-    });
+    const config = getConfig();
+    const drive = getDrive();
 
     //
     // 2026
@@ -96,7 +111,7 @@ async function uploadFile(
         await getOrCreateFolder(
             drive,
             yearFolderId,
-            "Justificatifs"
+            config.FolderJustificatifs
         );
     //
     // Upload
@@ -133,14 +148,9 @@ async function uploadFile(
     return response.data.id;
 }
 
-async function getExercices(){
+async function getExercices(environment) {
 
-    const drive = google.drive({
-
-        version: "v3",
-        auth: oauth2Client
-
-    });
+    const drive = getDrive();
 
     const response =
         await drive.files.list({
@@ -167,5 +177,5 @@ async function getExercices(){
 
 module.exports = {
     uploadFile,
-	getExercices
+    getExercices
 };
