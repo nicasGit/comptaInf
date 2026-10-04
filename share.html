@@ -3,21 +3,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ffffff">
 
-  <title>Importer un justificatif - ComptaInf</title>
+  <title>Justificatif - ComptaInf</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f5f7f8;
+      color: #1f2937;
+    }
+
+    main {
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 28px 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .logo {
+      width: 96px;
+      border-radius: 20px;
+      margin-bottom: 15px;
+    }
+
+    #filename {
+      font-weight: bold;
+      margin: 25px 0;
+      word-break: break-word;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #168c8c;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+    }
+
+    #status {
+      margin-top: 18px;
+    }
+  </style>
 </head>
 
 <body>
-  <main>
+
+<main>
+  <div class="card">
+
+    <img src="/icon-192.png" class="logo" alt="ComptaInf">
+
     <h1>ComptaInf</h1>
+    <h2>Nouveau justificatif</h2>
 
-    <h2>Importer un justificatif</h2>
+    <div id="filename">
+      Chargement du document…
+    </div>
 
-    <p>Le document partagé a bien été reçu.</p>
+    <button id="analyseBtn" disabled>
+      Analyser le justificatif
+    </button>
 
-    <p>Analyse du justificatif en cours…</p>
+    <div id="status"></div>
 
-    <a href="/">Retour à ComptaInf</a>
-  </main>
+  </div>
+</main>
+
+<script>
+  async function chargerFichier() {
+    try {
+      const response = await fetch("/api/shared-file");
+
+      if (!response.ok) {
+        throw new Error("Aucun fichier en attente");
+      }
+
+      const file = await response.json();
+
+      document.getElementById("filename").textContent =
+        "📎 " + file.originalname;
+
+      document.getElementById("analyseBtn").disabled = false;
+
+    } catch (error) {
+      document.getElementById("filename").textContent =
+        "Aucun justificatif en attente";
+
+      document.getElementById("status").textContent =
+        "Retourne dans Android et partage à nouveau le document vers ComptaInf.";
+    }
+  }
+
+  document.getElementById("analyseBtn").addEventListener("click", () => {
+    document.getElementById("status").textContent =
+      "Analyse du justificatif bientôt disponible…";
+  });
+
+  chargerFichier();
+</script>
+
 </body>
 </html>
