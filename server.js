@@ -769,6 +769,39 @@ app.post(
 
     }
 );
+
+//
+// PARTAGE ANDROID / PWA
+//
+app.post(
+  "/share",
+  requireAuth,
+  upload.single("file"),
+  (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).send("Aucun fichier reçu");
+      }
+
+      console.log(
+        "📎 Fichier partagé reçu :",
+        req.file.originalname
+      );
+
+      req.session.sharedFile = {
+        path: req.file.path,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype
+      };
+
+      res.redirect("/share.html");
+    } catch (err) {
+      console.error("Erreur partage :", err);
+      res.status(500).send("Erreur lors du partage du fichier");
+    }
+  }
+);
+
 //
 // analyse
 //
