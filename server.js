@@ -815,6 +815,58 @@ app.get("/api/shared-file", requireAuth, (req, res) => {
     mimetype: sharedFile.mimetype
   });
 });
+
+
+app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
+  try {
+    const sharedFile = req.session.sharedFile;
+
+    if (!sharedFile || !fs.existsSync(sharedFile.path)) {
+      return res.status(404).json({
+        error: "Aucun fichier partagé en attente"
+      });
+    }
+
+    const ext = path.extname(
+      sharedFile.originalname
+    ).toLowerCase();
+
+    let text = "";
+
+    if (ext === ".pdf") {
+      text = await ocr.analysePdf(
+        sharedFile.path
+      );
+    } else {
+      text = await ocr.extractText(
+        sharedFile.path
+      );
+    }
+
+    const ceesvData =
+      ocr.extractCEESVData(text);
+
+    res.json({
+      type: ocr.detectDocumentType(text),
+      fournisseur: ocr.extractFournisseur(text),
+      dates: ocr.extractDates(text),
+      montants: ocr.extractMontants(text),
+      ceesv: ceesvData
+    });
+
+  } catch (err) {
+    console.error(
+      "Erreur analyse fichier partagé :",
+      err
+    );
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+
+
 //
 // analyse
 //
