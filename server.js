@@ -801,7 +801,20 @@ app.post(
     }
   }
 );
+app.get("/api/shared-file", requireAuth, (req, res) => {
+  const sharedFile = req.session.sharedFile;
 
+  if (!sharedFile) {
+    return res.status(404).json({
+      error: "Aucun fichier partagé en attente"
+    });
+  }
+
+  res.json({
+    originalname: sharedFile.originalname,
+    mimetype: sharedFile.mimetype
+  });
+});
 //
 // analyse
 //
