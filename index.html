@@ -510,7 +510,20 @@
     </div>
 
     <div id="toastContainer"></div>
-
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/service-worker.js")
+        .then(() => {
+          console.log("ComptaInf PWA prête");
+        })
+        .catch((error) => {
+          console.error("Erreur Service Worker :", error);
+        });
+    });
+  }
+</script>
 </body>
 
 </html>
