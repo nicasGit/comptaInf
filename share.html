@@ -111,10 +111,42 @@
     }
   }
 
-  document.getElementById("analyseBtn").addEventListener("click", () => {
-    document.getElementById("status").textContent =
-      "Analyse du justificatif bientôt disponible…";
-  });
+  document.getElementById("analyseBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("analyseBtn");
+  const status = document.getElementById("status");
+
+  btn.disabled = true;
+  status.textContent = "🔎 Analyse du justificatif en cours…";
+
+  try {
+    const response = await fetch("/api/analyse-shared-file", {
+      method: "POST"
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erreur pendant l'analyse");
+    }
+
+    status.innerHTML = `
+      <div style="text-align:left; margin-top:20px;">
+        <p><strong>Type :</strong> ${data.type || "-"}</p>
+        <p><strong>Fournisseur :</strong> ${data.fournisseur || "-"}</p>
+        <p><strong>Date :</strong> ${
+          data.dates?.[0] || "-"
+        }</p>
+        <p><strong>Montant :</strong> ${
+          data.montants?.[0] || "-"
+        }</p>
+      </div>
+    `;
+
+  } catch (error) {
+    status.textContent = "❌ " + error.message;
+    btn.disabled = false;
+  }
+});
 
   chargerFichier();
 </script>
