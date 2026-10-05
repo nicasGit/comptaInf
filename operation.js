@@ -724,7 +724,7 @@ async function loadExercices() {
             exercice;
 
         option.textContent =
-            "📚 " + exercice;
+            exercice;
 
         select.appendChild(
             option
@@ -2186,17 +2186,12 @@ fetch("/settings")
     .then(settings => {
 
         document.getElementById(
-            "currentYear"
-        ).innerHTML =
-            "📚 Exercice " +
-            settings.Exercice;
-
-        document.getElementById(
             "exerciceSelect"
         ).value =
             settings.Exercice;
-
     });
+
+
 fetch("/api/environment")
     .then(r => r.json())
     .then(data => {
@@ -2233,7 +2228,19 @@ fetch("/google-status")
 
         console.log("Google status =", data);
 
+        const googleOnly =
+            document.getElementById("googleOnly");
+
+        if (!data.connected) {
+
+            googleOnly.style.display = "none";
+            return;
+        }
+
         if (data.connected) {
+
+
+            googleOnly.style.display = "block";
 
             const badge =
                 document.getElementById("googleBadge");

@@ -8,10 +8,10 @@
 
     <link rel="stylesheet" href="design_v1.css" />
 
-<link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.json">
 
-<meta name="theme-color" content="#ffffff">
-<link rel="icon" href="/icon-192.png">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="icon" href="/icon-192.png">
 
 </head>
 
@@ -41,21 +41,42 @@
                 <!--<a href="/login" lass="btn-google"> <span>🔐</span>
 								<span>Connexion Google</span></a>-->
 
-                <a href="">🏠 Tableau de bord</a>
+                <a href="">
+                    <span class="icon">🏠</span>
+                    <span class="label">Tableau de bord</span>
+                </a>
 
                 <!--<a href="">📄 Justificatifs</a>-->
 
-                <a href="">💰 Recettes</a>
+                <a href="">
+                    <span class="icon">💰</span>
+                    <span class="label">Recettes</span>
+                </a>
 
-                <a href="/depenses">🧾 Dépenses</a>
+                <a href="/depenses">
+                    <span class="icon">🧾</span>
+                    <span class="label">Dépenses</span>
+                </a>
 
-                <a href="">🚗 Frais kilométriques</a>
+                <a href="">
+                    <span class="icon">🚗</span>
+                    <span class="label">Frais kilométriques</span>
+                </a>
 
-                <a href="">📊 Rapports</a>
+                <a href="">
+                    <span class="icon">📊</span>
+                    <span class="label">Rapports</span>
+                </a>
 
-                <a href="#" onclick="openSettings(); return false;">⚙️ Paramètres</a>
+                <a href="#" onclick="openSettings(); return false;">
+                    <span class="icon">⚙️</span>
+                    <span class="label">Paramètres</span>
+                </a>
 
-                <a href="#" id="googleLogoutBtn" onclick="logoutGoogle(); return false;">🚪 Déconnexion</a>
+                <a href="#" id="googleLogoutBtn" onclick="logoutGoogle(); return false;">
+                    <span class="icon">🚪</span>
+                    <span class="label">Déconnexion</span>
+                </a>
 
 
             </div>
@@ -92,12 +113,16 @@
 
                     <div class="current-date" id="currentDate"></div>
 
-                    <div class="current-date" id="currentYear"></div>
+                    <div id="googleOnly">
 
-                    <select id="exerciceSelect"></select>
+                        <div class="current-date exercice-row">
+                            <span>📚 Exercice</span>
+                            <select id="exerciceSelect"></select>
+                        </div>
 
-                    <div id="googleBadge" class="google-badge disconnected">
-                        🔴 Google non connecté
+                        <div id="googleBadge" class="google-badge disconnected">
+                            🔴 Google non connecté
+                        </div>
                     </div>
 
                     <div id="environmentBadge">
@@ -510,20 +535,20 @@
     </div>
 
     <div id="toastContainer"></div>
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("/service-worker.js")
-        .then(() => {
-          console.log("ComptaInf PWA prête");
-        })
-        .catch((error) => {
-          console.error("Erreur Service Worker :", error);
-        });
-    });
-  }
-</script>
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker
+                    .register("/service-worker.js")
+                    .then(() => {
+                        console.log("ComptaInf PWA prête");
+                    })
+                    .catch((error) => {
+                        console.error("Erreur Service Worker :", error);
+                    });
+            });
+        }
+    </script>
 </body>
 
 </html>
