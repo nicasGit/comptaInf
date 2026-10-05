@@ -1,3 +1,4 @@
+//Sheets.js
 const { google } = require("googleapis");
 const { getEnvironment } = require("./config");
 const path = require("path");
@@ -23,14 +24,14 @@ const auth = new google.auth.GoogleAuth({
 
 
 
-function getSpreadsheetId() {
+function getSpreadsheetId(email) {
 
-    return getConfig().SpreadsheetId;
-
+    const config = getConfig(email);
+    return config.SpreadsheetId;
 }
-function getConfigSpreadsheetId() {
+function getConfigSpreadsheetId(email) {
 
-    return getConfig().SpreadsheetIdConfig;
+    return getConfig(email).SpreadsheetIdConfig;
 
 }
 
@@ -42,7 +43,7 @@ function getSheets() {
 }
 
 
-async function addDepense(date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "") {
+async function addDepense(email, date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "") {
 
     const client = await auth.getClient();
 
@@ -58,7 +59,7 @@ async function addDepense(date, fournisseur, categorie, compte, montant, pdf, op
             .replace(".", ",");
 
     await sheets.spreadsheets.values.append({
-        spreadsheetId: getSpreadsheetId(),
+        spreadsheetId: getSpreadsheetId(email),
         range: "DEPENSES!A:M",
         valueInputOption: "USER_ENTERED",
         requestBody: {
@@ -79,7 +80,7 @@ async function addDepense(date, fournisseur, categorie, compte, montant, pdf, op
     });
     console.log("✅ Dépense ajoutée " + operationType + "  " + montantFinal);
 }
-async function updateCEESVUBS(ligne, pdfUrl) {
+async function updateCEESVUBS(email, ligne, pdfUrl) {
 
     const client = await auth.getClient();
 
@@ -87,7 +88,7 @@ async function updateCEESVUBS(ligne, pdfUrl) {
 
     await sheetsApi.spreadsheets.values.update({
 
-        spreadsheetId: getSpreadsheetId(),
+        spreadsheetId: getSpreadsheetId(email),
 
         range: `DEPENSES!I${ligne}`,
 
@@ -106,7 +107,7 @@ async function updateCEESVUBS(ligne, pdfUrl) {
 }
 
 
-async function findCEESVMatch(ceesv) {
+async function findCEESVMatch(email, ceesv) {
 
     const client = await auth.getClient();
 
@@ -115,7 +116,7 @@ async function findCEESVMatch(ceesv) {
     const response =
         await sheetsApi.spreadsheets.values.get({
 
-            spreadsheetId: getSpreadsheetId(),
+            spreadsheetId: getSpreadsheetId(email),
 
             range: "DEPENSES!A:M"
 
@@ -203,7 +204,7 @@ function convertDateCEESV(dateStr) {
     return `${p[2]}-${p[1]}-${p[0]}`;
 }
 
-async function findUBSMatch(ceesv) {
+async function findUBSMatch(email, ceesv) {
 
     const client = await auth.getClient();
 
@@ -212,7 +213,7 @@ async function findUBSMatch(ceesv) {
     const response =
         await sheetsApi.spreadsheets.values.get({
 
-            spreadsheetId: getSpreadsheetId(),
+            spreadsheetId: getSpreadsheetId(email),
 
             range: "DEPENSES!A:M"
 
@@ -279,7 +280,7 @@ function convertDateCEESV(dateStr) {
 
 }
 
-async function getDepenses() {
+async function getDepenses(email) {
 
     const client = await auth.getClient();
 
@@ -288,7 +289,7 @@ async function getDepenses() {
     const response =
         await sheets.spreadsheets.values.get({
 
-            spreadsheetId: getSpreadsheetId(),
+            spreadsheetId: getSpreadsheetId(email),
 
             range: "DEPENSES!A:L"
 
@@ -298,7 +299,7 @@ async function getDepenses() {
 }
 
 
-async function getCategories() {
+async function getCategories(email) {
 
     const client = await auth.getClient();
 
@@ -307,7 +308,7 @@ async function getCategories() {
     const response =
         await sheets.spreadsheets.values.get({
 
-            spreadsheetId: getConfigSpreadsheetId(),
+            spreadsheetId: getConfigSpreadsheetId(email),
 
             range: "CATEGORIES!A:B"
 
@@ -329,7 +330,7 @@ async function getCategories() {
     return categories;
 }
 
-async function getFournisseurs() {
+async function getFournisseurs(email) {
 
     const client = await auth.getClient();
 
@@ -338,7 +339,7 @@ async function getFournisseurs() {
     const response =
         await sheets.spreadsheets.values.get({
 
-            spreadsheetId: getConfigSpreadsheetId(),
+            spreadsheetId: getConfigSpreadsheetId(email),
 
             range: "FOURNISSEURS!A:B"
 
@@ -360,7 +361,7 @@ async function getFournisseurs() {
     return fournisseurs;
 }
 
-async function getSettings() {
+async function getSettings(email) {
 
     const client = await auth.getClient();
 
@@ -369,7 +370,7 @@ async function getSettings() {
     const response =
         await sheets.spreadsheets.values.get({
 
-            spreadsheetId: getConfigSpreadsheetId(),
+            spreadsheetId: getConfigSpreadsheetId(email),
 
             range: "SETTINGS!A:B"
 
@@ -392,6 +393,7 @@ async function getSettings() {
 }
 
 async function addCategorie(
+    email,
     categorie,
     compte
 ) {
@@ -407,7 +409,7 @@ async function addCategorie(
         .append({
 
             spreadsheetId:
-                getConfigSpreadsheetId(),
+                getConfigSpreadsheetId(email),
 
             range:
                 "CATEGORIES!A:B",
@@ -433,6 +435,7 @@ async function addCategorie(
 
 }
 async function addFournisseur(
+    email,
     fournisseur,
     categorie
 ) {
@@ -448,7 +451,7 @@ async function addFournisseur(
         .append({
 
             spreadsheetId:
-                getConfigSpreadsheetId(),
+                getConfigSpreadsheetId(email),
 
             range:
                 "FOURNISSEURS!A:B",
@@ -474,7 +477,7 @@ async function addFournisseur(
 
 }
 
-async function saveSetting(cle, valeur) {
+async function saveSetting(email, cle, valeur) {
 
     const client =
         await auth.getClient();
@@ -485,7 +488,7 @@ async function saveSetting(cle, valeur) {
         await sheetsApi.spreadsheets.values.get({
 
             spreadsheetId:
-                getConfigSpreadsheetId(),
+                getConfigSpreadsheetId(email),
 
             range:
                 "SETTINGS!A:B"
@@ -505,7 +508,7 @@ async function saveSetting(cle, valeur) {
         await sheetsApi.spreadsheets.values.append({
 
             spreadsheetId:
-                getConfigSpreadsheetId(),
+                getConfigSpreadsheetId(email),
 
             range:
                 "SETTINGS!A:B",
@@ -527,7 +530,7 @@ async function saveSetting(cle, valeur) {
         await sheetsApi.spreadsheets.values.update({
 
             spreadsheetId:
-                getConfigSpreadsheetId(),
+                getConfigSpreadsheetId(email),
 
             range:
                 `SETTINGS!B${index + 1}`,
@@ -548,7 +551,7 @@ async function saveSetting(cle, valeur) {
 }
 
 
-async function deleteRow(rowNumber) {
+async function deleteRow(email, rowNumber) {
 
     const client = await auth.getClient();
 
@@ -559,7 +562,7 @@ async function deleteRow(rowNumber) {
             .spreadsheets
             .get({
                 spreadsheetId:
-                    getSpreadsheetId()
+                    getSpreadsheetId(email)
             });
 
     const sheetId =
@@ -569,7 +572,7 @@ async function deleteRow(rowNumber) {
     await sheetsApi.spreadsheets.batchUpdate({
 
         spreadsheetId:
-            getSpreadsheetId(),
+            getSpreadsheetId(email),
 
         requestBody: {
 

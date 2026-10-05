@@ -43,8 +43,24 @@ dropzone.addEventListener("drop", (e) => {
 });
 
 dropzone.addEventListener("click", () => {
-    alert("Sélection de fichier à implémenter 😉");
+    document.getElementById("pdfFileMain").click();
 });
+
+document.getElementById("pdfFileMain")
+    .addEventListener("change", e => {
+
+        const files =
+            Array.from(e.target.files);
+
+        if (!files.length) {
+            return;
+        }
+
+        pendingFiles.push(...files);
+        console.log("Queue =", pendingFiles);
+        processNextFile();
+    });
+
 function showPreview(file) {
 
     document.getElementById(
@@ -1190,6 +1206,10 @@ async function showFile(file) {
     // Aperçu immédiat
     showPreview(file);
 
+
+    console.log("Type =", file.type);
+    console.log("Nom =", file.name);
+
     try {
 
         const formData = new FormData();
@@ -2228,22 +2248,19 @@ fetch("/google-status")
 
         console.log("Google status =", data);
 
-        const googleOnly =
-            document.getElementById("googleOnly");
+        document
+            .querySelectorAll(".googleOnly")
+            .forEach(el => {
+                el.style.display =
+                    data.connected
+                        ? "block"
+                        : "none";
+            });
 
-        if (!data.connected) {
-
-            googleOnly.style.display = "none";
-            return;
-        }
+        const badge =
+            document.getElementById("googleBadge");
 
         if (data.connected) {
-
-
-            googleOnly.style.display = "block";
-
-            const badge =
-                document.getElementById("googleBadge");
 
             const btn =
                 document.getElementById("googleLoginBtn");
@@ -2260,8 +2277,8 @@ fetch("/google-status")
             badge.classList.remove("disconnected");
             badge.classList.add("connected");
 
-            badge.innerHTML =
-                "🟢 Google connecté";
+            //badge.innerHTML = "🟢 Google connecté";
+            badge.style.display = "none";
 
             if (btn) {
                 btn.style.display = "none";
@@ -2270,6 +2287,11 @@ fetch("/google-status")
                 logoutBtn.style.display =
                     "block";
             }
+        }
+        else {
+            badge.style.display = "block";
+            badge.innerHTML = "🔴 Google non connecté";
+
         }
     });
 
@@ -2799,5 +2821,207 @@ async function importDriveFiles(files) {
     }
 
     processNextFile();
+
+}
+
+
+let ceesvFiles = [];
+
+function importAutoCEESV() {
+
+    document.getElementById(
+        "modalImportCEESV"
+    ).style.display = "flex";
+
+}
+
+
+function closeImportCEESV() {
+
+    document.getElementById(
+        "modalImportCEESV"
+    ).style.display = "none";
+
+}
+
+async function startImportCEESV() {
+
+    closeImportCEESV();
+
+    showLoader();
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/import-auto-ceesv",
+                {
+                    method: "POST"
+                }
+            );
+
+        const result =
+            await response.json();
+
+        showToast(
+            `
+            ✅ ${result.ceesvImportes} CEESV importés<br>
+            ✅ ${result.ubsRattaches} UBS rattachés<br>
+            ⚠️ ${result.erreurs?.length || 0} erreur(s)
+            `,
+            "success"
+        );
+
+        await loadDepenses();
+        await refreshStats();
+
+    }
+    catch (err) {
+
+        console.error(err);
+
+        showToast(
+            err.message,
+            "error"
+        );
+
+    }
+    finally {
+
+        hideLoader();
+
+    }
+
+}
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const dz =
+            document.getElementById(
+                "dropzoneCEESV"
+            );
+
+        const input =
+            document.getElementById(
+                "ceesvFiles"
+            );
+
+        dz.addEventListener(
+            "click",
+            () => input.click()
+        );
+
+        input.addEventListener(
+            "change",
+            e => {
+
+                ceesvFiles =
+                    Array.from(
+                        e.target.files
+                    );
+
+                refreshFilesList();
+
+            }
+        );
+
+        dz.addEventListener(
+            "dragover",
+            e => {
+
+                e.preventDefault();
+
+                dz.classList.add(
+                    "dragover"
+                );
+
+            }
+        );
+
+        dz.addEventListener(
+            "dragleave",
+            () => {
+
+                dz.classList.remove(
+                    "dragover"
+                );
+
+            }
+        );
+
+        dz.addEventListener(
+            "drop",
+            e => {
+
+                e.preventDefault();
+
+                dz.classList.remove(
+                    "dragover"
+                );
+
+                ceesvFiles =
+                    Array.from(
+                        e.dataTransfer.files
+                    );
+
+                refreshFilesList();
+
+            }
+        );
+
+    }
+);
+
+function refreshFilesList() {
+
+    const div =
+        document.getElementById(
+            "ceesvFilesList"
+        );
+
+    div.innerHTML =
+        ceesvFiles
+            .map(
+                f =>
+                    `📄 ${f.name}`
+            )
+            .join("<br>");
+
+}
+
+async function startImportCEESV() {
+
+    const formData =
+        new FormData();
+
+    ceesvFiles.forEach(
+        file => {
+
+            formData.append(
+                "files",
+                file
+            );
+
+        }
+    );
+
+    const response =
+        await fetch(
+            "/api/import-auto-ceesv",
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+    const result =
+        await response.json();
+
+    showToast(
+        `✅ ${result.importes} fichier(s) traité(s)`,
+        "success"
+    );
 
 }

@@ -1,3 +1,4 @@
+//server.js
 const express = require("express");
 const { exec } = require("child_process");
 const multer = require("multer");
@@ -46,23 +47,23 @@ const upload = multer({
 
 // Fichiers PWA
 app.get("/manifest.json", (req, res) => {
-  res.sendFile(path.join(__dirname, "manifest.json"));
+    res.sendFile(path.join(__dirname, "manifest.json"));
 });
 
 app.get("/service-worker.js", (req, res) => {
-  res.sendFile(path.join(__dirname, "service-worker.js"));
+    res.sendFile(path.join(__dirname, "service-worker.js"));
 });
 
 app.get("/icon-192.png", (req, res) => {
-  res.sendFile(path.join(__dirname, "icon-192.png"));
+    res.sendFile(path.join(__dirname, "icon-192.png"));
 });
 
 app.get("/icon-512.png", (req, res) => {
-  res.sendFile(path.join(__dirname, "icon-512.png"));
+    res.sendFile(path.join(__dirname, "icon-512.png"));
 });
 
 app.get("/share.html", requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, "share.html"));
+    res.sendFile(path.join(__dirname, "share.html"));
 });
 
 function getCurrentUser(req) {
@@ -130,7 +131,9 @@ app.get("/settings", requireAuth, async (req, res) => {
     try {
 
         const settings =
-            await sheets.getSettings();
+            await sheets.getSettings(
+                req.session.email
+            );
 
         res.json(settings);
 
@@ -329,7 +332,9 @@ app.get("/api/categories", requireAuth, async (req, res) => {
     try {
 
         const categories =
-            await sheets.getCategories();
+            await sheets.getCategories(
+                req.session.email
+            );
 
         res.json(categories);
 
@@ -358,7 +363,9 @@ app.post(
                 req.body.compte?.trim();
 
             const categories =
-                await sheets.getCategories();
+                await sheets.getCategories(
+                    req.session.email
+                );
 
             if (!categorie) {
 
@@ -375,6 +382,7 @@ app.post(
             if (!categories[categorie]) {
 
                 await sheets.addCategorie(
+                    req.session.email,
                     categorie,
                     compte
                 );
@@ -416,7 +424,9 @@ app.get(
         try {
 
             const fournisseurs =
-                await sheets.getFournisseurs();
+                await sheets.getFournisseurs(
+                    req.session.email
+                );
 
             res.json(fournisseurs);
 
@@ -456,7 +466,9 @@ app.post(
             }
 
             const fournisseurs =
-                await sheets.getFournisseurs();
+                await sheets.getFournisseurs(
+                    req.session.email
+                );
 
             if (!fournisseurs[fournisseur]) {
                 fournisseurs[fournisseur] = {
@@ -464,6 +476,7 @@ app.post(
                 };
 
                 await sheets.addFournisseur(
+                    req.session.email,
                     fournisseur,
                     categorie
                 );
@@ -517,7 +530,7 @@ app.get(
         try {
 
             const depenses =
-                await sheets.getDepenses();
+                await sheets.getDepenses(req.session.email);
 
             res.json(depenses);
 
@@ -546,7 +559,9 @@ app.post(
             const depense = req.body;
 
             const settings =
-                await sheets.getSettings();
+                await sheets.getSettings(
+                    req.session.email
+                );
 
             const EXERCICE_COURANT =
                 settings.Exercice.toString();
@@ -565,6 +580,7 @@ app.post(
 
 
             await sheets.addDepense(
+                req.session.email,
                 depense.date,
                 depense.fournisseur,
                 depense.categorie,
@@ -599,6 +615,7 @@ app.post("/updateCEESVUBS", requireAuth, async (req, res) => {
     try {
 
         await sheets.updateCEESVUBS(
+            req.session.email,
             req.body.ligne,
             req.body.pdfUrl
         );
@@ -626,6 +643,7 @@ app.post("/findUBSMatch", requireAuth, async (req, res) => {
 
         const result =
             await sheets.findUBSMatch(
+                req.session.email,
                 req.body.ceesv
             );
 
@@ -647,6 +665,7 @@ app.post("/findUBSMatch", requireAuth, async (req, res) => {
 app.post("/deleteRow", requireAuth, async (req, res) => {
 
     await sheets.deleteRow(
+        req.session.email,
         req.body.row
     );
 
@@ -662,6 +681,7 @@ app.post("/findCEESVMatch", requireAuth, async (req, res) => {
 
         const result =
             await sheets.findCEESVMatch(
+                req.session.email,
                 req.body.ceesv
             );
 
@@ -680,6 +700,67 @@ app.post("/findCEESVMatch", requireAuth, async (req, res) => {
 });
 
 app.post(
+    "/api/import-auto-ceesv",
+    requireAuth,
+    async (req, res) => {
+
+        const result = {
+            ceesvImportes: 0,
+            ubsRattaches: 0,
+            erreurs: []
+        };
+
+        try {
+
+            // boucle sur les fichiers Drive A_CHARGER
+
+            res.json(result);
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                error: err.message
+            });
+
+        }
+
+    }
+);
+
+app.post(
+    "/api/import-auto-ceesv",
+    requireAuth,
+    upload.array("files"),
+    async (req, res) => {
+
+        console.log(
+            "PDF reçus :",
+            req.files.length
+        );
+
+        for (const file of req.files) {
+
+            console.log(
+                file.originalname
+            );
+
+            // OCR CEESV / UBS
+
+        }
+
+        res.json({
+            importes:
+                req.files.length
+        });
+
+    }
+);
+
+
+app.post(
     "/upload",
     requireAuth,
     upload.single("pdf"),
@@ -690,7 +771,9 @@ app.post(
             console.log("✅ PDF reçu");
 
             const settings =
-                await sheets.getSettings();
+                await sheets.getSettings(
+                    req.session.email
+                );
 
             const exercice =
                 settings.Exercice;
@@ -768,6 +851,7 @@ app.post(
         try {
 
             await sheets.saveSetting(
+                req.session.email,
                 "Environment",
                 req.body.environment
             );
@@ -795,96 +879,96 @@ app.post(
 // PARTAGE ANDROID / PWA
 //
 app.post(
-  "/share",
-  requireAuth,
-  upload.single("file"),
-  (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).send("Aucun fichier reçu");
-      }
+    "/share",
+    requireAuth,
+    upload.single("file"),
+    (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).send("Aucun fichier reçu");
+            }
 
-      console.log(
-        "📎 Fichier partagé reçu :",
-        req.file.originalname
-      );
+            console.log(
+                "📎 Fichier partagé reçu :",
+                req.file.originalname
+            );
 
-      req.session.sharedFile = {
-        path: req.file.path,
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype
-      };
+            req.session.sharedFile = {
+                path: req.file.path,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype
+            };
 
-      res.redirect("/share.html");
-    } catch (err) {
-      console.error("Erreur partage :", err);
-      res.status(500).send("Erreur lors du partage du fichier");
+            res.redirect("/share.html");
+        } catch (err) {
+            console.error("Erreur partage :", err);
+            res.status(500).send("Erreur lors du partage du fichier");
+        }
     }
-  }
 );
-app.get("/api/shared-file", requireAuth, (req, res) => {
-  const sharedFile = req.session.sharedFile;
+app.get("/api/shared-file", (req, res) => {
+    const sharedFile = req.session.sharedFile;
 
-  if (!sharedFile) {
-    return res.status(404).json({
-      error: "Aucun fichier partagé en attente"
+    if (!sharedFile) {
+        return res.status(404).json({
+            error: "Aucun fichier partagé en attente"
+        });
+    }
+
+    res.json({
+        originalname: sharedFile.originalname,
+        mimetype: sharedFile.mimetype
     });
-  }
-
-  res.json({
-    originalname: sharedFile.originalname,
-    mimetype: sharedFile.mimetype
-  });
 });
 
 
-app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
-  try {
-    const sharedFile = req.session.sharedFile;
+app.post("/api/analyse-shared-file", async (req, res) => {
+    try {
+        const sharedFile = req.session.sharedFile;
 
-    if (!sharedFile || !fs.existsSync(sharedFile.path)) {
-      return res.status(404).json({
-        error: "Aucun fichier partagé en attente"
-      });
+        if (!sharedFile || !fs.existsSync(sharedFile.path)) {
+            return res.status(404).json({
+                error: "Aucun fichier partagé en attente"
+            });
+        }
+
+        const ext = path.extname(
+            sharedFile.originalname
+        ).toLowerCase();
+
+        let text = "";
+
+        if (ext === ".pdf") {
+            text = await ocr.analysePdf(
+                sharedFile.path
+            );
+        } else {
+            text = await ocr.extractText(
+                sharedFile.path
+            );
+        }
+
+        const ceesvData =
+            ocr.extractCEESVData(text);
+
+        res.json({
+            type: ocr.detectDocumentType(text),
+            fournisseur: ocr.extractFournisseur(text),
+            dates: ocr.extractDates(text),
+            montants: ocr.extractMontants(text),
+            ceesv: ceesvData
+        });
+
+    } catch (err) {
+        console.error(
+            "Erreur analyse fichier partagé :",
+            err
+        );
+
+        res.status(500).json({
+            error: err.message
+        });
     }
-
-    const ext = path.extname(
-      sharedFile.originalname
-    ).toLowerCase();
-
-    let text = "";
-
-    if (ext === ".pdf") {
-      text = await ocr.analysePdf(
-        sharedFile.path
-      );
-    } else {
-      text = await ocr.extractText(
-        sharedFile.path
-      );
-    }
-
-    const ceesvData =
-      ocr.extractCEESVData(text);
-
-    res.json({
-      type: ocr.detectDocumentType(text),
-      fournisseur: ocr.extractFournisseur(text),
-      dates: ocr.extractDates(text),
-      montants: ocr.extractMontants(text),
-      ceesv: ceesvData
-    });
-
-  } catch (err) {
-    console.error(
-      "Erreur analyse fichier partagé :",
-      err
-    );
-
-    res.status(500).json({
-      error: err.message
-    });
-  }
 });
 
 
@@ -892,7 +976,7 @@ app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
 // analyse
 //
 app.post(
-    "/analyse-document", requireAuth,
+    "/analyse-document",
     upload.single("pdf"),
     async (req, res) => {
 
@@ -963,7 +1047,7 @@ app.post(
 // FICHIERS UPLOADS
 //
 app.use(
-    "/uploads",
+    "/uploads", requireAuth,
     express.static(
         path.join(
             __dirname,
@@ -1005,7 +1089,7 @@ app.get("/test-sheet", async (req, res) => {
     try {
 
         const depenses =
-            await sheets.getDepenses();
+            await sheets.getDepenses(req.session.email);
 
         res.json({
             ok: true,

@@ -2,14 +2,64 @@ const fs = require("fs");
 const pdf = require("pdf-parse");
 
 const Tesseract = require("tesseract.js");
+const sharp = require("sharp");
+const path = require("path");
+
+
+
 
 async function extractText(imagePath) {
 
+    console.log("🖼️ extractText appelé :", imagePath);
+
+    const processedImage =
+        imagePath + "_ocr.png";
+
+    await sharp(imagePath)
+        .trim()
+        .resize({ width: 3000 })
+        .grayscale()
+        .normalize()
+        .sharpen()
+        .png()
+        .toFile(processedImage);
+
+
+    console.log(
+        "✅ image OCR créée :",
+        processedImage
+    );
     const result =
         await Tesseract.recognize(
-            imagePath,
-            "fra"
+            processedImage,
+            "fra+eng"
         );
+
+    console.log(
+        "Confiance OCR :",
+        result.data.confidence
+    );
+    if (result.data.words) {
+
+        result.data.words
+            .sort((a, b) =>
+                b.confidence - a.confidence
+            )
+            .slice(0, 20)
+            .forEach(w => {
+
+                console.log(
+                    w.text,
+                    w.confidence
+                );
+
+            });
+
+    }
+    /* console.log(
+         "=== TEXTE OCR ===\n",
+         result.data.text
+     );*/
 
     return result.data.text;
 }
@@ -61,9 +111,9 @@ function extractMontants(text) {
 }
 
 
-function extractDates(texte){
+function extractDates(texte) {
 
-    if (/centrale.*encaissement/i.test(texte)){
+    if (/centrale.*encaissement/i.test(texte)) {
 
         const dates =
             texte.match(
@@ -83,7 +133,7 @@ function extractDates(texte){
 
 }
 
-function extractDateValeurOLD(texte){
+function extractDateValeurOLD(texte) {
 
     const dates =
         texte.match(
@@ -96,7 +146,7 @@ function extractDateValeurOLD(texte){
 
 }
 
-function extractDateValeurOLD2(texte){
+function extractDateValeurOLD2(texte) {
 
     const match =
         texte.match(
@@ -109,7 +159,7 @@ function extractDateValeurOLD2(texte){
 }
 
 
-function extractDateValeur(texte){
+function extractDateValeur(texte) {
 
     const match =
         texte.match(
@@ -138,29 +188,27 @@ function extractDateValeurCEESVUBS(texte) {
         : null;
 }
 
-function detectDocumentType(texte){
+function detectDocumentType(texte) {
 
     const normalise =
         texte.toLowerCase();
 
-    if (/centrale.*encaissement/i.test(texte))
-	{
+    if (/centrale.*encaissement/i.test(texte)) {
         return "RECETTE";
     }
 
     return "DEPENSE";
 }
 
-function extractFournisseur(texte){
+function extractFournisseur(texte) {
 
-	if(/ceesv.*centrale.*encaissement/i.test(texte)){
-		return "CEESV - Centrale d'Encaissement";
-	}
+    if (/ceesv.*centrale.*encaissement/i.test(texte)) {
+        return "CEESV - Centrale d'Encaissement";
+    }
 
-	if (/centrale.*encaissement/i.test(texte) && /ubs/i.test(texte))
-	{
-		return "UBS - Centrale d'encaissement";
-	}
+    if (/centrale.*encaissement/i.test(texte) && /ubs/i.test(texte)) {
+        return "UBS - Centrale d'encaissement";
+    }
 
     const lignes = texte
         .split("\n")
@@ -172,14 +220,14 @@ function extractFournisseur(texte){
 
 
 
-function extractMontantEtat(texte){
+function extractMontantEtat(texte) {
 
     const match =
         texte.match(
             /Montant Etat\s*:?\s*CHF\s*([\d\s]+,\d{2})/i
         );
 
-    if(!match){
+    if (!match) {
         return null;
     }
 
@@ -190,7 +238,7 @@ function extractMontantEtat(texte){
     );
 }
 
-function extractNbFactures(texte){
+function extractNbFactures(texte) {
 
     const match =
         texte.match(
@@ -217,24 +265,24 @@ function extractFournisseurOld(text) {
 
     return fournisseurs.find(
         f =>
-        text
-        .toLowerCase()
-        .includes(
-            f.toLowerCase()
-        )
+            text
+                .toLowerCase()
+                .includes(
+                    f.toLowerCase()
+                )
     ) || "";
 }
 
 
-function extractCEESVData(texte){
+function extractCEESVData(texte) {
 
     //
     // CAS UBS
     //
-    if(
+    if (
         /centrale.*encaissement/i.test(texte) &&
         /date de transaction/i.test(texte)
-    ){
+    ) {
 
         return {
             type: "CEESV_UBS",
@@ -259,7 +307,7 @@ function extractCEESVData(texte){
             /Date\s*(?:de)?\s*valeur\s*:?\s*(\d{2}\.\d{2}\.\d{4})/i
         );
 
-    if(date){
+    if (date) {
         result.dateValeur = date[1];
     }
 
@@ -268,7 +316,7 @@ function extractCEESVData(texte){
             /Référence\s*:?\s*(\d+)/i
         );
 
-    if(reference){
+    if (reference) {
         result.reference = reference[1];
     }
 
@@ -277,7 +325,7 @@ function extractCEESVData(texte){
             /Factures\s*(\d+)\s*([\d\s]+,\d{2})\s*([\d\s]+,\d{2})/i
         );
 
-    if(recap){
+    if (recap) {
 
         result.nbFactures =
             parseInt(recap[1], 10);
@@ -300,17 +348,17 @@ function extractCEESVData(texte){
     //
     // Aucun CEESV reconnu
     //
-    if(
+    if (
         !result.dateValeur &&
         !result.reference &&
         !result.montantFacture
-    ){
+    ) {
         return null;
     }
 
     return result;
 }
-function isUBSCEESV(texte){
+function isUBSCEESV(texte) {
     return (
         /centrale.*encaissement/i.test(texte) &&
         /date de transaction/i.test(texte) &&
@@ -318,7 +366,7 @@ function isUBSCEESV(texte){
     );
 }
 
-function isEtatCEESV(texte){
+function isEtatCEESV(texte) {
     return (
         /ceesv/i.test(texte) &&
         /factures/i.test(texte)
@@ -332,9 +380,9 @@ module.exports = {
     extractMontants,
     extractDates,
     extractFournisseur,
-	extractDateValeur,
-	detectDocumentType,
-	extractCEESVData, 
+    extractDateValeur,
+    detectDocumentType,
+    extractCEESVData,
     extractDateValeurCEESVUBS,
     isEtatCEESV,
     isUBSCEESV

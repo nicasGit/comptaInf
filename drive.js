@@ -86,15 +86,23 @@ async function getOrCreateFolder(
     return folder.data.id;
 }
 
+const mime = require("mime-types");
+
 async function uploadFile(
     filePath,
     fileName,
     year
 ) {
 
+    let response;
+
     try {
         const config = getConfig();
         const drive = getDrive();
+
+        const mimeType =
+            mime.lookup(filePath)
+            || "application/octet-stream";
 
         //
         // 2026
@@ -118,7 +126,7 @@ async function uploadFile(
         //
         // Upload
         //
-        const response =
+        response =
             await drive.files.create({
 
                 requestBody: {
@@ -133,8 +141,7 @@ async function uploadFile(
 
                 media: {
 
-                    mimeType:
-                        "application/pdf",
+                    mimeType,
 
                     body:
                         fs.createReadStream(

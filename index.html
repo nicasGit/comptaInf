@@ -73,6 +73,13 @@
                     <span class="label">Paramètres</span>
                 </a>
 
+                <a href="#" onclick="importAutoCEESV(); return false;">
+                    <span class="icon">🚀</span>
+                    <span class="label">Import automatique CEESV / UBS</span>
+                </a>
+
+
+
                 <a href="#" id="googleLogoutBtn" onclick="logoutGoogle(); return false;">
                     <span class="icon">🚪</span>
                     <span class="label">Déconnexion</span>
@@ -113,7 +120,7 @@
 
                     <div class="current-date" id="currentDate"></div>
 
-                    <div id="googleOnly">
+                    <div class="googleOnly">
 
                         <div class="current-date exercice-row">
                             <span>📚 Exercice</span>
@@ -156,32 +163,37 @@
             </div>
 
             <!-- DRAG & DROP -->
+            <div class="XXXXgoogleOnlyXXX">
+                <div id="dropzone" class="dropzone">
 
-            <div id="dropzone" class="dropzone">
+                    <div class="dropicon">📄</div>
 
-                <div class="dropicon">📄</div>
+                    <h2>Déposer un justificatif</h2>
 
-                <h2>Déposer un justificatif</h2>
+                    <p>Glissez un PDF ici ou cliquez pour sélectionner un fichier</p>
 
-                <p>Glissez un PDF ici ou cliquez pour sélectionner un fichier</p>
+                    <input type="file" id="pdfFileMain" accept=".pdf,.jpg,.jpeg,.png" hidden>
 
+                </div>
             </div>
+
+
 
             <!-- ACTIONS -->
+            <div class="googleOnly">
+                <div class="actions">
 
-            <div class="actions">
+                     
+                    <button class="btn" onclick="openDepense()">
+                        ➕ Nouvelle Operation
+                    </button>
 
-                 
-                <button class="btn" onclick="openDepense()">
-                    ➕ Nouvelle Operation
-                </button>
+                    <button class="btn">
+                        📊 Voir les statistiques
+                    </button>
 
-                <button class="btn">
-                    📊 Voir les statistiques
-                </button>
-
+                </div>
             </div>
-
             <!-- TABLEAU -->
 
             <div class="panel">
@@ -534,7 +546,38 @@
 
     </div>
 
+
+
+    <div id="modalImportCEESV" class="modal">
+        <div class="modal-content">
+
+            <h2>🚀 Import CEESV / UBS</h2>
+
+            <div id="dropzoneCEESV" class="dropzone">
+
+                📂 Déposez vos PDF ici
+
+                <br><br>
+
+                ou cliquez pour sélectionner
+
+                <input type="file" id="ceesvFiles" multiple accept=".pdf" hidden>
+
+            </div>
+            <button class="btn-primary" onclick="startImportCEESV()">
+
+                🚀 Importer
+
+            </button>
+            <div id="ceesvFilesList"></div>
+
+
+
+        </div>
+    </div>
+
     <div id="toastContainer"></div>
+
     <script>
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
