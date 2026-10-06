@@ -310,15 +310,16 @@ app.get(
     "/oauth/callback",
     async (req, res) => {
 
-        console.log(
-            "CALLBACK URL =",
-            req.originalUrl
-        );
+        if (req.session?.email) {
 
-        console.log(
-            "CODE =",
-            req.query.code
-        );
+            console.log(
+                "OAuth déjà connecté :",
+                req.session.email
+            );
+
+            return res.redirect("/");
+
+        }
 
         try {
 
@@ -1169,6 +1170,9 @@ app.post(
 
     },
     (req, res) => {
+
+
+        console.log("headers =", req.headers);
 
         console.log("SESSION =", req.session?.email);
         console.log("FILES =", req.files);
