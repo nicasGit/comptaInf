@@ -111,7 +111,7 @@ function requireAuth(
 
     if (
         !req.session?.email &&
-        process.env.NODE_ENV !== "production"
+        process.env.NODE_ENV !== "PROD"
     ) {
 
         req.session.email = DEV_USER;
@@ -119,6 +119,11 @@ function requireAuth(
     }
 
     if (!req.session?.email) {
+
+        // Requête venant d'un navigateur
+        if (req.accepts("html")) {
+            return res.redirect("/login");
+        }
 
         return res.status(401).json({
             error: "Non connecté"
@@ -1127,6 +1132,22 @@ app.post(
     "/share",
     requireAuth,
     upload.single("file"),
+    (req, res, next) => {
+
+        if (!req.session?.email) {
+
+            req.session.pendingShare = {
+                path: req.file.path,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype
+            };
+
+            return res.redirect("/login");
+        }
+
+        next();
+
+    },
     (req, res) => {
         try {
             if (!req.file) {
@@ -1482,6 +1503,179 @@ app.post(
             });
 
         }
+
+    }
+);
+
+
+app.post(
+    "/api/import-shared-file",
+    requireAuth,
+    async (req, res) => {
+
+        try {
+
+            const sharedFile =
+                req.session.sharedFile;
+
+            if (
+                !sharedFile ||
+                !fs.existsSync(sharedFile.path)
+            ) {
+
+                return res.status(404).json({
+                    success: false,
+                    error: "Aucun fichier partagé"
+                });
+
+            }
+
+            let text = "";
+
+            const ext =
+                path.extname(
+                    sharedFile.originalname
+                ).toLowerCase();
+
+            if (ext === ".pdf") {
+
+                text = await ocr.analysePdf(
+                    sharedFile.path
+                );
+
+            } else {
+
+                text = await ocr.extractText(
+                    sharedFile.path
+                );
+
+            }
+
+            const fournisseur =
+                ocr.extractFournisseur(text);
+
+            const dates =
+                ocr.extractDates(text);
+
+            const montants =
+                ocr.extractMontants(text);
+
+            const settings =
+                await sheets.getSettings(
+                    req.session.email
+                );
+
+            const exercice =
+                settings.Exercice;
+
+            const fileId =
+                await drive.uploadFile(
+                    req.session.email,
+                    sharedFile.path,
+                    sharedFile.originalname,
+                    exercice
+                );
+
+            const pdfUrl =
+                `https://drive.google.com/file/d/${fileId}/view`;
+
+            res.json({
+
+                success: true,
+
+                fournisseur,
+
+                date:
+                    dates?.[0] || "",
+
+                montant:
+                    montants?.[0] || "",
+
+                pdfUrl
+
+            });
+
+            if (
+                fs.existsSync(
+                    sharedFile.path
+                )
+            ) {
+
+                fs.unlinkSync(
+                    sharedFile.path
+                );
+
+            }
+
+            delete req.session.sharedFile;
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                success: false,
+                error: err.message
+            });
+
+        }
+
+    }
+);
+
+app.get(
+    "/api/shared-file-content",
+    requireAuth,
+    (req, res) => {
+
+        const sharedFile =
+            req.session.sharedFile;
+
+        if (
+            !sharedFile ||
+            !fs.existsSync(sharedFile.path)
+        ) {
+
+            return res.status(404).json({
+                error: "Aucun fichier partagé"
+            });
+
+        }
+
+        res.sendFile(
+            path.resolve(sharedFile.path)
+        );
+
+    }
+);
+
+
+app.post(
+    "/api/shared-file-clear",
+    requireAuth,
+    (req, res) => {
+
+        const sharedFile =
+            req.session.sharedFile;
+
+        if (
+            sharedFile &&
+            sharedFile.path &&
+            fs.existsSync(sharedFile.path)
+        ) {
+
+            fs.unlinkSync(
+                sharedFile.path
+            );
+
+        }
+
+        delete req.session.sharedFile;
+
+        res.json({
+            success: true
+        });
 
     }
 );
