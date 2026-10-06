@@ -102,19 +102,29 @@ const DEV_USER =
     "nicolas.jollois@gmail.com";
 
 
+
+
 function requireAuth(
     req,
     res,
     next
 ) {
 
+    const isLocalhost =
+        req.hostname === "localhost" ||
+        req.hostname === "127.0.0.1";
 
     if (
         !req.session?.email &&
-        process.env.NODE_ENV !== "PROD"
+        isLocalhost
     ) {
 
         req.session.email = DEV_USER;
+
+        console.log(
+            "🔧 Auto-login localhost :",
+            DEV_USER
+        );
 
     }
 
@@ -183,9 +193,27 @@ app.get("/google-status", requireAuth, (req, res) => {
 });
 app.get("/google-user", (req, res) => {
 
-    res.json(
-        getCurrentUser(req) || {}
-    );
+    const user = getCurrentUser(req);
+
+    if (user) {
+        return res.json(user);
+    }
+
+
+    const isLocalhost =
+        req.hostname === "localhost" ||
+        req.hostname === "127.0.0.1";
+
+    if (req.session?.email === DEV_USER && isLocalhost) {
+
+        return res.json({
+            name: "TEST LOCALHOST",
+            email: DEV_USER
+        });
+
+    }
+
+    res.json({});
 
 });
 //
