@@ -1141,7 +1141,7 @@ app.post(
 app.post(
     "/share",
     requireAuth,
-    upload.single("file"),
+    upload.any(),
     (req, res, next) => {
 
         if (!req.session?.email) {
@@ -1161,8 +1161,28 @@ app.post(
     (req, res) => {
 
         console.log("SESSION =", req.session?.email);
+        console.log("FILES =", req.files);
         console.log("FILE =", req.file);
         console.log("BODY =", req.body);
+
+        if (req.files?.length) {
+
+            req.files.forEach(f => {
+
+                console.log(
+                    "FIELD =",
+                    f.fieldname
+                );
+
+                console.log(
+                    "NAME =",
+                    f.originalname
+                );
+
+            });
+
+        }
+
         try {
             if (!req.file) {
                 return res.status(400).send("Aucun fichier reçu");
