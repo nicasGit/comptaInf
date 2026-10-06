@@ -1168,7 +1168,7 @@ app.post(
         next();
 
     },
-    upload.any(),
+    upload.single("file"),
     (req, res, next) => {
 
         if (!req.session?.email) {
