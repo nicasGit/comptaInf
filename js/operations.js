@@ -1,6 +1,6 @@
 //operations.js 
 
-console.log("operations.js chargé");
+//console.log("operations.js chargé");
 
 /*
 const params =
@@ -18,39 +18,42 @@ let standbyOnly = false;
 
 async function initOperations(type = "all") {
 
-    console.log(
-        "initOperations",
-        type
-    );
 
-    standbyOnly = false;
-    pageType = type;
+    showLoader();
+    try {
+        standbyOnly = false;
+        pageType = type;
 
-    document.querySelector(".card-title").innerHTML =
-        type === "recettes"
-            ? "Total recettes"
-            : type === "depenses"
-                ? "Total dépenses"
-                : "Total mouvements";
+        document.querySelector(".card-title").innerHTML =
+            type === "recettes"
+                ? "Total recettes"
+                : type === "depenses"
+                    ? "Total dépenses"
+                    : "Total mouvements";
 
-    document.querySelectorAll(".card-title")[1].innerHTML =
-        type === "recettes"
-            ? "Nombre de recettes"
-            : type === "depenses"
-                ? "Nombre de dépenses"
-                : "Nombre d'opérations";
+        document.querySelectorAll(".card-title")[1].innerHTML =
+            type === "recettes"
+                ? "Nombre de recettes"
+                : type === "depenses"
+                    ? "Nombre de dépenses"
+                    : "Nombre d'opérations";
 
-    await loadOperationsData();
-    await loadOperationsSettings();
-    await refreshStandby();
+        await loadOperationsData();
+        await loadOperationsSettings();
+        await refreshStandby();
 
-    document
-        .getElementById("search")
-        ?.addEventListener(
-            "input",
-            renderOperationsTable
-        );
+        document
+            .getElementById("search")
+            ?.addEventListener(
+                "input",
+                renderOperationsTable
+            );
+    }
+    finally {
 
+        hideLoader();
+
+    }
 }
 
 

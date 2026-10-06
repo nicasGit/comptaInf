@@ -29,21 +29,46 @@ async function loadOperations(type) {
 
 async function loadDashboard() {
 
-    const response =
-        await fetch("/views/dashboard.html");
+    showLoader();
 
-    const html =
-        await response.text();
+    try {
 
-    document.getElementById(
-        "content"
-    ).innerHTML = html;
+        const response =
+            await fetch("/views/dashboard.html");
 
-    await initDashboard();
+        const html =
+            await response.text();
+
+        document.getElementById(
+            "content"
+        ).innerHTML = html;
+
+        await initDashboard();
+
+    }
+    finally {
+
+        hideLoader();
+
+    }
 
 }
 
 
+function showLoader() {
+
+    document
+        .getElementById("pageLoader")
+        ?.classList.add("active");
+
+}
+
+function hideLoader() {
+
+    document
+        .getElementById("pageLoader")
+        ?.classList.remove("active");
+}
 
 
 
@@ -1803,23 +1828,6 @@ function logoutGoogle() {
 
 }
 
-
-
-
-
-function showLoader() {
-
-    document.getElementById(
-        "loadingOverlay"
-    ).style.display = "flex";
-}
-
-function hideLoader() {
-
-    document.getElementById(
-        "loadingOverlay"
-    ).style.display = "none";
-}
 
 
 

@@ -1172,6 +1172,44 @@ tr:hover {
     transform: translateY(-3px);
 }
 
+
+/* =========================
+   LOADER NAVIGATION
+========================= */
+
+.page-loader {
+    display: none;
+
+    position: fixed;
+    inset: 0;
+
+    background: rgba(244, 246, 251, .85);
+
+    backdrop-filter: blur(2px);
+
+    z-index: 999999;
+
+    justify-content: center;
+    align-items: center;
+}
+
+.page-loader.active {
+    display: flex;
+}
+
+.page-spinner {
+    width: 70px;
+    height: 70px;
+
+    border: 7px solid #dce5f3;
+    border-top: 7px solid #1976D2;
+
+    border-radius: 50%;
+
+    animation: spin 0.8s linear infinite;
+}
+
+
 /* =========================
    VIEW OPERATIONS
    ======================== */
