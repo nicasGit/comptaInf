@@ -1153,7 +1153,21 @@ app.post(
 
 app.post(
     "/share",
-    requireAuth,
+    (req, res, next) => {
+
+        console.log(
+            "CONTENT-LENGTH =",
+            req.headers["content-length"]
+        );
+
+        console.log(
+            "CONTENT-TYPE =",
+            req.headers["content-type"]
+        );
+
+        next();
+
+    },
     upload.any(),
     (req, res, next) => {
 
