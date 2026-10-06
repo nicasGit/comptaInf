@@ -1160,6 +1160,24 @@ app.post(
 //
 app.post(
     "/share",
+    upload.any(),
+    (req, res) => {
+
+        console.log("HEADERS");
+        console.log(req.headers["content-type"]);
+
+        console.log("FILES");
+        console.log(req.files);
+
+        console.log("BODY");
+        console.log(req.body);
+
+        res.send("OK");
+    }
+);
+/*
+app.post(
+    "/share",
     requireAuth,
     upload.single("file"),
     (req, res, next) => {
@@ -1205,7 +1223,7 @@ app.post(
             res.status(500).send("Erreur lors du partage du fichier");
         }
     }
-);
+);*/
 app.get("/api/shared-file", (req, res) => {
     const sharedFile = req.session.sharedFile;
 
