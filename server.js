@@ -310,6 +310,16 @@ app.get(
     "/oauth/callback",
     async (req, res) => {
 
+        console.log(
+            "CALLBACK URL =",
+            req.originalUrl
+        );
+
+        console.log(
+            "CODE =",
+            req.query.code
+        );
+
         try {
 
             const code =
