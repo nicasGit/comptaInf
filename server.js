@@ -310,6 +310,8 @@ app.get(
     "/oauth/callback",
     async (req, res) => {
 
+        console.log("callback ", req.session?.email);
+
         if (req.session?.email) {
 
             console.log(

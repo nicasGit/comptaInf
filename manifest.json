@@ -33,10 +33,7 @@
         {
           "name": "file",
           "accept": [
-            "application/pdf",
-            "image/jpeg",
-            "image/png",
-            "image/webp"
+            "*/*"
           ]
         }
       ]
