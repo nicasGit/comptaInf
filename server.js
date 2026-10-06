@@ -1179,6 +1179,10 @@ app.post(
 
     },
     (req, res) => {
+
+        console.log("SESSION =", req.session?.email);
+        console.log("FILE =", req.file);
+        console.log("BODY =", req.body);
         try {
             if (!req.file) {
                 return res.status(400).send("Aucun fichier reçu");
