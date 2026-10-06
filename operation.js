@@ -1575,6 +1575,10 @@ function buildDepense(driveUrl) {
 
     const erreurs = [];
 
+    const isCEESV =
+        currentCEESV &&
+        currentCEESV.type !== "CEESV_UBS";
+
     let montant =
         parseFloat(
             document.getElementById(
@@ -1612,7 +1616,7 @@ function buildDepense(driveUrl) {
         );
     }
 
-    if (isNaN(montant)) {
+    if (!isCEESV && isNaN(montant)) {
         erreurs.push(
             "💰 Montant obligatoire"
         );
@@ -2440,19 +2444,35 @@ async function refreshStats() {
     document.getElementById(
         "recettesTotal"
     ).innerHTML =
-        totalRecettes.toFixed(2) +
+        totalRecettes.toLocaleString(
+            "fr-FR",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        ) +
         " CHF";
 
     document.getElementById(
         "depensesTotal"
     ).innerHTML =
-        totalDepenses.toFixed(2) +
+        totalDepenses.toLocaleString(
+            "fr-FR",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) +
         " CHF";
 
     document.getElementById(
         "resultatTotal"
     ).innerHTML =
-        resultat.toFixed(2) +
+        resultat.toLocaleString(
+            "fr-FR",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) +
         " CHF";
 }
 
@@ -2844,33 +2864,95 @@ function closeImportCEESV() {
 
 }
 
+
 async function startImportCEESV() {
 
-    closeImportCEESV();
+    if (ceesvFiles.length === 0) {
+
+        showToast(
+            "📂 Aucun PDF sélectionné",
+            "error"
+        );
+
+        return;
+
+    }
 
     showLoader();
 
     try {
 
+        const formData =
+            new FormData();
+
+        ceesvFiles.forEach(file => {
+
+            formData.append(
+                "files",
+                file
+            );
+
+        });
+
         const response =
             await fetch(
                 "/api/import-auto-ceesv",
                 {
-                    method: "POST"
+                    method: "POST",
+                    body: formData
                 }
             );
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Erreur HTTP ${response.status}`
+            );
+
+        }
 
         const result =
             await response.json();
 
+        console.log(
+            "Résultat import :",
+            result
+        );
+
+        let details = "";
+
+        if (
+            result.erreurs &&
+            result.erreurs.length
+        ) {
+
+            details =
+                "<br><br><strong>Erreurs :</strong><br>" +
+                result.erreurs
+                    .map(
+                        e =>
+                            `📄 ${e.fichier}`
+                    )
+                    .join("<br>");
+
+        }
+
         showToast(
             `
-            ✅ ${result.ceesvImportes} CEESV importés<br>
-            ✅ ${result.ubsRattaches} UBS rattachés<br>
-            ⚠️ ${result.erreurs?.length || 0} erreur(s)
+            ✅ ${result.ceesvImportes || 0} CEESV détectés<br>
+            ✅ ${result.ubsRattaches || 0} UBS détectés<br>
+            ✅ ${result.ubsStandby || 0} UBS en attente<br>
+            ⚠️ ${(result.erreurs || []).length} erreur(s)
+            ${details}
             `,
             "success"
         );
+
+        ceesvFiles = [];
+
+        refreshFilesList();
+
+        closeImportCEESV();
 
         await loadDepenses();
         await refreshStats();
@@ -2878,10 +2960,13 @@ async function startImportCEESV() {
     }
     catch (err) {
 
-        console.error(err);
+        console.error(
+            "Erreur import :",
+            err
+        );
 
         showToast(
-            err.message,
+            `❌ ${err.message}`,
             "error"
         );
 
@@ -2991,37 +3076,3 @@ function refreshFilesList() {
 
 }
 
-async function startImportCEESV() {
-
-    const formData =
-        new FormData();
-
-    ceesvFiles.forEach(
-        file => {
-
-            formData.append(
-                "files",
-                file
-            );
-
-        }
-    );
-
-    const response =
-        await fetch(
-            "/api/import-auto-ceesv",
-            {
-                method: "POST",
-                body: formData
-            }
-        );
-
-    const result =
-        await response.json();
-
-    showToast(
-        `✅ ${result.importes} fichier(s) traité(s)`,
-        "success"
-    );
-
-}

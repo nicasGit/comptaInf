@@ -252,9 +252,9 @@ async function findUBSMatch(email, ceesv) {
                     .replace(",", ".")
             );
 
+        //fournisseur === "UBS - Centrale d'encaissement"
         if (
-            fournisseur ===
-            "UBS - Centrale d'encaissement"
+            (fournisseur === "CEESV - Etat" || fournisseur === "CEESV - Facture")
             &&
             dateSheet === dateOCR
             &&

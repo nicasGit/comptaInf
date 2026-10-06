@@ -96,11 +96,27 @@ app.use(session({
     }
 }));
 
+
+const DEV_USER =
+    process.env.DEV_USER ||
+    "nicolas.jollois@gmail.com";
+
+
 function requireAuth(
     req,
     res,
     next
 ) {
+
+
+    if (
+        !req.session?.email &&
+        process.env.NODE_ENV !== "production"
+    ) {
+
+        req.session.email = DEV_USER;
+
+    }
 
     if (!req.session?.email) {
 
@@ -702,17 +718,262 @@ app.post("/findCEESVMatch", requireAuth, async (req, res) => {
 app.post(
     "/api/import-auto-ceesv",
     requireAuth,
+    upload.array("files"),
     async (req, res) => {
 
         const result = {
             ceesvImportes: 0,
             ubsRattaches: 0,
+            ubsStandby: 0,
             erreurs: []
         };
 
         try {
 
-            // boucle sur les fichiers Drive A_CHARGER
+            const settings =
+                await sheets.getSettings(
+                    req.session.email
+                );
+
+            for (const file of req.files) {
+
+                try {
+
+                    console.log(
+                        "📄 Traitement :",
+                        file.originalname
+                    );
+
+                    const text =
+                        await ocr.analysePdf(
+                            file.path
+                        );
+
+                    const ceesv =
+                        ocr.extractCEESVData(
+                            text
+                        );
+
+                    if (!ceesv) {
+
+                        result.erreurs.push({
+                            fichier:
+                                file.originalname,
+                            erreur:
+                                "CEESV non reconnu"
+                        });
+
+                        continue;
+
+                    }
+
+                    //
+                    // ETAT CEESV
+                    //
+                    if (
+                        ceesv.type ===
+                        "CEESV_ETAT"
+                    ) {
+
+                        const date =
+                            convertDateCEESV(
+                                ceesv.dateValeur
+                            );
+
+                        const fileName =
+                            `CEESV_${date}_${Number(
+                                ceesv.montantFacture || ceesv.montantBanque
+                            ).toFixed(2)}_${file.originalname}`;
+
+                        const exercice =
+                            (await sheets.getSettings(
+                                req.session.email
+                            )).Exercice;
+
+
+                        const fileId =
+                            await drive.uploadFile(
+                                req.session.email,
+                                file.path,
+                                fileName,
+                                exercice
+                            );
+
+
+                        const pdfUrl =
+                            `https://drive.google.com/file/d/${fileId}/view`;
+
+                        const match =
+                            await sheets.findCEESVMatch(
+                                req.session.email,
+                                ceesv
+                            );
+
+                        if (match.matchFacture) {
+
+                            await sheets.deleteRow(
+                                req.session.email,
+                                match.ligneFacture
+                            );
+
+                        }
+
+                        if (match.matchEtat) {
+
+                            await sheets.deleteRow(
+                                req.session.email,
+                                match.ligneEtat
+                            );
+
+                        }
+
+
+                        await sheets.addDepense(
+                            req.session.email,
+                            date,
+                            "CEESV - Facture",
+                            "",
+                            "",
+                            ceesv.montantFacture,
+                            pdfUrl,
+                            "RECETTE",
+                            "",
+                            match.pdfFacture || ""
+                        );
+
+                        await sheets.addDepense(
+                            req.session.email,
+                            date,
+                            "CEESV - Etat",
+                            "",
+                            "",
+                            ceesv.montantEtat,
+                            pdfUrl,
+                            "RECETTE",
+                            "",
+                            match.pdfEtat || ""
+                        );
+
+                        result.ceesvImportes++;
+
+                        console.log(
+                            "✅ CEESV importé"
+                        );
+
+                    }
+
+                    //
+                    // UBS
+                    //
+                    else if (
+                        ceesv.type ===
+                        "CEESV_UBS"
+                    ) {
+
+                        const exercice =
+                            (await sheets.getSettings(
+                                req.session.email
+                            )).Exercice;
+
+                        const fileName =
+                            `UBS_${convertDateCEESV(
+                                ceesv.dateValeur
+                            )}_${ceesv.montantBanque}.pdf`;
+
+                        const fileId =
+                            await drive.uploadFile(
+                                req.session.email,
+                                file.path,
+                                fileName,
+                                exercice
+                            );
+
+                        const pdfUrl =
+                            `https://drive.google.com/file/d/${fileId}/view`;
+
+
+                        const match =
+                            await sheets.findUBSMatch(
+                                req.session.email,
+                                ceesv
+                            );
+
+                        console.log(match);
+
+                        if (match.trouve) {
+
+
+                            await sheets.updateCEESVUBS(
+                                req.session.email,
+                                match.ligne,
+                                pdfUrl
+                            );
+
+                            result.ubsRattaches++;
+
+
+                            console.log(
+                                "✅ UBS lié"
+                            );
+
+                        }
+                        else {
+
+                            await sheets.addDepense(
+                                req.session.email,
+                                convertDateCEESV(
+                                    ceesv.dateValeur
+                                ),
+                                "UBS - Centrale d'encaissement",
+                                "",
+                                "",
+                                ceesv.montantBanque,
+                                pdfUrl,
+                                "RECETTE",
+                                "Import UBS"
+                            );
+
+                            console.log(
+                                "📥 UBS mis en attente"
+                            );
+
+                            result.ubsStandby++;
+
+                        }
+
+                    }
+
+                }
+                catch (err) {
+
+                    console.error(err);
+
+                    result.erreurs.push({
+                        fichier:
+                            file.originalname,
+                        erreur:
+                            err.message
+                    });
+
+                }
+                finally {
+
+                    if (
+                        file.path &&
+                        fs.existsSync(
+                            file.path
+                        )
+                    ) {
+
+                        fs.unlinkSync(
+                            file.path
+                        );
+
+                    }
+
+                }
+
+            }
 
             res.json(result);
 
@@ -730,35 +991,18 @@ app.post(
     }
 );
 
-app.post(
-    "/api/import-auto-ceesv",
-    requireAuth,
-    upload.array("files"),
-    async (req, res) => {
+function convertDateCEESV(dateStr) {
 
-        console.log(
-            "PDF reçus :",
-            req.files.length
-        );
-
-        for (const file of req.files) {
-
-            console.log(
-                file.originalname
-            );
-
-            // OCR CEESV / UBS
-
-        }
-
-        res.json({
-            importes:
-                req.files.length
-        });
-
+    if (!dateStr) {
+        return "";
     }
-);
 
+    const p =
+        dateStr.split(".");
+
+    return `${p[2]}-${p[1]}-${p[0]}`;
+
+}
 
 app.post(
     "/upload",
@@ -784,6 +1028,7 @@ app.post(
 
             const fileId =
                 await drive.uploadFile(
+                    req.session.email,
                     req.file.path,
                     fileName,
                     exercice
@@ -826,7 +1071,7 @@ app.get("/api/exercices", requireAuth, async (req, res) => {
     try {
 
         const exercices =
-            await drive.getExercices();
+            await drive.getExercices(req.session.email);
 
         res.json(exercices);
 
@@ -1114,7 +1359,7 @@ app.get("/test-drive", async (req, res) => {
     try {
 
         const exercices =
-            await drive.getExercices();
+            await drive.getExercices(req.session.email);
 
         res.json(exercices);
 

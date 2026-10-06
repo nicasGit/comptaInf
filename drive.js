@@ -1,3 +1,4 @@
+//drive.js
 const fs = require("fs");
 const { google } = require("googleapis");
 const { getEnvironment } = require("./config");
@@ -13,9 +14,9 @@ function getDrive() {
 }
 
 
-function getRootFolderId() {
+function getRootFolderId(email) {
 
-    return getConfig().RootFolderId;
+    return getConfig(email).RootFolderId;
 
 }
 
@@ -89,6 +90,7 @@ async function getOrCreateFolder(
 const mime = require("mime-types");
 
 async function uploadFile(
+    email,
     filePath,
     fileName,
     year
@@ -97,7 +99,7 @@ async function uploadFile(
     let response;
 
     try {
-        const config = getConfig();
+        const config = getConfig(email);
         const drive = getDrive();
 
         const mimeType =
@@ -110,7 +112,7 @@ async function uploadFile(
         const yearFolderId =
             await getOrCreateFolder(
                 drive,
-                getRootFolderId(),
+                getRootFolderId(email),
                 year.toString()
             );
 
@@ -169,7 +171,7 @@ async function uploadFile(
     return response.data.id;
 }
 
-async function getExercices(environment) {
+async function getExercices(email) {
 
     const drive = getDrive();
 
@@ -177,7 +179,7 @@ async function getExercices(environment) {
         await drive.files.list({
 
             q: `
-                '${getRootFolderId()}' in parents
+                '${getRootFolderId(email)}' in parents
                 and mimeType='application/vnd.google-apps.folder'
                 and trashed=false
             `,

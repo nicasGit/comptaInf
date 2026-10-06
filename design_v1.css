@@ -243,7 +243,7 @@ body {
 
     transition: .2s;
 
-    margin-bottom: 30px;
+
 
     box-shadow: 0 3px 15px rgba(0, 0, 0, .05);
 }
@@ -787,7 +787,13 @@ tr:hover {
     transform: translateY(-2px);
 }
 
-
+.actions {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0;
+}
 
 #toastContainer {
     position: fixed;
