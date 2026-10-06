@@ -1,3 +1,4 @@
+//navigation.js
 let currentFile = null;
 let pendingFiles = [];
 let currentCEESV = null;
@@ -6,60 +7,45 @@ let comptaFournisseurs = {};
 let comptaCategories = {};
 let currentDriveFileId = null;
 
-const dropzone = document.getElementById("dropzone");
 
-dropzone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropzone.classList.add("dragover");
-});
+async function loadOperations(type) {
 
-dropzone.addEventListener("dragleave", () => {
-    dropzone.classList.remove("dragover");
-});
-dropzone.addEventListener("drop", (e) => {
-
-    e.preventDefault();
-
-    dropzone.classList.remove("dragover");
-
-    const files =
-        Array.from(
-            e.dataTransfer.files
+    const response =
+        await fetch(
+            `/views/operations.html?type=${type}`
         );
 
-    if (!files.length) {
-        return;
-    }
+    const html =
+        await response.text();
 
-    pendingFiles.push(...files);
+    document.getElementById(
+        "content"
+    ).innerHTML = html;
 
-    console.log(
-        "Ajoutés dans la file :",
-        files.length
-    );
+    await initOperations(type);
 
-    processNextFile();
+}
 
-});
 
-dropzone.addEventListener("click", () => {
-    document.getElementById("pdfFileMain").click();
-});
+async function loadDashboard() {
 
-document.getElementById("pdfFileMain")
-    .addEventListener("change", e => {
+    const response =
+        await fetch("/views/dashboard.html");
 
-        const files =
-            Array.from(e.target.files);
+    const html =
+        await response.text();
 
-        if (!files.length) {
-            return;
-        }
+    document.getElementById(
+        "content"
+    ).innerHTML = html;
 
-        pendingFiles.push(...files);
-        console.log("Queue =", pendingFiles);
-        processNextFile();
-    });
+    await initDashboard();
+
+}
+
+
+
+
 
 function showPreview(file) {
 
@@ -654,30 +640,7 @@ function updateCategorieFromFournisseur() {
     }
 }
 
-document
-    .getElementById("exerciceSelect")
-    .addEventListener(
-        "change",
-        async function () {
 
-            const exercice =
-                this.value;
-
-            console.log(
-                "Exercice sélectionné :",
-                exercice
-            );
-
-            await loadDepenses(
-                exercice
-            );
-
-            await refreshStats(
-                exercice
-            );
-
-        }
-    );
 
 
 const envMode =
@@ -757,7 +720,7 @@ async function loadExercices() {
     select.value =
         settings.Exercice.toString();
 }
-loadExercices();
+
 
 async function loadFournisseurs() {
 
@@ -930,68 +893,6 @@ window.addEventListener(
 );
 
 
-function openDepense() {
-
-    document.getElementById(
-        "modalDepense"
-    ).style.display = "flex";
-
-
-    // Réinitialisation formulaire
-    document.getElementById("depDate").valueAsDate =
-        new Date();
-
-    document.getElementById("depFournisseur").value = "";
-
-    document.getElementById("depCategorie").value = "";
-
-    document.getElementById("depCompte").value = "";
-
-    document.getElementById("depMontant").value = "";
-
-    document.getElementById("depComment").value = "";
-
-
-    // Réinitialisation suggestions OCR
-    document.getElementById("ocrDates").innerHTML = "";
-
-    document.getElementById("ocrMontants").innerHTML = "";
-
-
-    // Réinitialisation fichier
-    document.getElementById("pdfFile").value = "";
-
-    document.getElementById(
-        "dropzoneDepense"
-    ).style.display = "flex";
-
-    document.getElementById(
-        "selectedFile"
-    ).style.display = "none";
-
-
-    // Réinitialisation aperçu
-    document.getElementById(
-        "pdfPreview"
-    ).style.display = "none";
-
-    document.getElementById(
-        "imagePreview"
-    ).style.display = "none";
-
-    document.getElementById(
-        "previewEmpty"
-    ).style.display = "flex";
-}
-
-function closeDepense() {
-    resetDepense();
-    document.getElementById('modalDepense').style.display = 'none';
-    // Date du jour uniquement pour une saisie manuelle
-    document.getElementById("depDate").valueAsDate = new Date();
-
-
-}
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -1195,157 +1096,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
 });
-async function showFile(file) {
-
-    const selectedFile =
-        document.getElementById("selectedFile");
-
-    selectedFile.style.display = "block";
-    selectedFile.innerHTML = "⏳ Analyse du document...";
-
-    // Aperçu immédiat
-    showPreview(file);
-
-
-    console.log("Type =", file.type);
-    console.log("Nom =", file.name);
-
-    try {
-
-        const formData = new FormData();
-
-        formData.append("pdf", file);
-
-        const response =
-            await fetch("/analyse-document", {
-                method: "POST",
-                body: formData
-            });
-
-        if (!response.ok) {
-            throw new Error(
-                "Erreur OCR HTTP " + response.status
-            );
-        }
-
-        const result =
-            await response.json();
-
-        currentCEESV =
-            result.ceesv || null;
-        console.log(
-            "currentCEESV =",
-            currentCEESV
-        );
-        if (
-            currentCEESV &&
-            currentCEESV.type === "CEESV_UBS") {
-
-            const matchResponse =
-                await fetch(
-                    "/findCEESVMatch",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body: JSON.stringify({
-                            ceesv: currentCEESV
-                        })
-                    }
-                );
-
-            currentCEESV.match =
-                await matchResponse.json();
-
-            console.log(
-                "MATCH CEESV =",
-                currentCEESV.match
-            );
-        }
-
-        if (
-            currentCEESV &&
-            currentCEESV.type !== "CEESV_UBS"
-        ) {
-            const matchResponse =
-                await fetch(
-                    "/findCEESVMatch",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-                        body: JSON.stringify({
-                            ceesv: currentCEESV
-                        })
-                    }
-                );
-
-            const match =
-                await matchResponse.json();
-
-            currentCEESV.matchFacture = {
-                trouve: match.matchFacture,
-                ligne: match.ligneFacture,
-                pdfUrl: match.pdfFacture
-            };
-
-            currentCEESV.matchEtat = {
-                trouve: match.matchEtat,
-                ligne: match.ligneEtat,
-                pdfUrl: match.pdfEtat
-            };
-
-            console.log(
-                "Match CEESV",
-                currentCEESV
-            );
-        }
-
-
-        console.log("OCR COMPLET :", result);
-        console.log("Dates :", result.dates);
-        console.log("Montants :", result.montants);
-        console.log("ceesv :", currentCEESV);
-
-        /*
-         * Très important :
-         * false = la modal est déjà ouverte.
-         */
-        openOperationWithData(result, false);
-
-        document.getElementById(
-            "dropzoneDepense"
-        ).style.display = "none";
-
-        selectedFile.style.display = "block";
-
-        selectedFile.innerHTML = `
-            ✅ ${file.name}
-            (${Math.round(file.size / 1024)} Ko)
-
-            <button
-                type="button"
-                onclick="replaceFile()"
-                class="btn-small">
-                🔄 Remplacer
-            </button>
-        `;
-
-    }
-    catch (err) {
-
-        console.error("Erreur OCR :", err);
-
-        selectedFile.innerHTML =
-            "❌ Analyse OCR impossible";
-    }
-}
 function replaceFile() {
 
     //
@@ -1447,45 +1197,6 @@ function replaceFile() {
 }
 
 
-async function saveOperation() {
-
-    showLoader();
-
-    try {
-
-        const driveUrl =
-            await uploadCurrentFile();
-
-        const depense =
-            buildDepense(driveUrl);
-
-        if (await handleCEESV(depense)) {
-            return;
-        }
-
-        if (await handleUBS(driveUrl)) {
-            return;
-        }
-
-        await saveNormalDepense(depense);
-
-    }
-    catch (err) {
-
-        console.error(err);
-
-        showToast(
-            err.message,
-            "error"
-        );
-
-    }
-    finally {
-
-        hideLoader();
-
-    }
-}
 
 async function uploadCurrentFile() {
 
@@ -1571,112 +1282,6 @@ async function uploadCurrentFile() {
 }
 
 
-function buildDepense(driveUrl) {
-
-    const erreurs = [];
-
-    const isCEESV =
-        currentCEESV &&
-        currentCEESV.type !== "CEESV_UBS";
-
-    let montant =
-        parseFloat(
-            document.getElementById(
-                "depMontant"
-            ).value
-        );
-
-    const operationType =
-        document.getElementById(
-            "operationType"
-        ).value;
-
-    const categorie =
-        getCategorieSelectionnee();
-
-    const fournisseur =
-        document.getElementById(
-            "depFournisseur"
-        ).value.trim();
-
-    const date =
-        document.getElementById(
-            "depDate"
-        ).value;
-
-    if (!date) {
-        erreurs.push(
-            "📅 Date obligatoire"
-        );
-    }
-
-    if (!fournisseur) {
-        erreurs.push(
-            "🏢 Fournisseur obligatoire"
-        );
-    }
-
-    if (!isCEESV && isNaN(montant)) {
-        erreurs.push(
-            "💰 Montant obligatoire"
-        );
-    }
-
-    if (
-        operationType === "DEPENSE" &&
-        !categorie
-    ) {
-        erreurs.push(
-            "📂 Catégorie obligatoire"
-        );
-    }
-
-    if (erreurs.length) {
-
-        throw new Error(
-            erreurs.join("<br>")
-        );
-    }
-
-    // Dépense => négatif
-    if (
-        operationType === "DEPENSE" &&
-        montant > 0
-    ) {
-        montant = -montant;
-    }
-
-    // Recette => positif
-    if (
-        operationType === "RECETTE" &&
-        montant < 0
-    ) {
-        montant = Math.abs(montant);
-    }
-
-    return {
-
-        date,
-        fournisseur,
-        categorie,
-
-        compte:
-            document.getElementById(
-                "depCompte"
-            ).value,
-
-        montant,
-
-        commentaire:
-            document.getElementById(
-                "depComment"
-            ).value,
-
-        pdf: driveUrl,
-
-        operationType
-    };
-}
 
 async function handleCEESV(depense) {
 
@@ -2030,15 +1635,29 @@ const params =
 if (params.get("google") === "ok") {
 
     const badge =
-        document.getElementById("googleBadge");
+        document.getElementById(
+            "googleBadge"
+        );
 
-    badge.classList.remove("disconnected");
-    badge.classList.add("connected");
+    if (badge) {
 
-    badge.innerHTML =
-        "🟢 Google connecté";
+        badge.classList.remove(
+            "disconnected"
+        );
+
+        badge.classList.add(
+            "connected"
+        );
+
+        badge.innerHTML =
+            "🟢 Google connecté";
+
+    }
 
 }
+
+
+
 function updateMemorisationFournisseur() {
 
     const fournisseur =
@@ -2173,28 +1792,8 @@ function resetDepense() {
     empty.style.display = "flex";
 }
 
-function updateDate() {
 
-    const now = new Date();
 
-    const options = {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    };
-
-    let date = now.toLocaleDateString('fr-FR', options);
-
-    date =
-        date.charAt(0).toUpperCase() +
-        date.slice(1);
-
-    document.getElementById('currentDate').innerHTML =
-        '📅 ' + date;
-}
-
-updateDate();
 
 
 function logoutGoogle() {
@@ -2205,134 +1804,8 @@ function logoutGoogle() {
 }
 
 
-fetch("/settings")
-    .then(r => r.json())
-    .then(settings => {
-
-        document.getElementById(
-            "exerciceSelect"
-        ).value =
-            settings.Exercice;
-    });
 
 
-fetch("/api/environment")
-    .then(r => r.json())
-    .then(data => {
-
-        const badge =
-            document.getElementById(
-                "environmentBadge"
-            );
-
-        if (data.environment === "DEV") {
-
-            badge.innerHTML =
-                "🧪 DEV";
-
-            badge.className =
-                "google-badge";
-
-            badge.style.background =
-                "#f39c12";
-
-        }
-        else {
-
-            badge.style.display =
-                "none";
-
-        }
-
-    });
-
-fetch("/google-status")
-    .then(r => r.json())
-    .then(data => {
-
-        console.log("Google status =", data);
-
-        document
-            .querySelectorAll(".googleOnly")
-            .forEach(el => {
-                el.style.display =
-                    data.connected
-                        ? "block"
-                        : "none";
-            });
-
-        const badge =
-            document.getElementById("googleBadge");
-
-        if (data.connected) {
-
-            const btn =
-                document.getElementById("googleLoginBtn");
-
-            const logoutBtn =
-                document.getElementById(
-                    "googleLogoutBtn"
-                );
-
-
-            console.log("badge=", badge);
-            console.log("btn=", btn);
-
-            badge.classList.remove("disconnected");
-            badge.classList.add("connected");
-
-            //badge.innerHTML = "🟢 Google connecté";
-            badge.style.display = "none";
-
-            if (btn) {
-                btn.style.display = "none";
-            }
-            if (logoutBtn) {
-                logoutBtn.style.display =
-                    "block";
-            }
-        }
-        else {
-            badge.style.display = "block";
-            badge.innerHTML = "🔴 Google non connecté";
-
-        }
-    });
-
-
-fetch("/google-user")
-    .then(r => r.json())
-    .then(user => {
-
-        if (user.name) {
-
-            document.getElementById(
-                "welcomeTitle"
-            ).innerHTML =
-                `Bonjour ${user.name} 👋`;
-        }
-
-    });
-
-document.getElementById(
-    "exerciceSelect"
-).addEventListener(
-    "change",
-    async function () {
-
-        const exercice =
-            this.value;
-
-        await loadDepenses(
-            exercice
-        );
-
-        await refreshStats(
-            exercice
-        );
-
-    }
-);
 
 function showLoader() {
 
@@ -2348,133 +1821,6 @@ function hideLoader() {
     ).style.display = "none";
 }
 
-async function loadDepenses() {
-
-    const response =
-        await fetch("/api/depenses");
-
-    const rows =
-        await response.json();
-
-    const tbody =
-        document.getElementById(
-            "operationsBody"
-        );
-
-    tbody.innerHTML = "";
-
-    rows.slice(1).reverse().forEach(row => {
-
-        const pdfLink = row[5]
-            ? `<a  href="${row[5]}"
-    			target="_blank" 
-    			class="pdf-link"
-    			title="Ouvrir le justificatif">📄</a>`
-            : "—";
-
-        const estCEESV =
-            (row[1] || "")
-                .includes("CEESV");
-
-
-        const banqueLink = row[8]
-            ? `<a href="${row[8]}"
-                target="_blank"
-                title="Justificatif Banque">✅</a>`
-            : (estCEESV ? "⏳" : "");
-
-
-        const tr =
-            document.createElement("tr");
-
-        tr.innerHTML = `
-				<td>${row[0] || ""}</td>
-				<td>${row[1] || ""}</td>
-				<td>${row[2] || ""}</td>
-				<td>${row[3] || ""}</td><!-- compte MEGA-->
-				<td>${row[4] || ""} CHF</td> <!-- compte montant-->
-                <td>${row[7] || ""}</td>
-				<td>${pdfLink}</td>
-                <td>${banqueLink}</td>
-				</td>
-			`;
-
-        tbody.appendChild(tr);
-
-    });
-
-}
-loadDepenses();
-refreshStats();
-
-async function refreshStats() {
-
-    const response =
-        await fetch("/api/depenses");
-
-    const rows =
-        await response.json();
-
-    let totalRecettes = 0;
-    let totalDepenses = 0;
-
-    rows.slice(1).forEach(row => {
-
-        const montant =
-            Number(
-                String(row[4] || "0")
-                    .replace(",", ".")
-            );
-
-        if (montant > 0) {
-
-            totalRecettes += montant;
-
-        } else {
-
-            totalDepenses += Math.abs(montant);
-
-        }
-
-    });
-
-    const resultat =
-        totalRecettes - totalDepenses;
-
-    document.getElementById(
-        "recettesTotal"
-    ).innerHTML =
-        totalRecettes.toLocaleString(
-            "fr-FR",
-            {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }
-        ) +
-        " CHF";
-
-    document.getElementById(
-        "depensesTotal"
-    ).innerHTML =
-        totalDepenses.toLocaleString(
-            "fr-FR",
-            {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }) +
-        " CHF";
-
-    document.getElementById(
-        "resultatTotal"
-    ).innerHTML =
-        resultat.toLocaleString(
-            "fr-FR",
-            {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }) +
-        " CHF";
-}
 
 
 
@@ -2750,36 +2096,37 @@ function showToast(message, type = "info") {
 
 async function checkDriveFiles() {
 
+    /* TODO 
     try {
-
-        const response =
-            await fetch(
-                "/api/drive/aCharger"
-            );
-
-        const files =
-            await response.json();
-
-        if (
-            !files ||
-            files.length === 0
-        ) {
-            return;
-        }
-
-        showDriveImportModal(
-            files
-        );
-
-    }
-    catch (err) {
-
-        console.error(
-            "Erreur Drive",
-            err
-        );
-
-    }
+ 
+         const response =
+             await fetch(
+                 "/api/drive/aCharger"
+             );
+ 
+         const files =
+             await response.json();
+ 
+         if (
+             !files ||
+             files.length === 0
+         ) {
+             return;
+         }
+ 
+         showDriveImportModal(
+             files
+         );
+ 
+     }
+     catch (err) {
+ 
+         console.error(
+             "Erreur Drive",
+             err
+         );
+ 
+     }*/
 
 }
 function showDriveImportModal(files) {
@@ -3076,3 +2423,11 @@ function refreshFilesList() {
 
 }
 
+window.addEventListener(
+    "DOMContentLoaded",
+    async () => {
+
+        await loadDashboard();
+
+    }
+);

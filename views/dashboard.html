@@ -1,0 +1,157 @@
+<div>
+
+
+    <div class="topbar">
+
+        <div class="welcome">
+
+            <div class="welcome-row">
+                <h2 id="welcomeTitle">Bonjour 👋</h2>
+                <a id="googleLoginBtn" href="/login" class="btn-google">
+                    🔐 Connexion Google
+                </a>
+            </div>
+
+            <div class="subtitle">
+                Bienvenue dans votre espace de gestion comptable
+            </div>
+
+        </div>
+
+        <div class="top-right">
+
+            <div class="current-date" id="currentDate"></div>
+
+            <div class="googleOnly">
+
+                <div class="current-date exercice-row">
+                    <span>📚 Exercice</span>
+                    <select id="exerciceSelect"></select>
+                </div>
+
+                <div id="googleBadge" class="google-badge disconnected">
+                    🔴 Google non connecté
+                </div>
+            </div>
+
+            <div id="environmentBadge">
+            </div>
+
+
+
+        </div>
+
+    </div>
+
+    <!-- CARTES -->
+
+    <div class="cards">
+
+        <div class="card">
+            <div class="card-title">💰 Recettes</div>
+            <div class="card-value green" id="recettesTotal">0 CHF</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🧾 Dépenses</div>
+            <div class="card-value red" id="depensesTotal">0 CHF</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📈 Résultat</div>
+            <div class="card-value blue" id="resultatTotal">0 CHF</div>
+        </div>
+
+
+        <div id="cardStandby" style="display:none;" class="card standby-card" onclick="loadStandby()">
+            <div class="card-title">
+                ⏳ En attente de rapprochement
+            </div>
+
+            <div id="nbStandby" class="card-value" style="color:#f57c00;">
+                0
+            </div>
+
+            <div id="standbyDetail" style="margin-top:10px;color:#666;">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- DRAG & DROP -->
+    <div class="XXXXgoogleOnlyXXX">
+        <div id="dropzone" class="dropzone">
+
+            <div class="dropicon">📄</div>
+
+            <h2>Déposer un justificatif</h2>
+
+            <p>Glissez un PDF ici ou cliquez pour sélectionner un fichier</p>
+
+            <input type="file" id="pdfFileMain" accept=".pdf,.jpg,.jpeg,.png" hidden>
+
+        </div>
+    </div>
+
+
+
+    <!-- ACTIONS -->
+    <div class="googleOnly">
+        <div class="actions">
+            <button class="btn" onclick="openDepense()">
+                ➕ Nouvelle Operation
+            </button>
+        </div>
+    </div>
+    <!-- TABLEAU -->
+
+    <div class="panel">
+
+        <h3>Dernières opérations</h3>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Date de valeur</th>
+                    <th>Libellé</th>
+                    <th>Catégorie</th>
+                    <th>Compte</th>
+                    <th>Montant</th>
+                    <th>Commentaire</th>
+                    <th>Justificatif</th>
+                    <th>Banque</th>
+                    <th>AssTmp</th>
+                </tr>
+            </thead>
+
+            <tbody id="operationsBody">
+
+                <!--<tr>
+                        <td>15.09.2026</td>
+                        <td>Swisscom</td>
+                        <td>Téléphone</td>
+                        <td>134.40 CHF</td>
+                    </tr>
+
+                    <tr>
+                        <td>14.09.2026</td>
+                        <td>Coop</td>
+                        <td>Carburant</td>
+                        <td>82.50 CHF</td>
+                    </tr>
+
+                    <tr>
+                        <td>13.09.2026</td>
+                        <td>Pharmacie</td>
+                        <td>Matériel médical</td>
+                        <td>46.80 CHF</td>
+                    </tr>-->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>

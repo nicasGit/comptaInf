@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ComptaInf</title>
 
-    <link rel="stylesheet" href="design_v1.css" />
+    <link rel="stylesheet" href="css/design_v1.css" />
 
     <link rel="manifest" href="/manifest.json">
 
@@ -16,240 +16,103 @@
 </head>
 
 <body>
+
     <div id="googleStatus"></div>
+
     <div class="layout">
 
-        <!-- MENU -->
+        <aside class="sidebar">
+            <!-- MENU -->
 
-        <div class="sidebar">
+            <div>
 
-            <div class="logo">
+                <div class="logo">
 
-                <h1>🩺 ComptaInf</h1>
+                    <h1>🩺 ComptaInf</h1>
 
-                <div class="tagline">
-                    Concentrez-vous sur vos patients
+                    <div class="tagline">
+                        Concentrez-vous sur vos patients
+                    </div>
+
+                    <div class="signature">
+                        by NJOSoftware
+                    </div>
+
                 </div>
 
-                <div class="signature">
-                    by NJOSoftware
-                </div>
-
-            </div>
-
-            <div class="menu">
-                <!--<a href="/login" lass="btn-google"> <span>🔐</span>
+                <div class="menu">
+                    <!--<a href="/login" lass="btn-google"> <span>🔐</span>
 								<span>Connexion Google</span></a>-->
 
-                <a href="">
-                    <span class="icon">🏠</span>
-                    <span class="label">Tableau de bord</span>
-                </a>
+                    <a onclick="loadDashboard()">
+                        <span class="icon">🏠</span>
+                        <span class="label">Tableau de bord</span>
+                    </a>
 
-                <!--<a href="">📄 Justificatifs</a>-->
+                    <!--<a href="">📄 Justificatifs</a>-->
 
-                <a href="/operations.html?type=all">
-                    <span class="icon">📋</span>
-                    <span class="label">Operations</span>
-                </a>
-
-
-
-                <a href="/operations.html?type=recettes">
-                    <span class="icon">💰</span>
-                    <span class="label">Recettes</span>
-                </a>
-
-                <a href="/operations.html?type=depenses">
-                    <span class="icon">🧾</span>
-                    <span class="label">Dépenses</span>
-                </a>
-
-                <a href="">
-                    <span class="icon">🚗</span>
-                    <span class="label">Frais kilométriques</span>
-                </a>
-
-                <a href="">
-                    <span class="icon">📊</span>
-                    <span class="label">Rapports</span>
-                </a>
-
-                <a href="#" onclick="openSettings(); return false;">
-                    <span class="icon">⚙️</span>
-                    <span class="label">Paramètres</span>
-                </a>
-
-                <a href="#" onclick="importAutoCEESV(); return false;">
-                    <span class="icon">🚀</span>
-                    <span class="label">Import automatique CEESV / UBS</span>
-                </a>
+                    <a onclick="loadOperations('all')">
+                        <span class="icon">📋</span>
+                        <span class="label">Operations</span>
+                    </a>
 
 
 
-                <a href="#" id="googleLogoutBtn" onclick="logoutGoogle(); return false;">
-                    <span class="icon">🚪</span>
-                    <span class="label">Déconnexion</span>
-                </a>
+                    <a onclick="loadOperations('recettes')">
+                        <span class="icon">💰</span>
+                        <span class="label">Recettes</span>
+                    </a>
+
+                    <a onclick="loadOperations('depenses')">
+                        <span class="icon">🧾</span>
+                        <span class="label">Dépenses</span>
+                    </a>
+
+                    <a href="">
+                        <span class="icon">🚗</span>
+                        <span class="label">Frais kilométriques</span>
+                    </a>
+
+                    <a href="">
+                        <span class="icon">📊</span>
+                        <span class="label">Rapports</span>
+                    </a>
+
+                    <a href="#" onclick="openSettings(); return false;">
+                        <span class="icon">⚙️</span>
+                        <span class="label">Paramètres</span>
+                    </a>
+
+                    <a href="#" onclick="importAutoCEESV(); return false;">
+                        <span class="icon">🚀</span>
+                        <span class="label">Import automatique CEESV / UBS</span>
+                    </a>
 
 
-            </div>
 
-            <div class="sidebar-footer">
-                ComptaInf v0.1
-            </div>
-
-        </div>
-
-        <!-- CONTENU -->
-
-        <div class="content">
-
-
-            <div class="topbar">
-
-                <div class="welcome">
-
-                    <div class="welcome-row">
-                        <h2 id="welcomeTitle">Bonjour 👋</h2>
-                        <a id="googleLoginBtn" href="/login" class="btn-google">
-                            🔐 Connexion Google
-                        </a>
-                    </div>
-
-                    <div class="subtitle">
-                        Bienvenue dans votre espace de gestion comptable
-                    </div>
-
-                </div>
-
-                <div class="top-right">
-
-                    <div class="current-date" id="currentDate"></div>
-
-                    <div class="googleOnly">
-
-                        <div class="current-date exercice-row">
-                            <span>📚 Exercice</span>
-                            <select id="exerciceSelect"></select>
-                        </div>
-
-                        <div id="googleBadge" class="google-badge disconnected">
-                            🔴 Google non connecté
-                        </div>
-                    </div>
-
-                    <div id="environmentBadge">
-                    </div>
-
+                    <a href="#" id="googleLogoutBtn" onclick="logoutGoogle(); return false;">
+                        <span class="icon">🚪</span>
+                        <span class="label">Déconnexion</span>
+                    </a>
 
 
                 </div>
 
-            </div>
-
-            <!-- CARTES -->
-
-            <div class="cards">
-
-                <div class="card">
-                    <div class="card-title">💰 Recettes</div>
-                    <div class="card-value green" id="recettesTotal">0 CHF</div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">🧾 Dépenses</div>
-                    <div class="card-value red" id="depensesTotal">0 CHF</div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">📈 Résultat</div>
-                    <div class="card-value blue" id="resultatTotal">0 CHF</div>
+                <div class="sidebar-footer">
+                    ComptaInf v0.1
                 </div>
 
             </div>
+        </aside>
 
-            <!-- DRAG & DROP -->
-            <div class="XXXXgoogleOnlyXXX">
-                <div id="dropzone" class="dropzone">
-
-                    <div class="dropicon">📄</div>
-
-                    <h2>Déposer un justificatif</h2>
-
-                    <p>Glissez un PDF ici ou cliquez pour sélectionner un fichier</p>
-
-                    <input type="file" id="pdfFileMain" accept=".pdf,.jpg,.jpeg,.png" hidden>
-
-                </div>
-            </div>
-
-
-
-            <!-- ACTIONS -->
-            <div class="googleOnly">
-                <div class="actions">
-                    <button class="btn" onclick="openDepense()">
-                        ➕ Nouvelle Operation
-                    </button>
-                </div>
-            </div>
-            <!-- TABLEAU -->
-
-            <div class="panel">
-
-                <h3>Dernières opérations</h3>
-
-                <table>
-
-                    <thead>
-                        <tr>
-                            <th>Date de valeur</th>
-                            <th>Libellé</th>
-                            <th>Catégorie</th>
-                            <th>Compte</th>
-                            <th>Montant</th>
-                            <th>Commentaire</th>
-                            <th>Justificatif</th>
-                            <th>Banque</th>
-                            <th>AssTmp</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="operationsBody">
-
-                        <!--<tr>
-                        <td>15.09.2026</td>
-                        <td>Swisscom</td>
-                        <td>Téléphone</td>
-                        <td>134.40 CHF</td>
-                    </tr>
-
-                    <tr>
-                        <td>14.09.2026</td>
-                        <td>Coop</td>
-                        <td>Carburant</td>
-                        <td>82.50 CHF</td>
-                    </tr>
-
-                    <tr>
-                        <td>13.09.2026</td>
-                        <td>Pharmacie</td>
-                        <td>Matériel médical</td>
-                        <td>46.80 CHF</td>
-                    </tr>-->
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
+        <main id="content">
+            <!-- contenu dynamique -->
+        </main>
 
     </div>
 
-    <script src="operation.js"></script>
+
+
 
 
     <!-- MODAL DEPENSE -->
@@ -577,6 +440,12 @@
     </div>
 
     <div id="toastContainer"></div>
+
+    <script src="js/dashboard.js"></script>
+    <script src="js/operations.js"></script>
+    <script src="js/depense.js"></script>
+    <script src="js/navigation.js"></script>
+
 
     <script>
         if ("serviceWorker" in navigator) {

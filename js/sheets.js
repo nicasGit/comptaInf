@@ -6,7 +6,7 @@ const { getConfig } = require("./config");
 
 const DATA_DIR =
     process.env.DATA_DIR ||
-    path.join(__dirname, "data");
+    path.join(__dirname, "..", "data");
 
 const SERVICE_ACCOUNT_FILE =
     path.join(

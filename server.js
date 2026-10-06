@@ -4,15 +4,17 @@ const { exec } = require("child_process");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-const ocr = require("./ocr");
-const oauth2Client = require("./oauth");
-const sheets = require("./sheets");
-const drive = require("./drive");
+const ocr = require("./js/ocr");
+const oauth2Client = require("./js/oauth");
+const sheets = require("./js/sheets");
+const drive = require("./js/drive");
 const {
     getEnvironment,
     setEnvironment
-} = require("./config");
+} = require("./js/config");
 const session = require("express-session");
+
+const { getDepenses } = require("./js/sheets");
 
 const app = express();
 const PORT = 3000;
@@ -1707,6 +1709,58 @@ app.post(
 
     }
 );
+
+app.get(
+    "/api/standby",
+    requireAuth,
+    async (req, res) => {
+
+        const rows =
+            await getDepenses(
+                req.session.email
+            );
+
+        const resultat =
+            rows.slice(1).reduce(
+                (acc, row) => {
+
+                    const fournisseur =
+                        row[1] || "";
+
+                    const estCEESV =
+                        fournisseur.includes(
+                            "CEESV"
+                        );
+
+                    const estUBS =
+                        fournisseur ===
+                        "UBS - Centrale d'encaissement";
+
+                    if (
+                        estCEESV &&
+                        !row[8]
+                    ) {
+                        acc.ceesvSansBanque++;
+                    }
+
+                    if (estUBS) {
+                        acc.ubsSansCeesv++;
+                    }
+
+                    return acc;
+
+                },
+                {
+                    ceesvSansBanque: 0,
+                    ubsSansCeesv: 0
+                }
+            );
+
+        res.json(resultat);
+
+    }
+);
+
 //
 // DEMARRAGE
 //
