@@ -1,3 +1,4 @@
+//oauth.js
 const fs = require("fs");
 const { google } = require("googleapis");
 const path = require("path");
@@ -30,19 +31,6 @@ const oauth2Client =
     );
 
 
-const OAUTH_TOKEN_FILE =
-    path.join(DATA_DIR, "oauth-token.json");
 
-
-if (fs.existsSync(OAUTH_TOKEN_FILE)) {
-
-    const tokens = JSON.parse(
-        fs.readFileSync(OAUTH_TOKEN_FILE)
-    );
-
-    oauth2Client.setCredentials(tokens);
-
-    console.log("✅ OAuth restauré");
-}
 
 module.exports = oauth2Client;

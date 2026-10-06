@@ -32,10 +32,6 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 
-const OAUTH_TOKEN_FILE =
-    path.join(DATA_DIR, "oauth-token.json");
-
-
 
 const SERVICE_ACCOUNT_FILE =
     path.join(DATA_DIR, "service-account.json");
@@ -225,15 +221,12 @@ app.get("/login", (req, res) => {
 
     const url = oauth2Client.generateAuthUrl({
 
-        access_type: "offline",
-
-        prompt: "consent",
+        access_type: "online",
 
         scope: [
-            "https://www.googleapis.com/auth/drive",
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile"
-
+            "openid",
+            "email",
+            "profile"
         ]
 
     });
@@ -319,47 +312,33 @@ app.get(
 
         try {
 
-            const code = req.query.code;
+            const code =
+                req.query.code;
 
             const { tokens } =
                 await oauth2Client.getToken(code);
 
-            fs.writeFileSync(
-                OAUTH_TOKEN_FILE,
-                JSON.stringify(
-                    tokens,
-                    null,
-                    2
-                )
-            );
-
-            console.log(
-                "✅ Token sauvegardé"
-            );
-
             oauth2Client.setCredentials(tokens);
 
-            const { google } = require("googleapis");
+            const { google } =
+                require("googleapis");
 
-            const oauth2 = google.oauth2({
-                version: "v2",
-                auth: oauth2Client
-            });
+            const oauth2 =
+                google.oauth2({
+                    version: "v2",
+                    auth: oauth2Client
+                });
 
-            const userInfo =
+            const { data } =
                 await oauth2.userinfo.get();
 
             req.session.email =
-                userInfo.data.email;
+                data.email;
 
             console.log(
-                "✅ Session créée pour",
-                req.session.email
+                "✅ Connecté :",
+                data.email
             );
-
-            console.log(userInfo.data);
-
-
 
             res.redirect("/");
 
@@ -368,7 +347,7 @@ app.get(
 
             console.error(err);
 
-            res.redirect("/");
+            res.redirect("/login");
 
         }
 

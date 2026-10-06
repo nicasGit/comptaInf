@@ -1,15 +1,34 @@
 //drive.js
 const fs = require("fs");
 const { google } = require("googleapis");
-const { getEnvironment } = require("./config");
 const { getConfig } = require("./config");
 const path = require("path");
-const oauth2Client = require("./oauth");
+
+
+
+const DATA_DIR =
+    process.env.DATA_DIR ||
+    path.join(__dirname, "..", "data");
+
+const SERVICE_ACCOUNT_FILE =
+    path.join(
+        DATA_DIR,
+        "service-account.json"
+    );
+
+const auth =
+    new google.auth.GoogleAuth({
+        keyFile: SERVICE_ACCOUNT_FILE,
+        scopes: [
+            "https://www.googleapis.com/auth/drive"
+        ]
+    });
+
 
 function getDrive() {
     return google.drive({
         version: "v3",
-        auth: oauth2Client
+        auth
     });
 }
 
