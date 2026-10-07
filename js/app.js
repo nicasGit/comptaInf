@@ -52,7 +52,7 @@ window.addEventListener(
             sessionStorage.getItem(
                 "sharedAnalyse"
             );
-
+        alert("sharedAnalyse = " + sharedAnalyse);
         if (!sharedAnalyse) {
             return;
         }
