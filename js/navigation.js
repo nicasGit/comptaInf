@@ -2461,7 +2461,7 @@ window.addEventListener(
 
         const result =
             JSON.parse(sharedAnalyse);
-
+        console.log("Résultat OCR", result);
         //
         // Récupère le fichier partagé
         //
@@ -2471,12 +2471,15 @@ window.addEventListener(
                     "/api/shared-file-info"
                 )
             ).json();
-
+        console.log("Info fichier", info);
         const fileResponse =
             await fetch(
                 "/api/shared-file-content"
             );
-
+        console.log(
+            "shared-file-content",
+            fileResponse.status
+        );
         const blob =
             await fileResponse.blob();
 
@@ -2557,13 +2560,14 @@ window.addEventListener(
         }
 
         if (typeof openDepense === "function") {
-
+            console.log("Avant openDepense");
             openDepense();
-
+            console.log("Après openDepense");
             openOperationWithData(
                 result,
                 false
             );
+            console.log("Après openOperationWithData");
 
         }
 

@@ -1714,7 +1714,29 @@ app.get(
     }
 );
 
+app.get(
+    "/api/shared-file-info",
+    requireAuth,
+    (req, res) => {
 
+        const sharedFile =
+            req.session.sharedFile;
+
+        if (!sharedFile) {
+            return res.status(404).json({
+                error: "Aucun fichier partagé"
+            });
+        }
+
+        res.json({
+            originalname:
+                sharedFile.originalname,
+            mimetype:
+                sharedFile.mimetype
+        });
+
+    }
+);
 app.post(
     "/api/shared-file-clear",
     requireAuth,
