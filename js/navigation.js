@@ -2461,25 +2461,22 @@ window.addEventListener(
 
         const result =
             JSON.parse(sharedAnalyse);
-        console.log("Résultat OCR", result);
+
         //
         // Récupère le fichier partagé
         //
         const info =
             await (
                 await fetch(
-                    "/api/shared-file-info"
+                    "/api/shared-file"
                 )
             ).json();
-        console.log("Info fichier", info);
+
         const fileResponse =
             await fetch(
                 "/api/shared-file-content"
             );
-        console.log(
-            "shared-file-content",
-            fileResponse.status
-        );
+
         const blob =
             await fileResponse.blob();
 
@@ -2492,6 +2489,7 @@ window.addEventListener(
                 }
             );
 
+        await showFile(currentFile);
 
         currentCEESV =
             result.ceesv || null;
@@ -2559,15 +2557,24 @@ window.addEventListener(
 
         }
 
-        if (typeof openDepense === "function") {
-            console.log("Avant openDepense");
+        const ocrComplet =
+            result.fournisseur &&
+            result.dates?.[0] &&
+            result.montants?.[0];
+
+        if (ocrComplet) {
+
+            await saveOperation();
+
+        }
+        else {
+
             openDepense();
-            console.log("Après openDepense");
+
             openOperationWithData(
                 result,
                 false
             );
-            console.log("Après openOperationWithData");
 
         }
 
