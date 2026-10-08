@@ -15,7 +15,7 @@ body {
 .layout {
     display: flex;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: visible;
 }
 
 /* =========================
@@ -279,10 +279,29 @@ body {
     border-radius: 20px;
     padding: 25px;
     box-shadow: 0 3px 15px rgba(0, 0, 0, .05);
+    overflow-x: auto;
 }
 
 .panel h3 {
     margin-bottom: 15px;
+}
+
+#depensesTable {
+    min-width: 900px;
+}
+
+.operations-table-wrapper table {
+    min-width: 900px;
+}
+
+.operations-table-wrapper table {
+    min-width: 900px;
+}
+
+#content {
+    flex: 1;
+    min-width: 0;
+    padding: 5px;
 }
 
 /* =========================
@@ -989,6 +1008,7 @@ tr:hover {
 
     .layout {
         flex-direction: column;
+
     }
 
     .sidebar {
@@ -1082,6 +1102,10 @@ tr:hover {
         padding-bottom: 70px;
     }
 
+    #content {
+        padding-bottom: 80px;
+    }
+
     /* Header */
 
     .topbar {
@@ -1161,6 +1185,84 @@ tr:hover {
     .menu a .icon {
         font-size: 24px;
     }
+
+    /* tableau */
+
+
+
+    #depensesTable th:nth-child(3),
+    #depensesTable td:nth-child(3),
+
+    #depensesTable th:nth-child(4),
+    #depensesTable td:nth-child(4) {
+        display: none;
+    }
+
+    #depensesTable th,
+    #depensesTable td {
+        padding: 6px 8px;
+        font-size: 13px;
+    }
+
+    #lastOperationTable {
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    #lastOperationTable th,
+    #lastOperationTable td {
+        padding: 4px;
+        font-size: 12px;
+    }
+
+    #lastOperationTable th:nth-child(3),
+    #lastOperationTable td:nth-child(3),
+
+    #lastOperationTable th:nth-child(4),
+    #lastOperationTable td:nth-child(4),
+
+    #lastOperationTable th:nth-child(6),
+    #lastOperationTable td:nth-child(6),
+
+    #lastOperationTable th:nth-child(8),
+    #lastOperationTable td:nth-child(8),
+
+    #lastOperationTable th:nth-child(9),
+    #lastOperationTable td:nth-child(9) {
+        display: none;
+    }
+
+    #lastOperationTable th,
+    #lastOperationTable td {
+        padding: 4px 6px;
+        font-size: 12px;
+    }
+
+    #lastOperationTable th:nth-child(1),
+    #lastOperationTable td:nth-child(1) {
+        width: 85px;
+        white-space: nowrap;
+    }
+
+    #lastOperationTable th:nth-child(5),
+    #lastOperationTable td:nth-child(5) {
+        width: 95px;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    #lastOperationTable td:nth-child(2) {
+        width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #lastOperationTable th:nth-child(7),
+    #lastOperationTable td:nth-child(7) {
+        width: 35px;
+    }
+
 }
 
 .standby-card {
@@ -1274,4 +1376,15 @@ tr:hover {
 
 .search::placeholder {
     color: #8a94a6;
+}
+
+
+.pdf-link {
+    text-decoration: none;
+    color: #1976D2;
+    font-weight: 600;
+}
+
+.pdf-link:hover {
+    color: #115293;
 }

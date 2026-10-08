@@ -330,9 +330,23 @@ async function loadDepenses() {
         return;
     }
 
+
+
     tbody.innerHTML = "";
 
     rows.slice(1).reverse().forEach(row => {
+
+
+        const montant =
+            Number(
+                String(row[4] || "0")
+                    .replace(",", ".")
+            );
+        const classeMontant =
+            montant < 0
+                ? "montant-negatif"
+                : "montant-positif";
+
 
         const pdfLink = row[5]
             ? `<a  href="${row[5]}"
@@ -361,7 +375,7 @@ async function loadDepenses() {
 				<td>${row[1] || ""}</td>
 				<td>${row[2] || ""}</td>
 				<td>${row[3] || ""}</td><!-- compte MEGA-->
-				<td>${row[4] || ""} CHF</td> <!-- compte montant-->
+				<td class="${classeMontant}">${montant} CHF</td> <!-- compte montant-->
                 <td>${row[7] || ""}</td>
 				<td>${pdfLink}</td>
                 <td>${banqueLink}</td>

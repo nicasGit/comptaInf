@@ -3,6 +3,7 @@ const fs = require("fs");
 const { google } = require("googleapis");
 const { getConfig } = require("./config");
 const path = require("path");
+const oauth2Client = require("./oauth");
 
 
 
@@ -25,13 +26,39 @@ const auth =
     });
 
 
-function getDrive() {
+
+
+function getDrive(email) {
+
+    const tokenFile =
+        path.join(DATA_DIR, "tokens.json");
+
+    const tokensStore =
+        JSON.parse(
+            fs.readFileSync(
+                tokenFile,
+                "utf8"
+            )
+        );
+
+    const tokens =
+        tokensStore[email];
+
+    if (!tokens) {
+
+        throw new Error(
+            `Aucun token trouvé pour ${email}`
+        );
+
+    }
+
+    oauth2Client.setCredentials(tokens);
+
     return google.drive({
         version: "v3",
-        auth
+        auth: oauth2Client
     });
 }
-
 
 function getRootFolderId(email) {
 
@@ -119,7 +146,7 @@ async function uploadFile(
 
     try {
         const config = getConfig(email);
-        const drive = getDrive();
+        const drive = getDrive(email);
 
         const mimeType =
             mime.lookup(filePath)
@@ -192,7 +219,7 @@ async function uploadFile(
 
 async function getExercices(email) {
 
-    const drive = getDrive();
+    const drive = getDrive(email);
 
     const response =
         await drive.files.list({

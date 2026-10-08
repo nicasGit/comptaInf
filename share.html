@@ -1,3 +1,4 @@
+<!--share.html-->
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -165,18 +166,41 @@
 
     chargerFichier();
 
+    /*
+        function importerAnalyse() {
+    
+          sessionStorage.setItem(
+            "sharedAnalyse",
+            JSON.stringify(window.sharedAnalyse)
+          );
+          alert("sharedAnalyse session set ");
+          window.location.href = "/";
+    
+        }
+    */
+    async function importerAnalyse() {
 
-    function importerAnalyse() {
+      const response =
+        await fetch(
+          "/api/import-shared-file",
+          {
+            method: "POST"
+          }
+        );
+
+      const result =
+        await response.json();
+
+      window.sharedAnalyse.pdfUrl =
+        result.pdfUrl;
 
       sessionStorage.setItem(
         "sharedAnalyse",
         JSON.stringify(window.sharedAnalyse)
       );
-      alert("sharedAnalyse session set ");
+
       window.location.href = "/";
-
     }
-
 
   </script>
 

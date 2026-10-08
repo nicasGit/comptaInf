@@ -117,12 +117,39 @@ function requireAuth(
         isLocalhost
     ) {
 
-        req.session.email = DEV_USER;
+        const tokenFile =
+            path.join(DATA_DIR, "tokens.json");
 
-        console.log(
-            "🔧 Auto-login localhost :",
-            DEV_USER
-        );
+        if (fs.existsSync(tokenFile)) {
+
+            const tokensStore =
+                JSON.parse(
+                    fs.readFileSync(
+                        tokenFile,
+                        "utf8"
+                    )
+                );
+
+            if (tokensStore[DEV_USER]) {
+
+                req.session.email = DEV_USER;
+
+                console.log(
+                    "🔧 Auto-login localhost :",
+                    DEV_USER
+                );
+
+            }
+            else {
+
+                console.log(
+                    "⚠️ Aucun token OAuth pour",
+                    DEV_USER
+                );
+
+            }
+
+        }
 
     }
 
@@ -221,12 +248,14 @@ app.get("/login", (req, res) => {
 
     const url = oauth2Client.generateAuthUrl({
 
-        access_type: "online",
+        access_type: "offline",
+        prompt: "consent",
 
         scope: [
             "openid",
             "email",
-            "profile"
+            "profile",
+            "https://www.googleapis.com/auth/drive"
         ]
 
     });
@@ -331,6 +360,8 @@ app.get(
             const { tokens } =
                 await oauth2Client.getToken(code);
 
+
+
             oauth2Client.setCredentials(tokens);
 
             const { google } =
@@ -345,6 +376,36 @@ app.get(
             const { data } =
                 await oauth2.userinfo.get();
 
+            const email = data.email;
+            // Charger les tokens existants
+            const tokenFile =
+                path.join(DATA_DIR, "tokens.json");
+
+            let tokensStore = {};
+
+            if (fs.existsSync(tokenFile)) {
+
+                tokensStore =
+                    JSON.parse(
+                        fs.readFileSync(
+                            tokenFile,
+                            "utf8"
+                        )
+                    );
+
+            }
+
+            // Sauvegarder ceux du user connecté
+            tokensStore[email] = tokens;
+
+            fs.writeFileSync(
+                tokenFile,
+                JSON.stringify(
+                    tokensStore,
+                    null,
+                    2
+                )
+            );
             req.session.email =
                 data.email;
 
@@ -1031,6 +1092,14 @@ function convertDateCEESV(dateStr) {
 
 }
 
+
+app.use((req, res, next) => {
+    console.log("METHOD:", req.method);
+    console.log("URL:", req.url);
+    console.log("CONTENT-TYPE:", req.headers["content-type"]);
+    next();
+});
+
 app.post(
     "/upload",
     requireAuth,
@@ -1040,6 +1109,8 @@ app.post(
         try {
 
             console.log("✅ PDF reçu");
+            console.log('=== UPLOAD ===');
+            console.log(req.file);
 
             const settings =
                 await sheets.getSettings(
@@ -1571,7 +1642,6 @@ app.post(
     }
 );
 
-
 app.post(
     "/api/import-shared-file",
     requireAuth,
@@ -1632,6 +1702,11 @@ app.post(
             const exercice =
                 settings.Exercice;
 
+            console.log("=== IMPORT SHARED FILE ===");
+            console.log("email =", req.session.email);
+            console.log("path =", sharedFile.path);
+            console.log("file =", sharedFile.originalname);
+
             const fileId =
                 await drive.uploadFile(
                     req.session.email,
@@ -1639,39 +1714,32 @@ app.post(
                     sharedFile.originalname,
                     exercice
                 );
+            console.log("fileId =", fileId);
+
+            if (!fileId) {
+                throw new Error("Drive n'a retourné aucun fileId");
+            }
 
             const pdfUrl =
                 `https://drive.google.com/file/d/${fileId}/view`;
 
-            res.json({
-
+            const result = {
                 success: true,
-
                 fournisseur,
-
-                date:
-                    dates?.[0] || "",
-
-                montant:
-                    montants?.[0] || "",
-
+                date: dates?.[0] || "",
+                montant: montants?.[0] || "",
                 pdfUrl
+            };
 
-            });
 
-            if (
-                fs.existsSync(
-                    sharedFile.path
-                )
-            ) {
-
-                fs.unlinkSync(
-                    sharedFile.path
-                );
-
+            if (fs.existsSync(sharedFile.path)) {
+                fs.unlinkSync(sharedFile.path);
             }
 
+
             delete req.session.sharedFile;
+
+            res.json(result);
 
         }
         catch (err) {
