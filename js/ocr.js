@@ -1,3 +1,4 @@
+//ocr,js
 const fs = require("fs");
 const pdf = require("pdf-parse");
 
@@ -200,6 +201,58 @@ function detectDocumentType(texte) {
     return "DEPENSE";
 }
 
+function detectCategorie(fournisseur) {
+
+    try {
+
+        const fournisseurs = JSON.parse(
+            fs.readFileSync(
+                path.join(__dirname, "data", "fournisseurs.json"),
+                "utf8"
+            )
+        );
+
+        const normaliser = texte =>
+            texte
+                .toLowerCase()
+                .trim()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+
+        const nomOCR = normaliser(fournisseur);
+
+        const correspondance =
+            Object.keys(fournisseurs).find(f => {
+
+                const ref = normaliser(f);
+
+                return (
+                    nomOCR === ref ||
+                    nomOCR.includes(ref) ||
+                    ref.includes(nomOCR)
+                );
+
+            });
+
+        if (!correspondance) {
+            return "";
+        }
+
+        return fournisseurs[correspondance]?.categorie || "";
+
+    }
+    catch (e) {
+
+        console.error(
+            "Erreur détection catégorie",
+            e
+        );
+
+        return "";
+
+    }
+
+}
 function extractFournisseur(texte) {
 
     if (/ceesv.*centrale.*encaissement/i.test(texte)) {

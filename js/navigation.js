@@ -209,6 +209,19 @@ function openOperationWithData(data, ouvrirModal = true) {
         );
     }
 
+    if (data.categorie) {
+
+        const select =
+            document.getElementById("depCategorie");
+
+        select.value = data.categorie;
+
+        select.dispatchEvent(
+            new Event("change")
+        );
+    }
+
+
     //
     // TEST CEESV Specifique
     //
@@ -2565,16 +2578,11 @@ window.addEventListener(
 
         setTimeout(async () => {
 
-            const categorie =
-                document.getElementById(
-                    "depCategorie"
-                ).value;
-
             const ocrComplet =
                 result.fournisseur &&
+                result.categorie &&
                 result.dates?.[0] &&
-                result.montants?.[0] &&
-                categorie;
+                result.montants?.[0];
 
             if (ocrComplet) {
 

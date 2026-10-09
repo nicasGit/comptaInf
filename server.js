@@ -1738,9 +1738,12 @@ app.post(
             const pdfUrl =
                 `https://drive.google.com/file/d/${fileId}/view`;
 
+            const categorie = detectCategorie(fournisseur);
+
             const result = {
                 success: true,
                 fournisseur,
+                categorie,
                 date: dates?.[0] || "",
                 montant: montants?.[0] || "",
                 pdfUrl
