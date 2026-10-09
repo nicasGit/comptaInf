@@ -372,7 +372,7 @@ async function loadDepenses() {
 
         tr.innerHTML = `
 				<td>${row[0] || ""}</td>
-				<td>${row[1] || ""}</td>
+				<td title="${row[1] || ""}">${row[1] || ""}</td>
 				<td>${row[2] || ""}</td>
 				<td>${row[3] || ""}</td><!-- compte MEGA-->
 				<td class="${classeMontant}">${montant} CHF</td> <!-- compte montant-->

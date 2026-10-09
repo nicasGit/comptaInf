@@ -286,9 +286,6 @@ body {
     margin-bottom: 15px;
 }
 
-#depensesTable {
-    min-width: 900px;
-}
 
 .operations-table-wrapper table {
     min-width: 900px;
@@ -1189,79 +1186,97 @@ tr:hover {
     /* tableau */
 
 
-
-    #depensesTable th:nth-child(3),
-    #depensesTable td:nth-child(3),
-
-    #depensesTable th:nth-child(4),
-    #depensesTable td:nth-child(4) {
-        display: none;
+    #depensesTable table {
+        font-size: 14px;
+        /* ou 15px */
     }
 
     #depensesTable th,
     #depensesTable td {
         padding: 6px 8px;
-        font-size: 13px;
+
     }
 
-    #lastOperationTable {
-        table-layout: fixed;
-        width: 100%;
+    #depensesTable th:nth-child(3),
+    #depensesTable td:nth-child(3),
+    #depensesTable th:nth-child(4),
+    #depensesTable td:nth-child(4) {
+        display: none;
+    }
+
+
+    #depensesTable th:nth-child(1),
+    #depensesTable td:nth-child(1) {
+        white-space: nowrap;
+    }
+
+    #depensesTable td:nth-child(2),
+    #depensesTable th:nth-child(2) {
+
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+    }
+
+    #lastOperationTable thead tr {
+        background: linear-gradient(90deg, #1976D2, #42a5f5);
+    }
+
+    #lastOperationTable thead th {
+        background: transparent;
+        color: white;
+        font-weight: bold;
+        border: none;
+    }
+
+    #lastOperationTable thead {
+        overflow: hidden;
+        border-radius: 10px;
+    }
+
+    #lastOperationTable table {
+        font-size: 14px;
+        /* ou 15px */
     }
 
     #lastOperationTable th,
     #lastOperationTable td {
-        padding: 4px;
-        font-size: 12px;
+        padding: 6px 8px;
+
     }
 
     #lastOperationTable th:nth-child(3),
     #lastOperationTable td:nth-child(3),
-
     #lastOperationTable th:nth-child(4),
     #lastOperationTable td:nth-child(4),
-
     #lastOperationTable th:nth-child(6),
     #lastOperationTable td:nth-child(6),
-
     #lastOperationTable th:nth-child(8),
     #lastOperationTable td:nth-child(8),
-
     #lastOperationTable th:nth-child(9),
     #lastOperationTable td:nth-child(9) {
         display: none;
     }
 
-    #lastOperationTable th,
-    #lastOperationTable td {
-        padding: 4px 6px;
-        font-size: 12px;
-    }
 
     #lastOperationTable th:nth-child(1),
     #lastOperationTable td:nth-child(1) {
-        width: 85px;
         white-space: nowrap;
+        max-width: 25px;
     }
 
-    #lastOperationTable th:nth-child(5),
-    #lastOperationTable td:nth-child(5) {
-        width: 95px;
-        text-align: right;
-        white-space: nowrap;
-    }
+    #lastOperationTable td:nth-child(2),
+    #lastOperationTable th:nth-child(2) {
 
-    #lastOperationTable td:nth-child(2) {
-        width: 100px;
+        max-width: 50px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+
     }
 
-    #lastOperationTable th:nth-child(7),
-    #lastOperationTable td:nth-child(7) {
-        width: 35px;
-    }
 
 }
 

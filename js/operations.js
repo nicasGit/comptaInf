@@ -227,7 +227,7 @@ function renderOperationsTable() {
                            target="_blank"
                            class="pdf-link"
                            title="Ouvrir le justificatif">
-                           📄 Voir
+                           📄
                         </a>
                     `
                     : "—";
@@ -343,7 +343,7 @@ function renderOperationsTable() {
 
             tr.innerHTML = `
                     <td>${row[0] || ""}</td>
-                    <td>${row[1] || ""}</td>
+                    <td title="${row[1] || ""}">${row[1] || ""}</td>
                     <td>${row[2] || ""}</td>
 					<td>${row[3] || ""}</td>
                     <td class="${classeMontant}">
