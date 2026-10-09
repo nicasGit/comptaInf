@@ -191,6 +191,7 @@ app.get("/settings", requireAuth, async (req, res) => {
                 req.session.email
             );
 
+
         res.json(settings);
 
     }

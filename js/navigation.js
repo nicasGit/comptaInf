@@ -1248,7 +1248,7 @@ async function uploadCurrentFile() {
     if (String(anneeDepense) !== String(exercice)) {
 
         throw new Error(
-            `La dépense doit appartenir à l'exercice ${exercice}`
+            `La dépense ${anneeDepense} doit appartenir à l'exercice ${exercice}`
         );
 
     }
@@ -2563,6 +2563,13 @@ window.addEventListener(
             result.montants?.[0];
 
         if (ocrComplet) {
+
+            openDepense();
+
+            openOperationWithData(
+                result,
+                false
+            );
 
             await saveOperation();
 
