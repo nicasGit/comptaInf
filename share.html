@@ -79,10 +79,6 @@
         Chargement du document…
       </div>
 
-      <!--<button id="analyseBtn" disabled>
-        Analyser le justificatif
-      </button>-->
-
       <div id="status"></div>
 
     </div>
@@ -150,12 +146,12 @@
         window.sharedAnalyse = data;
 
         status.innerHTML = `
-      < div style = "text-align:left; margin-top:20px;" >
+      
     <p><strong>Type :</strong> ${data.type || "-"}</p>
     <p><strong>Fournisseur :</strong> ${data.fournisseur || "-"}</p>
     <p><strong>Date :</strong> ${data.dates?.[0] || "-"}</p>
     <p><strong>Montant :</strong> ${data.montants?.[0] || "-"}</p>
-  </div >
+ 
 
       <button
         id="importBtn"

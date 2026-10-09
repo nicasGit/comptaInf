@@ -2557,33 +2557,35 @@ window.addEventListener(
 
         }
 
-        const ocrComplet =
-            result.fournisseur &&
-            result.dates?.[0] &&
-            result.montants?.[0];
+        openDepense();
+        openOperationWithData(
+            result,
+            false
+        );
 
-        if (ocrComplet) {
+        setTimeout(async () => {
 
-            openDepense();
+            const categorie =
+                document.getElementById(
+                    "depCategorie"
+                ).value;
 
-            openOperationWithData(
-                result,
-                false
-            );
+            const ocrComplet =
+                result.fournisseur &&
+                result.dates?.[0] &&
+                result.montants?.[0] &&
+                categorie;
 
-            await saveOperation();
+            if (ocrComplet) {
 
-        }
-        else {
+                await saveOperation();
+                closeDepense();
 
-            openDepense();
+            }
 
-            openOperationWithData(
-                result,
-                false
-            );
+        }, 100);
 
-        }
+
 
         await fetch(
             "/api/shared-file-clear",
