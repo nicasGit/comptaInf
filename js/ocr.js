@@ -438,5 +438,6 @@ module.exports = {
     extractCEESVData,
     extractDateValeurCEESVUBS,
     isEtatCEESV,
-    isUBSCEESV
+    isUBSCEESV,
+    detectCategorie
 };

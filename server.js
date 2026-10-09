@@ -1738,7 +1738,8 @@ app.post(
             const pdfUrl =
                 `https://drive.google.com/file/d/${fileId}/view`;
 
-            const categorie = detectCategorie(fournisseur);
+
+            const categorie = ocr.detectCategorie(fournisseur);
 
             const result = {
                 success: true,
