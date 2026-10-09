@@ -134,10 +134,10 @@ function requireAuth(
 
                 req.session.email = DEV_USER;
 
-                console.log(
+                /*console.log(
                     "🔧 Auto-login localhost :",
                     DEV_USER
-                );
+                );*/
 
             }
             else {
@@ -1093,12 +1093,39 @@ function convertDateCEESV(dateStr) {
 }
 
 
-app.use((req, res, next) => {
+/*app.use((req, res, next) => {
     console.log("METHOD:", req.method);
     console.log("URL:", req.url);
     console.log("CONTENT-TYPE:", req.headers["content-type"]);
     next();
+});*/
+const badPatterns = [
+    ".php",
+    ".env",
+    "wp-",
+    "phpmyadmin",
+    "adminer"
+];
+
+app.use((req, res, next) => {
+
+    const url = req.url.toLowerCase();
+
+    if (badPatterns.some(p => url.includes(p))) {
+
+        console.log(
+            "🚫 Scan:",
+            req.ip,
+            req.url
+        );
+
+        return res.status(404).end();
+    }
+
+    next();
+
 });
+
 
 app.post(
     "/upload",
@@ -1109,8 +1136,8 @@ app.post(
         try {
 
             console.log("✅ PDF reçu");
-            console.log('=== UPLOAD ===');
-            console.log(req.file);
+            //console.log('=== UPLOAD ===');
+            //console.log(req.file);
 
             const settings =
                 await sheets.getSettings(
@@ -1224,21 +1251,6 @@ app.post(
 
 app.post(
     "/share",
-    (req, res, next) => {
-
-        console.log(
-            "CONTENT-LENGTH =",
-            req.headers["content-length"]
-        );
-
-        console.log(
-            "CONTENT-TYPE =",
-            req.headers["content-type"]
-        );
-
-        next();
-
-    },
     upload.single("file"),
     (req, res, next) => {
 
@@ -1258,31 +1270,31 @@ app.post(
     },
     (req, res) => {
 
-
-        console.log("headers =", req.headers);
-
-        console.log("SESSION =", req.session?.email);
-        console.log("FILES =", req.files);
-        console.log("FILE =", req.file);
-        console.log("BODY =", req.body);
-
-        if (req.files?.length) {
-
-            req.files.forEach(f => {
-
-                console.log(
-                    "FIELD =",
-                    f.fieldname
-                );
-
-                console.log(
-                    "NAME =",
-                    f.originalname
-                );
-
-            });
-
-        }
+        //
+        //console.log("headers =", req.headers);
+        //
+        //console.log("SESSION =", req.session?.email);
+        //console.log("FILES =", req.files);
+        //console.log("FILE =", req.file);
+        //console.log("BODY =", req.body);
+        /*
+                if (req.files?.length) {
+        
+                    req.files.forEach(f => {
+        
+                        console.log(
+                            "FIELD =",
+                            f.fieldname
+                        );
+        
+                        console.log(
+                            "NAME =",
+                            f.originalname
+                        );
+        
+                    });
+        
+                }*/
 
         try {
             if (!req.file) {
@@ -1307,7 +1319,7 @@ app.post(
         }
     }
 );
-app.get("/api/shared-file", (req, res) => {
+app.get("/api/shared-file", requireAuth, (req, res) => {
     const sharedFile = req.session.sharedFile;
 
     if (!sharedFile) {
@@ -1323,7 +1335,7 @@ app.get("/api/shared-file", (req, res) => {
 });
 
 
-app.post("/api/analyse-shared-file", async (req, res) => {
+app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
     try {
         const sharedFile = req.session.sharedFile;
 
@@ -1378,6 +1390,7 @@ app.post("/api/analyse-shared-file", async (req, res) => {
 //
 app.post(
     "/analyse-document",
+    requireAuth,
     upload.single("pdf"),
     async (req, res) => {
 
@@ -1596,6 +1609,7 @@ app.get(
 );
 app.post(
     "/api/drive/archive",
+    requireAuth,
     async (req, res) => {
 
         try {
