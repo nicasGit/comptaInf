@@ -8,6 +8,11 @@ let comptaCategories = {};
 let currentDriveFileId = null;
 
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script src="js/pdf-preview.js"></script>
+
+
 async function loadOperations(type) {
 
     const response =
