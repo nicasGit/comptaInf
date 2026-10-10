@@ -71,8 +71,36 @@ function hideLoader() {
 }
 
 
-
 function showPreview(file) {
+  document.getElementById("dropzoneDepense").style.display = "none";
+
+  const selectedFile = document.getElementById("selectedFile");
+  selectedFile.style.display = "block";
+  selectedFile.textContent = `✅ ${file.name}`;
+
+  const pdf = document.getElementById("pdfPreview");
+  const img = document.getElementById("imagePreview");
+  const empty = document.getElementById("previewEmpty");
+
+  pdf.style.display = "none";
+  img.style.display = "none";
+  empty.style.display = "none";
+
+  clearPdfPreview();
+
+  if (
+    file.type === "application/pdf" ||
+    file.name.toLowerCase().endsWith(".pdf")
+  ) {
+    renderPdfPreview(file);
+  } else {
+    img.src = URL.createObjectURL(file);
+    img.style.display = "block";
+  }
+}
+
+
+function showPreviewold(file) {
 
     document.getElementById(
         "dropzoneDepense"
