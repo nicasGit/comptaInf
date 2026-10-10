@@ -18,6 +18,10 @@ body {
     overflow-x: visible;
 }
 
+html, body {
+  overscroll-behavior-y: none;
+}
+
 /* =========================
    SIDEBAR
 ========================= */
