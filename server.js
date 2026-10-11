@@ -1407,6 +1407,21 @@ app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
             error: err.message
         });
     }
+    finally {
+
+        if (
+            req.file?.path &&
+            fs.existsSync(req.file.path)
+        ) {
+
+            fs.unlinkSync(req.file.path);
+
+            console.log(
+                "🗑️ Upload supprimé :",
+                req.file.path
+            );
+        }
+    }
 });
 
 
@@ -1493,6 +1508,20 @@ app.post(
                     err.message
             });
 
+        } finally {
+
+            if (
+                req.file?.path &&
+                fs.existsSync(req.file.path)
+            ) {
+
+                fs.unlinkSync(req.file.path);
+
+                console.log(
+                    "🗑️ Upload supprimé :",
+                    req.file.path
+                );
+            }
         }
 
     }
@@ -1945,11 +1974,46 @@ app.get(
 
     }
 );
+function cleanupUploads() {
+
+    const uploadDir =
+        path.join(DATA_DIR, "uploads");
+
+    if (!fs.existsSync(uploadDir)) {
+        return;
+    }
+
+    fs.readdirSync(uploadDir)
+        .forEach(file => {
+
+            try {
+
+                fs.unlinkSync(
+                    path.join(uploadDir, file)
+                );
+
+            }
+            catch (e) {
+
+                console.error(
+                    "Erreur suppression :",
+                    file
+                );
+            }
+        });
+
+    console.log(
+        "🧹 Uploads nettoyés"
+    )
+}
 
 //
 // DEMARRAGE
 //
+
 app.listen(PORT, () => {
+
+    cleanupUploads();
 
     console.log(
         `🚀 ComptaInf lancé sur http://localhost:${PORT}`
