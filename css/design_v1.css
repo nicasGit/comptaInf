@@ -18,8 +18,9 @@ body {
     overflow-x: visible;
 }
 
-html, body {
-  overscroll-behavior-y: none;
+html,
+body {
+    overscroll-behavior-y: none;
 }
 
 /* =========================
@@ -644,6 +645,35 @@ tr:hover {
     color: white;
 }
 
+.ocr-wait {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #ccc;
+    border-top: 2px solid #0078d4;
+    border-radius: 50%;
+    animation: ocr-spin 0.8s linear infinite;
+    vertical-align: middle;
+}
+
+.ocr-wait {
+    display: none;
+}
+
+.ocr-loading .ocr-wait {
+    display: inline-block;
+}
+
+@keyframes ocr-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* =========================
    DROPZONE MODAL
 ========================= */
@@ -879,7 +909,7 @@ tr:hover {
 
     border-radius: 6px;
 
-    width: 100%;
+
 
     z-index: 1000;
 
@@ -1217,7 +1247,7 @@ tr:hover {
     #depensesTable td:nth-child(2),
     #depensesTable th:nth-child(2) {
 
-        max-width: 160px;
+        max-width: 140px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1268,13 +1298,13 @@ tr:hover {
     #lastOperationTable th:nth-child(1),
     #lastOperationTable td:nth-child(1) {
         white-space: nowrap;
-        max-width: 25px;
+        max-width: 22px;
     }
 
     #lastOperationTable td:nth-child(2),
     #lastOperationTable th:nth-child(2) {
 
-        max-width: 50px;
+        max-width: 45px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1409,15 +1439,14 @@ tr:hover {
 }
 
 .pdf-preview {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .pdf-preview canvas {
-  max-width: 100%;
+    max-width: 100%;
 }
-

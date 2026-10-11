@@ -149,20 +149,20 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Date de valeur<span class="ocr-wait" title="Analyse OCR en cours">⏳</span></label>
+                        <label>Date de valeur<span class="ocr-wait" title="Analyse OCR en cours"></span>
 
-                        <input type="date" id="depDate">
+                            <input type="date" id="depDate">
 
-                        <div id="ocrDates" class="ocr-suggestions"></div>
+                            <div id="ocrDates" class="ocr-suggestions"></div>
 
                     </div>
 
                     <div class="form-group">
-                        <label>Fournisseur <span class="ocr-wait" title="Analyse OCR en cours">⏳</span></label>
+                        <label>Fournisseur <span class="ocr-wait" title="Analyse OCR en cours"></span>
 
-                        <input type="text" id="depFournisseur" placeholder="Nom du fournisseur">
-                        <div id="fournisseurSuggestions" class="autocomplete-box">
-                        </div>
+                            <input type="text" id="depFournisseur" placeholder="Nom du fournisseur">
+                            <div id="fournisseurSuggestions" class="autocomplete-box">
+                            </div>
                     </div>
                     <div id="memoriserFournisseur" style="display:none; margin-top:6px; margin-bottom:8px;">
 
@@ -232,17 +232,17 @@
 
                     <div class="form-group" id="montantGroup">
 
-                        <label>Montant CHF<span class="ocr-wait" title="Analyse OCR en cours">⏳</span></label>
+                        <label>Montant CHF<span class="ocr-wait" title="Analyse OCR en cours"></span>
 
-                        <input type="text" id="depMontant" inputmode="decimal" oninput="
+                            <input type="text" id="depMontant" inputmode="decimal" oninput="
         this.value =
         this.value
             .replace(/[^0-9,.-]/g,'')
             .replace(/(?!^)-/g,'');
     ">
 
-                        <div id="ocrMontants" class="ocr-suggestions">
-                        </div>
+                            <div id="ocrMontants" class="ocr-suggestions">
+                            </div>
 
                     </div>
 
@@ -283,7 +283,7 @@
                         👁️ Aperçu du justificatif
                     </div>
 
-<div id="pdfPreview" class="pdf-preview"></div>
+                    <div id="pdfPreview" class="pdf-preview"></div>
 
                     <!--<iframe id="pdfPreview" class="pdf-preview">
                     </iframe>-->
@@ -453,9 +453,9 @@
     <script src="js/operations.js"></script>
     <script src="js/depense.js"></script>
     <script src="js/navigation.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-<script src="js/pdf-preview.js"></script>
+    <script src="js/pdf-preview.js"></script>
 
     <script>
         if ("serviceWorker" in navigator) {

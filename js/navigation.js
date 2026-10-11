@@ -72,31 +72,31 @@ function hideLoader() {
 
 
 function showPreview(file) {
-  document.getElementById("dropzoneDepense").style.display = "none";
+    document.getElementById("dropzoneDepense").style.display = "none";
 
-  const selectedFile = document.getElementById("selectedFile");
-  selectedFile.style.display = "block";
-  selectedFile.textContent = `✅ ${file.name}`;
+    const selectedFile = document.getElementById("selectedFile");
+    selectedFile.style.display = "block";
+    selectedFile.textContent = `✅ ${file.name}`;
 
-  const pdf = document.getElementById("pdfPreview");
-  const img = document.getElementById("imagePreview");
-  const empty = document.getElementById("previewEmpty");
+    const pdf = document.getElementById("pdfPreview");
+    const img = document.getElementById("imagePreview");
+    const empty = document.getElementById("previewEmpty");
 
-  pdf.style.display = "none";
-  img.style.display = "none";
-  empty.style.display = "none";
+    pdf.style.display = "none";
+    img.style.display = "none";
+    empty.style.display = "none";
 
-  clearPdfPreview();
+    clearPdfPreview();
 
-  if (
-    file.type === "application/pdf" ||
-    file.name.toLowerCase().endsWith(".pdf")
-  ) {
-    renderPdfPreview(file);
-  } else {
-    img.src = URL.createObjectURL(file);
-    img.style.display = "block";
-  }
+    if (
+        file.type === "application/pdf" ||
+        file.name.toLowerCase().endsWith(".pdf")
+    ) {
+        renderPdfPreview(file);
+    } else {
+        img.src = URL.createObjectURL(file);
+        img.style.display = "block";
+    }
 }
 
 
@@ -877,6 +877,20 @@ window.addEventListener(
 
                 box.innerHTML = "";
 
+                const existe =
+                    Object.keys(comptaFournisseurs)
+                        .some(
+                            f =>
+                                f.toLowerCase().trim() ===
+                                valeur
+                        );
+
+                if (existe) {
+
+                    box.style.display = "none";
+                    return;
+                }
+
                 if (valeur.length < 2) {
 
                     box.style.display =
@@ -1316,8 +1330,36 @@ async function uploadCurrentFile() {
             .toFixed(2)
             .replace(".", "_");
 
+    const today = new Date().toISOString().split("T")[0];
+
+    // Nom d'origine
+    let originalName = currentFile?.name;
+
+    // Cas Android Share : pas de nom
+    if (!originalName || originalName === "undefined") {
+
+        // Détection extension
+        let extension = "pdf";
+
+        if (currentFile?.type) {
+
+            if (currentFile.type.includes("image")) {
+                extension = "jpg";
+            }
+
+            if (currentFile.type.includes("pdf")) {
+                extension = "pdf";
+            }
+        }
+
+        originalName = `partage_${today}.${extension}`;
+    }
+
     const fileName =
-        `${fournisseur}_${date}_${montant}_${currentFile.name}`;
+        `${fournisseur}_${date}_${montant}_${originalName}`;
+
+    console.log("Nom reçu :", currentFile?.name);
+    console.log("Type reçu :", currentFile?.type);
 
     const formData =
         new FormData();

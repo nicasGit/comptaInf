@@ -1,8 +1,8 @@
 //depense.js
 function openDepense() {
 
-document.getElementById("modalDepense")
-  .classList.remove("ocr-loading");
+    document.getElementById("modalDepense")
+        .classList.remove("ocr-loading");
 
     document.getElementById(
         "modalDepense"
@@ -58,8 +58,8 @@ document.getElementById("modalDepense")
 
 function closeDepense() {
     resetDepense();
-document.getElementById("modalDepense")
-  .classList.remove("ocr-loading");
+    document.getElementById("modalDepense")
+        .classList.remove("ocr-loading");
     document.getElementById('modalDepense').style.display = 'none';
     // Date du jour uniquement pour une saisie manuelle
     document.getElementById("depDate").valueAsDate = new Date();
@@ -225,8 +225,7 @@ async function showFile(file) {
     selectedFile.style.display = "block";
     selectedFile.innerHTML = "⏳ Analyse du document...";
 
-document.getElementById("modalDepense")
-  .classList.add("ocr-loading");
+    document.getElementById("modalDepense").classList.add("ocr-loading");
 
     // Aperçu immédiat
     showPreview(file);
@@ -370,9 +369,13 @@ document.getElementById("modalDepense")
         selectedFile.innerHTML =
             "❌ Analyse OCR impossible";
     }
-finally {
-  document.getElementById("modalDepense")
-    .classList.remove("ocr-loading");
-  }
+    finally {
+        document.getElementById("modalDepense")
+            .classList.remove("ocr-loading");
+        console.log(
+            "Classes après remove :",
+            modal.className
+        );
+    }
 }
 

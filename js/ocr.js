@@ -16,15 +16,29 @@ async function extractText(imagePath) {
     const processedImage =
         imagePath + "_ocr.png";
 
-    await sharp(imagePath)
+    /*await sharp(imagePath)
         .trim()
-        .resize({ width: 3000 })
+        .resize({ width: 1500 })
         .grayscale()
         .normalize()
         .sharpen()
         .png()
         .toFile(processedImage);
+*/
+    const buffer = await sharp(imagePath)
+        .trim()
+        .resize({ width: 1800 })
+        .grayscale()
+        .normalize()
+        .sharpen()
+        .png()
+        .toBuffer();
 
+    const result =
+        await Tesseract.recognize(
+            buffer,
+            "fra"
+        );
 
     console.log(
         "✅ image OCR créée :",
@@ -33,7 +47,7 @@ async function extractText(imagePath) {
     const result =
         await Tesseract.recognize(
             processedImage,
-            "fra+eng"
+            "fra"
         );
 
     console.log(
