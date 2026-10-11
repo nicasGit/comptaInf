@@ -360,6 +360,39 @@ async function getFournisseurs(email) {
 
     return fournisseurs;
 }
+async function getFournisseursConvert(email) {
+
+    const client = await auth.getClient();
+
+    const sheets = getSheets();
+
+
+
+    const response =
+        await sheets.spreadsheets.values.get({
+
+            spreadsheetId: getConfigSpreadsheetId(email),
+
+            range: "FOURNISSEURS_CONVERT!A:B"
+
+        });
+
+    const result = {};
+
+    const rows =
+        response.data.values || [];
+
+    rows.forEach(row => {
+
+        if (!row[0] || !row[1]) {
+            return;
+        }
+
+        result[row[0]] = row[1];
+    });
+
+    return result;
+}
 
 async function getSettings(email) {
 
@@ -614,6 +647,7 @@ module.exports = {
 
     addFournisseur,
     getFournisseurs,
+    getFournisseursConvert,
 
     getSettings,
     saveSetting,

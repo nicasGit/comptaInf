@@ -372,10 +372,7 @@ async function showFile(file) {
     finally {
         document.getElementById("modalDepense")
             .classList.remove("ocr-loading");
-        console.log(
-            "Classes après remove :",
-            modal.className
-        );
+
     }
 }
 

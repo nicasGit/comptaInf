@@ -433,6 +433,40 @@ function isEtatCEESV(texte) {
         /factures/i.test(texte)
     );
 }
+function convertFournisseur(
+    fournisseur,
+    fournisseursConvert
+) {
+
+    if (!fournisseur) {
+        return fournisseur;
+    }
+
+    const match =
+        Object.entries(
+            fournisseursConvert || {}
+        ).find(([search]) =>
+            fournisseur
+                .toLowerCase()
+                .includes(
+                    search.toLowerCase()
+                )
+        );
+
+    if (match) {
+
+        console.log(
+            "🔄 Conversion fournisseur :",
+            fournisseur,
+            "=>",
+            match[1]
+        );
+
+        return match[1];
+    }
+
+    return fournisseur;
+}
 
 
 module.exports = {
@@ -447,5 +481,6 @@ module.exports = {
     extractDateValeurCEESVUBS,
     isEtatCEESV,
     isUBSCEESV,
-    detectCategorie
+    detectCategorie,
+    convertFournisseur
 };

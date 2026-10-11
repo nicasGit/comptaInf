@@ -852,6 +852,31 @@ async function loadFournisseurs() {
 }
 
 
+async function loadFournisseursConvert() {
+
+    try {
+
+        const response =
+            await fetch("/api/fournisseurs-convert");
+
+        comptaFournisseursConvert =
+            await response.json();
+
+        console.log(
+            "Conversions chargées :",
+            comptaFournisseursConvert
+        );
+    }
+    catch (err) {
+
+        console.error(
+            "Erreur chargement conversions :",
+            err
+        );
+    }
+}
+
+
 window.addEventListener(
     "DOMContentLoaded",
     () => {
@@ -1982,6 +2007,7 @@ async function loadCategories() {
 
 loadCategories();
 loadFournisseurs();
+loadFournisseursConvert();
 
 
 

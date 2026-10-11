@@ -610,7 +610,31 @@ app.post(
         }
     }
 );
-``
+app.get(
+    "/api/fournisseurs-convert",
+    requireAuth,
+    async (req, res) => {
+
+        try {
+
+            const fournisseursConvert =
+                await sheets.getFournisseursConvert(
+                    req.session.email
+                );
+
+            res.json(fournisseursConvert);
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                error: err.message
+            });
+        }
+    }
+);
 //
 // affiches DEPENSES
 //
@@ -1426,12 +1450,27 @@ app.post(
             const ceesvData =
                 ocr.extractCEESVData(text);
 
+            let fournisseur =
+                ocr.extractFournisseur(text);
+
+            const fournisseursConvert =
+                await sheets.getFournisseursConvert(
+                    req.session.email
+                );
+
+            fournisseur =
+                ocr.convertFournisseur(
+                    fournisseur,
+                    fournisseursConvert
+                );
+
+
             res.json({
                 type:
                     ocr.detectDocumentType(text),
 
                 fournisseur:
-                    ocr.extractFournisseur(text),
+                    fournisseur,
 
                 dates:
                     ocr.extractDates(text),
@@ -1700,8 +1739,11 @@ app.post(
 
             }
 
-            const fournisseur =
+            let fournisseur =
                 ocr.extractFournisseur(text);
+
+            fournisseur =
+                convertFournisseur(fournisseur);
 
             const dates =
                 ocr.extractDates(text);
