@@ -33,22 +33,16 @@ async function extractText(imagePath) {
         .sharpen()
         .png()
         .toBuffer();
-
-    const result =
-        await Tesseract.recognize(
-            buffer,
-            "fra"
-        );
-
     console.log(
         "✅ image OCR créée :",
         processedImage
     );
     const result =
         await Tesseract.recognize(
-            processedImage,
+            buffer,
             "fra"
         );
+
 
     console.log(
         "Confiance OCR :",
