@@ -618,6 +618,12 @@ function detectCategorieFromFournisseur(fournisseur) {
             comptaFournisseurs[correspondance]
                 ?.categorie || "",
 
+        compte:
+            comptaCategories[
+                comptaFournisseurs[correspondance]
+                    ?.categorie
+            ]?.compte || "",
+
         fournisseurTrouve:
             correspondance,
 
@@ -645,6 +651,9 @@ function updateCategorieFromFournisseur() {
             "depCategorie"
         );
 
+    const compteCategorie =
+        resultat.compte;
+
     const compte =
         document.getElementById(
             "depCompte"
@@ -664,6 +673,10 @@ function updateCategorieFromFournisseur() {
     if (categorie) {
 
         select.value = categorie;
+
+        compte.value =
+            comptaCategories[categorie]
+                ?.compte || "";
 
         select.dispatchEvent(
             new Event("change")
@@ -1428,12 +1441,18 @@ async function handleCEESV(depense) {
         return false;
     }
 
+    const compteCEESV =
+        comptaCategories?.CEESV?.compte || "";
+
     const ligneFacture = {
 
         ...depense,
 
         fournisseur:
             "CEESV - Facture",
+
+        categorie: "CEESV",
+        compte: compteCEESV,
 
         montant:
             currentCEESV.montantFacture,
@@ -1451,6 +1470,9 @@ async function handleCEESV(depense) {
 
         fournisseur:
             "CEESV - Etat",
+
+        categorie: "CEESV",
+        compte: compteCEESV,
 
         montant:
             currentCEESV.montantEtat,
@@ -1617,6 +1639,30 @@ async function saveCategorie(depense) {
 
         }
     );
+
+}
+
+
+async function checkDuplicate(depense) {
+
+    const response =
+        await fetch(
+            "/api/checkDuplicate",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+                body: JSON.stringify({
+                    date: depense.date,
+                    fournisseur: depense.fournisseur,
+                    montant: depense.montant
+                })
+            }
+        );
+
+    return response.json();
 
 }
 
@@ -2700,3 +2746,31 @@ window.addEventListener(
 
     }
 );
+
+
+async function loadStats() {
+
+    showLoader();
+
+    try {
+
+        const response =
+            await fetch("/views/stats.html");
+
+        const html =
+            await response.text();
+
+        document.getElementById(
+            "content"
+        ).innerHTML = html;
+
+        await initStats();
+
+    }
+    finally {
+
+        hideLoader();
+
+    }
+
+}

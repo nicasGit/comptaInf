@@ -1069,22 +1069,7 @@ app.post(
                     });
 
                 }
-                finally {
 
-                    if (
-                        file.path &&
-                        fs.existsSync(
-                            file.path
-                        )
-                    ) {
-
-                        fs.unlinkSync(
-                            file.path
-                        );
-
-                    }
-
-                }
 
             }
 
@@ -1407,21 +1392,8 @@ app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
             error: err.message
         });
     }
-    finally {
 
-        if (
-            req.file?.path &&
-            fs.existsSync(req.file.path)
-        ) {
 
-            fs.unlinkSync(req.file.path);
-
-            console.log(
-                "🗑️ Upload supprimé :",
-                req.file.path
-            );
-        }
-    }
 });
 
 
@@ -1465,20 +1437,35 @@ app.post(
             const ceesvData =
                 ocr.extractCEESVData(text);
 
-            let fournisseur =
-                ocr.extractFournisseur(text);
-
             const fournisseursConvert =
                 await sheets.getFournisseursConvert(
                     req.session.email
                 );
 
-            fournisseur =
+            let fournisseur =
                 ocr.convertFournisseur(
-                    fournisseur,
+                    text,
                     fournisseursConvert
                 );
 
+            // aucun match OCR trouvé
+            if (!fournisseur || fournisseur === text) {
+
+                fournisseur =
+                    ocr.extractFournisseur(text);
+
+            }
+
+            const ocrRules =
+                await sheets.getOCRRules(
+                    req.session.email
+                );
+
+            const montants =
+                ocr.extractMontantsWithRules(
+                    text,
+                    ocrRules
+                );
 
             res.json({
                 type:
@@ -1490,8 +1477,7 @@ app.post(
                 dates:
                     ocr.extractDates(text),
 
-                montants:
-                    ocr.extractMontants(text),
+                montants,
 
                 ceesv:
                     ceesvData,
@@ -1508,21 +1494,8 @@ app.post(
                     err.message
             });
 
-        } finally {
-
-            if (
-                req.file?.path &&
-                fs.existsSync(req.file.path)
-            ) {
-
-                fs.unlinkSync(req.file.path);
-
-                console.log(
-                    "🗑️ Upload supprimé :",
-                    req.file.path
-                );
-            }
         }
+
 
     }
 );
@@ -1768,17 +1741,39 @@ app.post(
 
             }
 
-            let fournisseur =
-                ocr.extractFournisseur(text);
 
-            fournisseur =
-                convertFournisseur(fournisseur);
+            const fournisseursConvert =
+                await sheets.getFournisseursConvert(
+                    req.session.email
+                );
+
+            let fournisseur =
+                ocr.convertFournisseur(
+                    text,
+                    fournisseursConvert
+                );
+
+            // aucun match OCR trouvé
+            if (!fournisseur || fournisseur === text) {
+
+                fournisseur =
+                    ocr.extractFournisseur(text);
+
+            }
 
             const dates =
                 ocr.extractDates(text);
 
+            const ocrRules =
+                await sheets.getOCRRules(
+                    req.session.email
+                );
+
             const montants =
-                ocr.extractMontants(text);
+                ocr.extractMontantsWithRules(
+                    text,
+                    ocrRules
+                );
 
             const settings =
                 await sheets.getSettings(
@@ -1817,7 +1812,7 @@ app.post(
                 fournisseur,
                 categorie,
                 date: dates?.[0] || "",
-                montant: montants?.[0] || "",
+                montants,
                 pdfUrl
             };
 
@@ -1924,6 +1919,45 @@ app.post(
     }
 );
 
+app.post(
+    "/api/checkDuplicate",
+    async (req, res) => {
+
+        const {
+            date,
+            fournisseur,
+            montant
+        } = req.body;
+
+        const rows =
+            await sheets.getDepenses(
+                req.session.email
+            );
+
+        const duplicate =
+            rows.find(row =>
+                row.Date === date &&
+                row.Fournisseur === fournisseur &&
+                Number(row.Montant) === Number(montant)
+            );
+
+        if (!duplicate) {
+
+            return res.json({
+                duplicate: false
+            });
+
+        }
+
+        res.json({
+            duplicate: true,
+            row: duplicate._rowNumber,
+            operation: duplicate
+        });
+
+    }
+);
+
 app.get(
     "/api/standby",
     requireAuth,
@@ -2006,14 +2040,71 @@ function cleanupUploads() {
         "🧹 Uploads nettoyés"
     )
 }
+function cleanupOldUploads() {
 
+    const uploadDir =
+        path.join(DATA_DIR, "uploads");
+
+    if (!fs.existsSync(uploadDir)) {
+        return;
+    }
+
+    const now = Date.now();
+
+    fs.readdirSync(uploadDir)
+        .forEach(file => {
+
+            const filePath =
+                path.join(uploadDir, file);
+
+            try {
+
+                const stats =
+                    fs.statSync(filePath);
+
+                const ageMs =
+                    now - stats.mtimeMs;
+
+                // > 1 heure
+                if (ageMs > 60 * 60 * 1000) {
+
+                    fs.unlinkSync(filePath);
+
+                    console.log(
+                        "🗑️ Upload expiré supprimé :",
+                        file
+                    );
+
+                }
+
+            }
+            catch (err) {
+
+                console.warn(
+                    "⚠️ Impossible de supprimer :",
+                    file,
+                    err.message
+                );
+
+            }
+
+        });
+
+}
 //
 // DEMARRAGE
 //
 
 app.listen(PORT, () => {
 
-    cleanupUploads();
+    cleanupUploads();      // nettoyage complet au démarrage
+    cleanupOldUploads();   // sécurité supplémentaire
+
+    // toutes les 10 minutes
+    setInterval(
+        cleanupOldUploads,
+        10 * 60 * 1000
+    );
 
     console.log(
         `🚀 ComptaInf lancé sur http://localhost:${PORT}`

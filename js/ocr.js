@@ -1,6 +1,7 @@
 //ocr,js
 const fs = require("fs");
 const pdf = require("pdf-parse");
+const { getEnvironment } = require("./config");
 
 const Tesseract = require("tesseract.js");
 const sharp = require("sharp");
@@ -9,7 +10,11 @@ const path = require("path");
 
 
 
-async function extractText(imagePath) {
+async function extractText(imagePath,
+    email = null) {
+
+
+
 
     console.log("🖼️ extractText appelé :", imagePath);
 
@@ -25,16 +30,35 @@ async function extractText(imagePath) {
         .png()
         .toFile(processedImage);
 */
+    /*
+        await sharp(imagePath)
+            .rotate()
+            .png()
+            .toFile(processedImage);
+    
+    
+        console.log(
+            "✅ image OCR créée :",
+            processedImage
+        );
+        const result =
+            await Tesseract.recognize(
+                processedImage,
+                "fra"
+            );
+    */
     const buffer = await sharp(imagePath)
-        .trim()
-        .resize({ width: 1800 })
+        .rotate()
+        .resize({
+            width: 2000,
+            withoutEnlargement: true
+        })
         .grayscale()
         .normalize()
-        .sharpen()
-        .png()
         .toBuffer();
+
     console.log(
-        "✅ image OCR créée :",
+        "✅ image OCR créée en memoire :",
         processedImage
     );
     const result =
@@ -43,6 +67,15 @@ async function extractText(imagePath) {
             "fra"
         );
 
+
+    if (
+        email &&
+        getEnvironment(email) === "DEV"
+    ) {
+        console.log("========== OCR ==========");
+        console.log(JSON.stringify(result.data.text));
+        console.log("=========================");
+    }
 
     console.log(
         "Confiance OCR :",
@@ -434,45 +467,183 @@ function isEtatCEESV(texte) {
     );
 }
 function convertFournisseur(
-    fournisseur,
+    texte,
     fournisseursConvert
 ) {
 
-    if (!fournisseur) {
-        return fournisseur;
+    if (!texte) {
+        return "";
     }
 
     const match =
         Object.entries(
             fournisseursConvert || {}
-        ).find(([search]) =>
-            fournisseur
-                .toLowerCase()
-                .includes(
-                    search.toLowerCase()
-                )
-        );
+        ).find(([search]) => {
+
+            try {
+
+                return new RegExp(
+                    search,
+                    "i"
+                ).test(texte);
+
+            }
+            catch {
+
+                return texte
+                    .toLowerCase()
+                    .includes(
+                        search.toLowerCase()
+                    );
+
+            }
+
+        });
 
     if (match) {
 
         console.log(
-            "🔄 Conversion fournisseur :",
-            fournisseur,
+            "🎯 Match OCR :",
+            match[0],
             "=>",
             match[1]
         );
 
         return match[1];
+
     }
 
-    return fournisseur;
+    return "";
 }
 
+
+function extractMontantByRule(
+    texte,
+    regex
+) {
+
+    if (!texte || !regex) {
+        return null;
+    }
+
+    try {
+
+        const match =
+            texte.match(
+                new RegExp(
+                    regex,
+                    "i"
+                )
+            );
+
+        if (!match || !match[1]) {
+            return null;
+        }
+
+        const montant =
+            parseFloat(
+                match[1]
+                    .replace(/\s/g, "")
+                    .replace(",", ".")
+            );
+
+        if (isNaN(montant)) {
+            return null;
+        }
+
+        console.log(
+            "💰 Montant trouvé par règle :",
+            regex,
+            "=>",
+            montant
+        );
+
+        return montant;
+
+    }
+    catch (err) {
+
+        console.error(
+            "❌ Regex OCR invalide :",
+            regex,
+            err.message
+        );
+
+        return null;
+
+    }
+
+}
+function extractMontantFromRules(
+    texte,
+    ocrRules
+) {
+
+    for (const [type, regex] of Object.entries(
+        ocrRules || {}
+    )) {
+
+
+        /*  console.log(
+              "🧪 Test règle :",
+              type,
+              "=",
+              regex
+          );*/
+
+        const montant =
+            extractMontantByRule(
+                texte,
+                regex
+            );
+
+        if (montant !== null) {
+
+            console.log(
+                "✅ Règle utilisée :",
+                type
+            );
+
+            return montant;
+
+        }
+
+    }
+
+    return null;
+
+}
+
+function extractMontantsWithRules(
+    texte,
+    ocrRules
+) {
+
+    const montantOCR =
+        extractMontantFromRules(
+            texte,
+            ocrRules
+        );
+
+    if (montantOCR !== null) {
+
+        return [montantOCR];
+
+    }
+
+    return extractMontants(
+        texte
+    );
+
+}
 
 module.exports = {
     analysePdf,
     extractText,
     extractMontants,
+    extractMontantByRule,
+    extractMontantFromRules,
+    extractMontantsWithRules,
     extractDates,
     extractFournisseur,
     extractDateValeur,
@@ -482,5 +653,6 @@ module.exports = {
     isEtatCEESV,
     isUBSCEESV,
     detectCategorie,
-    convertFournisseur
+    convertFournisseur,
+
 };

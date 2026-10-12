@@ -1,4 +1,7 @@
 //depense.js
+let uploadedTempFile = null;
+
+
 function openDepense() {
 
     document.getElementById("modalDepense")
@@ -254,6 +257,8 @@ async function showFile(file) {
 
         const result =
             await response.json();
+
+        uploadedTempFile = result.tempFile;
 
         currentCEESV =
             result.ceesv || null;

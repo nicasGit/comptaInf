@@ -394,6 +394,45 @@ async function getFournisseursConvert(email) {
     return result;
 }
 
+
+
+async function getOCRRules(email) {
+
+    const client = await auth.getClient();
+
+    const sheets = getSheets();
+
+    const response =
+        await sheets.spreadsheets.values.get({
+
+            spreadsheetId: getConfigSpreadsheetId(email),
+
+            range: "OCR_RULES!A:B"
+
+        });
+
+    const rows =
+        response.data.values || [];
+
+    const result = {};
+
+    rows.slice(0).forEach(row => {
+
+        if (
+            row[0] &&
+            row[1]
+        ) {
+
+            result[row[0].trim()] =
+                row[1].trim();
+
+        }
+
+    });
+
+    return result;
+}
+
 async function getSettings(email) {
 
     const client = await auth.getClient();
@@ -648,6 +687,8 @@ module.exports = {
     addFournisseur,
     getFournisseurs,
     getFournisseursConvert,
+
+    getOCRRules,
 
     getSettings,
     saveSetting,
