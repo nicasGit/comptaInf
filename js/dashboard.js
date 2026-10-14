@@ -1,7 +1,7 @@
 //dashboard.js
 async function initDashboard() {
 
-    initDropzone();
+    initDropzoneDashboard();
     initDashboardEvents();
 
     await loadExercices();
@@ -45,7 +45,7 @@ function initDashboardEvents() {
 
 }
 
-function initDropzone() {
+function initDropzoneDashboard() {
 
     const dropzone =
         document.getElementById(
