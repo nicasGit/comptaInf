@@ -8,6 +8,7 @@ const ocr = require("./js/ocr");
 const oauth2Client = require("./js/oauth");
 const sheets = require("./js/sheets");
 const drive = require("./js/drive");
+const { importDocument } = require("./js/importDocument");
 const {
     getEnvironment,
     setEnvironment
@@ -843,11 +844,6 @@ app.post(
 
         try {
 
-            const settings =
-                await sheets.getSettings(
-                    req.session.email
-                );
-
             for (const file of req.files) {
 
                 try {
@@ -857,15 +853,15 @@ app.post(
                         file.originalname
                     );
 
-                    const text =
-                        await ocr.analysePdf(
-                            file.path
+                    const analyse =
+                        await ocr.analyseDocument(
+                            file.path,
+                            file.originalname,
+                            req.session.email
                         );
 
                     const ceesv =
-                        ocr.extractCEESVData(
-                            text
-                        );
+                        analyse.ceesv;
 
                     if (!ceesv) {
 
@@ -898,23 +894,15 @@ app.post(
                                 ceesv.montantFacture || ceesv.montantBanque
                             ).toFixed(2)}_${file.originalname}`;
 
-                        const exercice =
-                            (await sheets.getSettings(
-                                req.session.email
-                            )).Exercice;
-
-
-                        const fileId =
-                            await drive.uploadFile(
-                                req.session.email,
+                        const imported =
+                            await importDocument(
                                 file.path,
                                 fileName,
-                                exercice
+                                req.session.email
                             );
 
-
                         const pdfUrl =
-                            `https://drive.google.com/file/d/${fileId}/view`;
+                            imported.pdfUrl;
 
                         const match =
                             await sheets.findCEESVMatch(
@@ -983,26 +971,23 @@ app.post(
                         "CEESV_UBS"
                     ) {
 
-                        const exercice =
-                            (await sheets.getSettings(
-                                req.session.email
-                            )).Exercice;
 
                         const fileName =
                             `UBS_${convertDateCEESV(
                                 ceesv.dateValeur
                             )}_${ceesv.montantBanque}.pdf`;
 
-                        const fileId =
-                            await drive.uploadFile(
-                                req.session.email,
+
+                        const imported =
+                            await importDocument(
                                 file.path,
                                 fileName,
-                                exercice
+                                req.session.email
                             );
 
                         const pdfUrl =
-                            `https://drive.google.com/file/d/${fileId}/view`;
+                            imported.pdfUrl;
+
 
 
                         const match =
@@ -1149,34 +1134,24 @@ app.post(
             //console.log('=== UPLOAD ===');
             //console.log(req.file);
 
-            const settings =
-                await sheets.getSettings(
-                    req.session.email
-                );
-
-            const exercice =
-                settings.Exercice;
 
             const fileName =
                 req.body.fileName ||
                 req.file.originalname;
 
-            const fileId =
-                await drive.uploadFile(
-                    req.session.email,
+            const imported =
+                await importDocument(
                     req.file.path,
                     fileName,
-                    exercice
+                    req.session.email
                 );
 
             const pdfUrl =
-                `https://drive.google.com/file/d/${fileId}/view`;
+                imported.pdfUrl;
 
             res.json({
 
                 success: true,
-
-                fileId,
 
                 pdfUrl,
 
@@ -1356,180 +1331,49 @@ app.get("/api/shared-file", requireAuth, (req, res) => {
 
 
 app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
-    try {
-        const sharedFile = req.session.sharedFile;
 
-        if (!sharedFile || !fs.existsSync(sharedFile.path)) {
-            return res.status(404).json({
-                error: "Aucun fichier partagé en attente"
-            });
-        }
+    const sharedFile =
+        req.session.sharedFile;
 
-        const ext = path.extname(
-            sharedFile.originalname
-        ).toLowerCase();
-
-        let text = "";
-
-        if (ext === ".pdf") {
-            text = await ocr.analysePdf(
-                sharedFile.path
-            );
-        } else {
-            text = await ocr.extractText(
-                sharedFile.path
-            );
-        }
-
-        const ceesvData =
-            ocr.extractCEESVData(text);
-
-        res.json({
-            type: ocr.detectDocumentType(text),
-            fournisseur: ocr.extractFournisseur(text),
-            dates: ocr.extractDates(text),
-            montants: ocr.extractMontants(text),
-            ceesv: ceesvData
-        });
-
-    } catch (err) {
-        console.error(
-            "Erreur analyse fichier partagé :",
-            err
-        );
-
-        res.status(500).json({
-            error: err.message
+    if (
+        !sharedFile ||
+        !fs.existsSync(sharedFile.path)
+    ) {
+        return res.status(404).json({
+            error: "Aucun fichier partagé"
         });
     }
 
+    const result =
+        await ocr.analyseDocument(
+            sharedFile.path,
+            sharedFile.originalname,
+            req.session.email
+        );
 
+    res.json(result);
 });
 
 
 //
 // analyse
 //
+
 app.post(
     "/analyse-document",
     requireAuth,
     upload.single("pdf"),
     async (req, res) => {
 
-        try {
+        const result =
+            await ocr.analyseDocument(
+                req.file.path,
+                req.file.originalname,
+                req.session.email
+            );
 
-            const ext =
-                path.extname(
-                    req.file.originalname
-                ).toLowerCase();
-
-            let text = "";
-
-
-            if (ext === ".pdf") {
-
-                text =
-                    await ocr.analysePdf(
-                        req.file.path
-                    );
-
-
-                const hasPrivateChars =
-                    /[\uE000-\uF8FF]/.test(text);
-
-                if (hasPrivateChars) {
-                    console.log(
-                        "PDF CID détecté -> PDFJS"
-                    );
-
-                    text =
-                        await ocr.readCorruptedPdf(
-                            req.file.path
-                        );
-
-                }
-
-            }
-            else {
-
-                text =
-                    await ocr.extractText(
-                        req.file.path
-                    );
-
-            }
-
-            console.log("=== OCR TEXTE OCR ===");
-            console.log(text);
-            console.log("===  ===");
-
-            const ceesvData =
-                ocr.extractCEESVData(text);
-
-            const fournisseursConvert =
-                await sheets.getFournisseursConvert(
-                    req.session.email
-                );
-
-            let fournisseur =
-                ocr.convertFournisseur(
-                    text,
-                    fournisseursConvert
-                );
-
-            // aucun match OCR trouvé
-            if (!fournisseur || fournisseur === text) {
-
-                fournisseur =
-                    ocr.extractFournisseur(text);
-
-            }
-
-            const ocrRules =
-                await sheets.getOCRRules(
-                    req.session.email
-                );
-
-            const montants =
-                ocr.extractMontantsWithRules(
-                    text,
-                    ocrRules
-                );
-
-
-
-            res.json({
-                type:
-                    ocr.detectDocumentType(text),
-
-                fournisseur:
-                    fournisseur,
-
-                dates:
-                    ocr.extractDates(text),
-
-                montants,
-
-                ceesv:
-                    ceesvData,
-
-            });
-
-        }
-        catch (err) {
-
-            console.error(err);
-
-            res.status(500).json({
-                error:
-                    err.message
-            });
-
-        }
-
-
-    }
-);
+        res.json(result);
+    });
 //
 // FICHIERS UPLOADS
 //
@@ -1751,107 +1595,23 @@ app.post(
 
             }
 
-            let text = "";
-
-            const ext =
-                path.extname(
-                    sharedFile.originalname
-                ).toLowerCase();
-
-            if (ext === ".pdf") {
-
-                text = await ocr.analysePdf(
-                    sharedFile.path
-                );
-
-            } else {
-
-                text = await ocr.extractText(
-                    sharedFile.path
-                );
-
-            }
-
-
-            const fournisseursConvert =
-                await sheets.getFournisseursConvert(
-                    req.session.email
-                );
-
-            let fournisseur =
-                ocr.convertFournisseur(
-                    text,
-                    fournisseursConvert
-                );
-
-            // aucun match OCR trouvé
-            if (!fournisseur || fournisseur === text) {
-
-                fournisseur =
-                    ocr.extractFournisseur(text);
-
-            }
-
-            const dates =
-                ocr.extractDates(text);
-
-            const ocrRules =
-                await sheets.getOCRRules(
-                    req.session.email
-                );
-
-            const montants =
-                ocr.extractMontantsWithRules(
-                    text,
-                    ocrRules
-                );
-
-            const settings =
-                await sheets.getSettings(
-                    req.session.email
-                );
-
-            const exercice =
-                settings.Exercice;
-
-            console.log("=== IMPORT SHARED FILE ===");
-            console.log("email =", req.session.email);
-            console.log("path =", sharedFile.path);
-            console.log("file =", sharedFile.originalname);
-
-            const fileId =
-                await drive.uploadFile(
-                    req.session.email,
+            const imported =
+                await importDocument(
                     sharedFile.path,
                     sharedFile.originalname,
-                    exercice
+                    req.session.email
                 );
-            console.log("fileId =", fileId);
-
-            if (!fileId) {
-                throw new Error("Drive n'a retourné aucun fileId");
-            }
-
-            const pdfUrl =
-                `https://drive.google.com/file/d/${fileId}/view`;
-
-
-            const categorie = ocr.detectCategorie(fournisseur);
 
             const result = {
                 success: true,
-                fournisseur,
-                categorie,
-                date: dates?.[0] || "",
-                montants,
-                pdfUrl
+                pdfUrl: imported.pdfUrl
             };
 
 
+            //clean 
             if (fs.existsSync(sharedFile.path)) {
                 fs.unlinkSync(sharedFile.path);
             }
-
 
             delete req.session.sharedFile;
 
@@ -1950,6 +1710,8 @@ app.post(
     }
 );
 
+
+
 app.post(
     "/api/checkDuplicate",
     async (req, res) => {
@@ -1960,17 +1722,28 @@ app.post(
             montant
         } = req.body;
 
+        //console.log("CHECK", {
+        //    date,
+        //    fournisseur,
+        //    montant
+        //});
+
         const rows =
             await sheets.getDepenses(
                 req.session.email
             );
 
-        const duplicate =
-            rows.find(row =>
-                row.Date === date &&
-                row.Fournisseur === fournisseur &&
-                Number(row.Montant) === Number(montant)
+        const rowIndex =
+            rows.findIndex(row =>
+                row[0] === date &&
+                row[1] === fournisseur &&
+                Math.abs(
+                    Number(String(row[4]).replace(",", "."))
+                ) === Math.abs(Number(montant))
             );
+
+        const duplicate = rows[rowIndex];
+
 
         if (!duplicate) {
 
@@ -1980,10 +1753,19 @@ app.post(
 
         }
 
+        console.log("Duplicate !");
+
+
         res.json({
             duplicate: true,
-            row: duplicate._rowNumber,
-            operation: duplicate
+            row: rowIndex + 1, // ou +2 selon l'entête
+            line: rows[rowIndex],
+            comment: duplicate[7] || "",
+            operation: {
+                Date: duplicate[0],
+                Fournisseur: duplicate[1],
+                Montant: duplicate[4]
+            }
         });
 
     }

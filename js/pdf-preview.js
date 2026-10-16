@@ -1,12 +1,17 @@
-
+//pdf-preview.js
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 let previewVersion = 0;
+const pdfZooms = {
+  pdfPreview: 1,
+  duplicatePdfPreview: 1
+};
 
-async function renderPdfPreview(file) {
+async function renderPdfPreview(file,
+  containerId = "pdfPreview") {
   const version = ++previewVersion;
-  const container = document.getElementById("pdfPreview");
+  const container = document.getElementById(containerId);
 
   container.replaceChildren();
   container.style.display = "block";
@@ -28,14 +33,16 @@ async function renderPdfPreview(file) {
       const original = page.getViewport({ scale: 1 });
       const width = container.clientWidth || 350;
       const scale = Math.min(width / original.width, 2);
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({
+        scale: scale * pdfZooms[containerId]
+      });
 
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
 
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
-      canvas.style.width = "100%";
+      canvas.style.maxWidth = "none";
       canvas.style.height = "auto";
       canvas.style.display = "block";
       canvas.style.marginBottom = "12px";
@@ -59,4 +66,40 @@ async function renderPdfPreview(file) {
 function clearPdfPreview() {
   previewVersion++;
   document.getElementById("pdfPreview").replaceChildren();
+}
+
+function zoomPdf(
+  step,
+  containerId = "pdfPreview",
+  labelId = "pdfZoomLabel"
+) {
+
+  pdfZooms[containerId] += step;
+
+  pdfZooms[containerId] = Math.max(
+    0.5,
+    Math.min(3, pdfZooms[containerId])
+  );
+
+  const label =
+    document.getElementById(labelId);
+
+  if (label) {
+
+    label.textContent =
+      Math.round(
+        pdfZooms[containerId] * 100
+      ) + "%";
+
+  }
+
+  if (currentFile) {
+
+    renderPdfPreview(
+      currentFile,
+      containerId
+    );
+
+  }
+
 }

@@ -1,6 +1,7 @@
 //ocr,js
 const fs = require("fs");
 const pdf = require("pdf-parse");
+const sheets = require("./sheets");
 const { getEnvironment } = require("./config");
 const { fromPath } = require("pdf2pic");
 
@@ -269,16 +270,14 @@ function detectDocumentType(texte) {
     return "DEPENSE";
 }
 
-function detectCategorie(fournisseur) {
+async function detectCategorie(fournisseur, email) {
 
     try {
 
-        const fournisseurs = JSON.parse(
-            fs.readFileSync(
-                path.join(__dirname, "data", "fournisseurs.json"),
-                "utf8"
-            )
-        );
+
+        const fournisseurs =
+            await sheets.getFournisseurs(email);
+
 
         const normaliser = texte =>
             texte
@@ -302,11 +301,18 @@ function detectCategorie(fournisseur) {
 
             });
 
+
+
         if (!correspondance) {
+            console.log("❌ No Match Fournisseur/Categorie pour ", fournisseur)
             return "";
         }
 
-        return fournisseurs[correspondance]?.categorie || "";
+        const categorie = fournisseurs[correspondance]?.categorie || "";
+
+        console.log("🎯 Match Fournisseur/Categorie :", categorie)
+
+        return categorie;
 
     }
     catch (e) {
@@ -668,6 +674,98 @@ function extractMontantsWithRules(
 
 }
 
+
+async function analyseDocument(
+    filePath,
+    originalName,
+    email
+) {
+
+    const ext =
+        path.extname(
+            originalName
+        ).toLowerCase();
+
+    let text = "";
+
+    if (ext === ".pdf") {
+
+        text =
+            await analysePdf(filePath);
+
+        if (/[\uE000-\uF8FF]/.test(text)) {
+
+            text =
+                await readCorruptedPdf(
+                    filePath
+                );
+
+        }
+
+    } else {
+
+        text =
+            await extractText(filePath);
+
+    }
+
+    const fournisseursConvert =
+        await sheets.getFournisseursConvert(
+            email
+        );
+
+    let fournisseur =
+        convertFournisseur(
+            text,
+            fournisseursConvert
+        );
+
+    if (
+        !fournisseur ||
+        fournisseur === text
+    ) {
+
+        fournisseur =
+            extractFournisseur(text);
+
+    }
+
+    const ocrRules =
+        await sheets.getOCRRules(email);
+
+    const categorie = await detectCategorie(
+        fournisseur,
+        email
+    );
+
+    return {
+
+        text,
+
+        type:
+            detectDocumentType(text),
+
+        fournisseur,
+
+        categorie,
+
+        dates:
+            extractDates(text),
+
+        montants:
+            extractMontantsWithRules(
+                text,
+                ocrRules
+            ),
+
+        ceesv:
+            extractCEESVData(text)
+
+    };
+}
+
+
+
 module.exports = {
     analysePdf,
     extractText,
@@ -685,5 +783,6 @@ module.exports = {
     isUBSCEESV,
     detectCategorie,
     convertFournisseur,
-    readCorruptedPdf
+    readCorruptedPdf,
+    analyseDocument
 };

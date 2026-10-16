@@ -371,8 +371,8 @@ async function loadDepenses() {
             document.createElement("tr");
 
         tr.innerHTML = `
-				<td>${row[0] || ""}</td>
-				<td title="${row[1] || ""}">${row[1] || ""}</td>
+				<td style="white-space: nowrap;">${row[0] || ""}</td>
+				<td  title="${row[1] || ""}">${row[1] || ""}</td>
 				<td>${row[2] || ""}</td>
 				<td>${row[3] || ""}</td><!-- compte MEGA-->
 				<td class="${classeMontant}">${montant}&nbsp;CHF</td> <!-- compte montant-->
@@ -514,5 +514,91 @@ async function refreshStandby() {
         ).style.display = "none";
 
     }
+
+}
+
+
+function showDuplicateModal(duplicateResult) {
+
+    return new Promise(resolve => {
+
+        document.getElementById("duplicateContent").innerHTML = `
+    <div class="info-line">
+        📅 <strong>Date :</strong> ${duplicateResult.operation.Date}
+    </div>
+
+    <div class="info-line">
+        🏢 <strong>Fournisseur :</strong> ${duplicateResult.operation.Fournisseur}
+    </div>
+
+    <div class="info-line">
+        💰 <strong>Montant :</strong> ${duplicateResult.operation.Montant} CHF
+    </div>
+
+    <div class="info-line">
+        📄 <strong>Ligne :</strong> ${duplicateResult.row}
+    </div>
+
+        <div class="info-line">
+        📄  ${duplicateResult.comment}
+    </div>
+
+    <hr style="margin:15px 0">
+
+    <div>
+        Cette opération semble déjà exister.<br>
+        Que souhaitez‑vous faire ?
+    </div>
+`;
+
+        window.duplicateChoice = action => {
+
+            document.getElementById(
+                "duplicatePdfPreview"
+            ).replaceChildren();
+
+            document.getElementById(
+                "duplicateModal"
+            ).style.display = "none";
+
+            resolve(action);
+
+        };
+
+        document.getElementById(
+            "duplicateModal"
+        ).style.display = "flex";
+
+
+        if (
+            currentFile &&
+            (
+                currentFile.type === "application/pdf" ||
+                currentFile.name?.toLowerCase().endsWith(".pdf")
+            )
+        ) {
+
+            pdfZoom = 1;
+
+            const zoomLabel =
+                document.getElementById(
+                    "duplicateZoomLabel"
+                );
+
+            if (zoomLabel) {
+
+                zoomLabel.textContent =
+                    "100%";
+
+            }
+            renderPdfPreview(
+                currentFile,
+                "duplicatePdfPreview"
+            );
+        }
+
+
+
+    });
 
 }

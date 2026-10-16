@@ -283,6 +283,21 @@
                         👁️ Aperçu du justificatif
                     </div>
 
+                    <div class="pdf-toolbar">
+
+                        <button onclick="zoomPdf(-0.25,'pdfPreview','pdfZoomLabel')">
+                            ➖
+                        </button>
+
+                        <span id="pdfZoomLabel">
+                            100%
+                        </span>
+
+                        <button onclick="zoomPdf(0.25,'pdfPreview','pdfZoomLabel')">
+                            ➕
+                        </button>
+
+                    </div>
                     <div id="pdfPreview" class="pdf-preview"></div>
 
                     <!--<iframe id="pdfPreview" class="pdf-preview">
@@ -446,6 +461,73 @@
 
     <div id="pageLoader" class="page-loader">
         <div class="page-spinner"></div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+
+        <div class="loading-box">
+
+            <div class="spinner"></div>
+
+            <div id="loadingOverlayText" class="loading-text">
+                Chargement...
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="duplicateModal" class="duplicate-modal">
+        <div class="duplicate-card">
+
+            <div class="duplicate-header">
+                ⚠️ Doublon détecté
+            </div>
+
+            <div class="duplicate-body">
+                <div id="duplicateContent" class="duplicate-content">
+                </div>
+
+                <div class="duplicate-preview">
+
+                    <div class="pdf-toolbar">
+
+                        <button onclick="zoomPdf(-0.25,'duplicatePdfPreview','duplicateZoomLabel')">
+                            ➖
+                        </button>
+
+                        <span id="duplicateZoomLabel">
+                            100%
+                        </span>
+
+                        <button onclick="zoomPdf(0.25,'duplicatePdfPreview','duplicateZoomLabel')">
+                            ➕
+                        </button>
+
+                    </div>
+
+                    <div id="duplicatePdfPreview"></div>
+
+                </div>
+            </div>
+
+            <div class="duplicate-actions">
+
+                <button class="btn-cancel" onclick="duplicateChoice('cancel')">
+                    ❌ Annuler
+                </button>
+
+                <button class="btn-insert" onclick="duplicateChoice('insert')">
+                    ➕ Insérer
+                </button>
+
+                <button class="btn-replace" onclick="duplicateChoice('replace')">
+                    🔄 Écraser
+                </button>
+
+            </div>
+
+        </div>
     </div>
 
 

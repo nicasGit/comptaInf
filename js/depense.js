@@ -1,6 +1,8 @@
 //depense.js
 let currentCEESV = null;
 let ceesvFiles = [];
+let duplicateAction = null;
+let duplicateRow = null;
 
 function openDepense() {
 
@@ -105,14 +107,40 @@ function closeDepense() {
 
 }
 
+function showSavingOverlay(message) {
+
+    document.getElementById(
+        "loadingOverlayText"
+    ).textContent = message;
+
+    document.getElementById(
+        "loadingOverlay"
+    ).style.display = "flex";
+}
+
+function hideSavingOverlay() {
+
+    document.getElementById(
+        "loadingOverlay"
+    ).style.display = "none";
+}
 
 
 async function saveOperation() {
-
-    showLoader();
-
     try {
+        if (
+            duplicateAction === "replace" &&
+            duplicateRow
+        ) {
 
+            await deleteRow(
+                duplicateRow
+            );
+
+        }
+        showSavingOverlay(
+            "📤 Envoi du justificatif..."
+        );
         const driveUrl =
             await uploadCurrentFile();
 
@@ -126,8 +154,14 @@ async function saveOperation() {
         if (await handleUBS(driveUrl)) {
             return;
         }
-
+        showSavingOverlay(
+            "💾 Enregistrement des données en cours..."
+        );
         await saveNormalDepense(depense);
+
+
+        duplicateAction = null;
+        duplicateRow = null;
 
     }
     catch (err) {
@@ -142,7 +176,8 @@ async function saveOperation() {
     }
     finally {
 
-        hideLoader();
+
+        hideSavingOverlay();
 
     }
 }
@@ -185,7 +220,6 @@ function buildDepense(driveUrl) {
                 "depMontant"
             ).value
         );
-    montant.toFixed(2);
 
     const operationType =
         document.getElementById(
@@ -280,7 +314,7 @@ function buildDepense(driveUrl) {
 }
 
 
-async function showFile(file) {
+async function showFile(file, analyseExistante = null) {
 
     const selectedFile =
         document.getElementById("selectedFile");
@@ -299,81 +333,49 @@ async function showFile(file) {
 
     try {
 
-        const formData = new FormData();
+        let result;
 
-        formData.append("pdf", file);
+        if (analyseExistante) {
 
-        const response =
-            await fetch("/analyse-document", {
-                method: "POST",
-                body: formData
-            });
+            result = analyseExistante;
 
-        if (!response.ok) {
-            throw new Error(
-                "Erreur OCR HTTP " + response.status
-            );
+        } else {
+
+            const formData = new FormData();
+
+            formData.append("pdf", file);
+
+            const response =
+                await fetch("/analyse-document", {
+                    method: "POST",
+                    body: formData
+                });
+
+            if (!response.ok) {
+                throw new Error(
+                    "Erreur OCR HTTP " + response.status
+                );
+            }
+
+            result =
+                await response.json();
+
         }
-
-        const result =
-            await response.json();
 
         currentCEESV =
             result.ceesv || null;
-        console.log(
-            "currentCEESV =",
-            currentCEESV
-        );
 
         await enrichCEESV();
 
+        openOperationWithData(
+            result,
+            false
+        );
 
 
-        console.log("OCR COMPLET :", result);
-        console.log("Dates :", result.dates);
-        console.log("Montants :", result.montants);
-        console.log("ceesv :", currentCEESV);
-
-        //
         // Vérification doublon après OCR
-        //
-        if (
-            result.fournisseur &&
-            result.dates?.length > 0 &&
-            result.montants?.length > 0
-        ) {
+        await checkDuplicateAfterOCR(result);
 
-            const duplicateResult =
-                await checkDuplicate({
-                    date: result.dates[0],
-                    fournisseur: result.fournisseur,
-                    montant: result.montants[0]
-                });
-
-            if (duplicateResult.duplicate) {
-
-                showToast(
-                    `⚠️ Document probablement déjà chargé`,
-                    "error"
-                );
-
-                alert(
-                    `⚠️ Facture déjà présente
-
-Date : ${duplicateResult.operation.Date}
-Fournisseur : ${duplicateResult.operation.Fournisseur}
-Montant : ${duplicateResult.operation.Montant}
-
-Ligne : ${duplicateResult.row}`
-                );
-            }
-        }
-
-        /*
-         * Très important :
-         * false = la modal est déjà ouverte.
-         */
-        openOperationWithData(result, false);
 
         document.getElementById(
             "dropzoneDepense"
@@ -441,7 +443,63 @@ function convertDate(date) {
 
 
 
+async function checkDuplicateAfterOCR(result) {
 
+    //
+    const depenseOCR = {
+        date: document.getElementById("depDate").value,
+        fournisseur: document.getElementById("depFournisseur").value.trim(),
+        montant: parseFloat(
+            document.getElementById("depMontant").value
+        )
+    };
+
+    //console.log("CHECK DUPLICATE", depenseOCR);
+    //
+    // Vérification doublon après OCR
+    //
+    if (
+        result.fournisseur &&
+        result.dates?.length > 0 &&
+        result.montants?.length > 0
+    ) {
+
+        const duplicateResult =
+            await checkDuplicate({
+                date: convertDate(result.dates[0]),
+                fournisseur: result.fournisseur,
+                montant: result.montants[0]
+            });
+
+        if (duplicateResult.duplicate) {
+
+            const action =
+                await showDuplicateModal(
+                    duplicateResult
+                );
+
+            duplicateAction = action;
+            duplicateRow = duplicateResult.row;
+
+            switch (action) {
+
+                case "cancel":
+                    closeDepense();
+                    return;
+
+                case "insert":
+                    break;
+
+                case "replace":
+                    // action au moment du enregistrement 
+                    break;
+
+            }
+
+        }
+    }
+
+}
 
 function applyOperationType(data) {
     const operationType =
@@ -1297,6 +1355,10 @@ async function deleteRow(row) {
 
 async function refreshAfterSave() {
 
+    duplicateAction = null;
+    duplicateRow = null;
+
+
     await loadDepenses();
     await refreshStats();
     await loadCategories();
@@ -2122,48 +2184,7 @@ async function initSharedAnalyse() {
             }
         );
 
-    await showFile(currentFile);
-
-    currentCEESV =
-        result.ceesv || null;
-
-
-    await enrichCEESV();
-
-    openDepense();
-    openOperationWithData(
-        result,
-        false
-    );
-
-    const depenseOCR = {
-        date: result.dates?.[0]
-            ? convertDate(result.dates[0])
-            : "",
-        fournisseur: result.fournisseur || "",
-        montant: result.montants?.[0] || 0
-    };
-
-    const duplicateResult =
-        await checkDuplicate(depenseOCR);
-
-    if (duplicateResult.duplicate) {
-
-        showToast(
-            `⚠️ Document probablement déjà chargé :
-         ${duplicateResult.operation.Fournisseur}
-         (${duplicateResult.operation.Montant} CHF)`,
-            "error"
-        );
-
-        alert(
-            `Cette opération semble déjà exister.
-
-Date : ${duplicateResult.operation.Date}
-Fournisseur : ${duplicateResult.operation.Fournisseur}
-Montant : ${duplicateResult.operation.Montant}`
-        );
-    }
+    await showFile(currentFile, result);
 
     setTimeout(async () => {
 
