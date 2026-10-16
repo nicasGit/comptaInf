@@ -445,6 +445,7 @@ function convertDate(date) {
 
 async function checkDuplicateAfterOCR(result) {
 
+
     //
     const depenseOCR = {
         date: document.getElementById("depDate").value,
@@ -454,7 +455,7 @@ async function checkDuplicateAfterOCR(result) {
         )
     };
 
-    //console.log("CHECK DUPLICATE", depenseOCR);
+
     //
     // Vérification doublon après OCR
     //

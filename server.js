@@ -1710,11 +1710,22 @@ app.post(
     }
 );
 
+function normalizeFournisseur(nom, converts) {
 
+    const key = (nom || "")
+        .trim()
+        .toLowerCase();
+
+    return converts[key] || key;
+
+}
 
 app.post(
     "/api/checkDuplicate",
     async (req, res) => {
+
+
+        console.log("🔥 CHECK DUPLICATE CALLED");
 
         const {
             date,
@@ -1722,25 +1733,61 @@ app.post(
             montant
         } = req.body;
 
-        //console.log("CHECK", {
-        //    date,
-        //    fournisseur,
-        //    montant
-        //});
+
+
 
         const rows =
             await sheets.getDepenses(
                 req.session.email
             );
 
-        const rowIndex =
-            rows.findIndex(row =>
-                row[0] === date &&
-                row[1] === fournisseur &&
-                Math.abs(
-                    Number(String(row[4]).replace(",", "."))
-                ) === Math.abs(Number(montant))
+
+        const fournisseursConvert =
+            await sheets.getFournisseursConvert(
+                req.session.email
             );
+
+        const fournisseurRecherche =
+            normalizeFournisseur(
+                fournisseur,
+                fournisseursConvert
+            );
+
+        console.log(
+            "CHECK DUPLICATE",
+            {
+                date,
+                fournisseur,
+                fournisseurRecherche,
+                montant
+            }
+        );
+
+
+        const rowIndex =
+            rows.findIndex(row => {
+
+                const fournisseurLigne =
+                    normalizeFournisseur(
+                        row[1],
+                        fournisseursConvert
+                    );
+
+                return (
+                    row[0] === date &&
+                    fournisseurLigne === fournisseurRecherche &&
+                    Math.abs(
+                        Number(
+                            String(row[4]).replace(",", ".")
+                        )
+                    ) === Math.abs(
+                        Number(montant)
+                    )
+                );
+
+            });
+
+
 
         const duplicate = rows[rowIndex];
 

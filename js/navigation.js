@@ -314,20 +314,22 @@ async function saveSettings() {
             document.getElementById(
                 "environmentBadge"
             );
+        if (badge) {
 
-        if (environment === "DEV") {
 
-            badge.innerHTML = "🧪 DEV";
-            badge.style.display = "block";
+            if (environment === "DEV") {
 
+                badge.innerHTML = "🧪 DEV";
+                badge.style.display = "block";
+
+            }
+            else {
+
+                badge.innerHTML = "";
+                badge.style.display = "none";
+
+            }
         }
-        else {
-
-            badge.innerHTML = "";
-            badge.style.display = "none";
-
-        }
-
         closeSettings();
         location.reload();
 
