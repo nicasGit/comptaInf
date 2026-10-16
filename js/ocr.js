@@ -2,51 +2,75 @@
 const fs = require("fs");
 const pdf = require("pdf-parse");
 const { getEnvironment } = require("./config");
+const { fromPath } = require("pdf2pic");
 
 const Tesseract = require("tesseract.js");
 const sharp = require("sharp");
 const path = require("path");
 
+const pdfPoppler = require("pdf-poppler");
 
+
+async function readCorruptedPdf(pdfPath) {
+
+    const outputDir = path.join(
+        path.dirname(pdfPath),
+        "ocr"
+    );
+
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, {
+            recursive: true
+        });
+    }
+
+    await pdfPoppler.convert(pdfPath, {
+        format: "png",
+        out_dir: outputDir,
+        out_prefix: "page",
+        page: null,
+        scale: 2000
+    });
+
+
+    const files = fs.readdirSync(outputDir)
+        .filter(f => f.endsWith(".png"))
+        .sort();
+
+    let fullText = "";
+
+    for (const file of files) {
+
+        const pagePath = path.join(
+            outputDir,
+            file
+        );
+
+        console.log(
+            "📄 OCR page",
+            file
+        );
+
+        const text =
+            await extractText(pagePath);
+
+        fullText += "\n" + text;
+
+        fs.unlinkSync(pagePath);
+    }
+
+    return fullText;
+}
 
 
 async function extractText(imagePath,
     email = null) {
-
-
-
 
     console.log("🖼️ extractText appelé :", imagePath);
 
     const processedImage =
         imagePath + "_ocr.png";
 
-    /*await sharp(imagePath)
-        .trim()
-        .resize({ width: 1500 })
-        .grayscale()
-        .normalize()
-        .sharpen()
-        .png()
-        .toFile(processedImage);
-*/
-    /*
-        await sharp(imagePath)
-            .rotate()
-            .png()
-            .toFile(processedImage);
-    
-    
-        console.log(
-            "✅ image OCR créée :",
-            processedImage
-        );
-        const result =
-            await Tesseract.recognize(
-                processedImage,
-                "fra"
-            );
-    */
     const buffer = await sharp(imagePath)
         .rotate()
         .resize({
@@ -68,14 +92,11 @@ async function extractText(imagePath,
         );
 
 
-    if (
-        email &&
-        getEnvironment(email) === "DEV"
-    ) {
-        console.log("========== OCR ==========");
-        console.log(JSON.stringify(result.data.text));
-        console.log("=========================");
-    }
+
+    // console.log("========== OCR ==========");
+    // console.log(JSON.stringify(result.data.text));
+    // console.log("=========================");
+
 
     console.log(
         "Confiance OCR :",
@@ -430,6 +451,7 @@ function extractCEESVData(texte) {
                     .replace(/\s/g, "")
                     .replace(",", ".")
             );
+        result.montantFacture.toFixed(2);
 
         result.montantEtat =
             parseFloat(
@@ -437,6 +459,7 @@ function extractCEESVData(texte) {
                     .replace(/\s/g, "")
                     .replace(",", ".")
             );
+        result.montantEtat.toFixed(2);
     }
 
     //
@@ -547,9 +570,11 @@ function extractMontantByRule(
                     .replace(",", ".")
             );
 
+
         if (isNaN(montant)) {
             return null;
         }
+        montant.toFixed(2);
 
         console.log(
             "💰 Montant trouvé par règle :",
@@ -654,5 +679,5 @@ module.exports = {
     isUBSCEESV,
     detectCategorie,
     convertFournisseur,
-
+    readCorruptedPdf
 };

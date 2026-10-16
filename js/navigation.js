@@ -135,6 +135,25 @@ async function loadExercices() {
     const exercices =
         await response.json();
 
+    console.log("EXERCICES =", exercices);
+    console.log("TYPE =", typeof exercices);
+    console.log("ARRAY =", Array.isArray(exercices));
+
+    if (!Array.isArray(exercices)) {
+
+        console.error(
+            "Réponse API exercices invalide",
+            exercices
+        );
+
+        if (exercices?.reconnect) {
+            //  window.location.href = "/login";
+            return;
+        }
+
+        return;
+    }
+
     const select =
         document.getElementById(
             "exerciceSelect"

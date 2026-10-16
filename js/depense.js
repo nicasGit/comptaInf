@@ -57,6 +57,25 @@ function openDepense() {
     document.getElementById(
         "previewEmpty"
     ).style.display = "flex";
+
+    const montantGroup =
+        document.getElementById("montantGroup");
+
+    const ceesvInfo =
+        document.getElementById("ceesvInfo");
+
+    const commentaireGroup =
+        document.getElementById("commentaireGroup");
+
+    const operationTypeGroup =
+        document.getElementById("operationTypeGroup");
+
+    commentaireGroup.style.display = "block";
+    montantGroup.style.display = "block";
+    operationTypeGroup.style.display = "block";
+    ceesvInfo.style.display = "none";
+
+
 }
 
 function closeDepense() {
@@ -67,6 +86,22 @@ function closeDepense() {
     // Date du jour uniquement pour une saisie manuelle
     document.getElementById("depDate").valueAsDate = new Date();
 
+    const montantGroup =
+        document.getElementById("montantGroup");
+
+    const ceesvInfo =
+        document.getElementById("ceesvInfo");
+
+    const commentaireGroup =
+        document.getElementById("commentaireGroup");
+
+    const operationTypeGroup =
+        document.getElementById("operationTypeGroup");
+
+    commentaireGroup.style.display = "block";
+    montantGroup.style.display = "block";
+    operationTypeGroup.style.display = "block";
+    ceesvInfo.style.display = "none";
 
 }
 
@@ -150,6 +185,7 @@ function buildDepense(driveUrl) {
                 "depMontant"
             ).value
         );
+    montant.toFixed(2);
 
     const operationType =
         document.getElementById(
@@ -290,6 +326,8 @@ async function showFile(file) {
         );
 
         await enrichCEESV();
+
+
 
         console.log("OCR COMPLET :", result);
         console.log("Dates :", result.dates);
@@ -473,7 +511,7 @@ function applyMontants(data,
 
         // Premier montant par défaut
         montantInput.value =
-            data.montants[0];
+            data.montants[0].toFixed(2);
 
         data.montants.forEach((m, index) => {
 
@@ -500,7 +538,7 @@ function applyMontants(data,
 
                 chip.classList.add("active");
 
-                montantInput.value = m;
+                montantInput.value = m.toFixed(2);
             };
 
             montantContainer.appendChild(chip);
@@ -512,7 +550,7 @@ function applyMontants(data,
         // Fallback si le serveur ne renvoie
         // qu'un seul montant
         montantInput.value =
-            data.montant;
+            data.montant.toFixed(2);
     }
 }
 function applyDates(data,
@@ -580,6 +618,7 @@ function applyDates(data,
             );
     }
 }
+
 function applyCEESV(data,
     contexte) {
 
@@ -623,10 +662,6 @@ function applyCEESV(data,
 
     }
 
-
-
-
-
     if (data.ceesv && Object.keys(data.ceesv).length > 0) {
 
         montantGroup.style.display = "none";
@@ -647,7 +682,7 @@ function applyCEESV(data,
             commentaireGroup.style.display = "none";
 
             document.getElementById("depMontant").value =
-                data.ceesv.montantBanque;
+                data.ceesv.montantBanque.toFixed(2);
 
             const match =
                 data.ceesv.match || {};
@@ -772,373 +807,6 @@ function openOperationWithData(data, ouvrirModal = true) {
 }
 
 
-function openOperationWithDataOLD(data, ouvrirModal = true) {
-
-    if (ouvrirModal) {
-        openDepense();
-    }
-
-    //
-    // RECETTE / DEPENSE
-    //
-    const operationType =
-        document.getElementById(
-            "operationType"
-        );
-
-    operationType.value =
-        data.type === "RECETTE"
-            ? "RECETTE"
-            : "DEPENSE";
-
-    operationType.dispatchEvent(
-        new Event("change")
-    );
-
-    const montantGroup =
-        document.getElementById(
-            "montantGroup"
-        );
-    const ceesvInfo =
-        document.getElementById(
-            "ceesvInfo"
-        );
-
-    const commentaireGroup =
-        document.getElementById(
-            "commentaireGroup"
-        );
-
-    const operationTypeGroup =
-        document.getElementById(
-            "operationTypeGroup"
-        );
-
-
-    commentaireGroup.style.display = "block";
-    montantGroup.style.display = "block";
-    operationTypeGroup.style.display = "block";
-
-    ceesvInfo.style.display = "none";
-
-    const montantInput =
-        document.getElementById("depMontant");
-
-    const dateInput =
-        document.getElementById("depDate");
-
-    const montantContainer =
-        document.getElementById("ocrMontants");
-
-    const dateContainer =
-        document.getElementById("ocrDates");
-
-
-    // Nettoyage
-    montantContainer.innerHTML = "";
-    dateContainer.innerHTML = "";
-
-
-
-    //
-    // FOURNISSEUR
-    //
-    if (data.fournisseur) {
-
-        const fournisseurInput =
-            document.getElementById(
-                "depFournisseur"
-            );
-
-        fournisseurInput.value =
-            data.fournisseur;
-
-        // Déclenche exactement le même traitement
-        // que lors d'une saisie manuelle
-        fournisseurInput.dispatchEvent(
-            new Event("input", {
-                bubbles: true
-            })
-        );
-    }
-
-    if (data.categorie) {
-
-        const select =
-            document.getElementById("depCategorie");
-
-        select.value = data.categorie;
-
-        select.dispatchEvent(
-            new Event("change")
-        );
-    }
-
-
-    //
-    // TEST CEESV Specifique
-    //
-
-
-
-    let affOcrDate = true;
-    let affOcrMontant = true;
-
-    const fournisseur =
-        (data.fournisseur || "")
-            .toLowerCase();
-
-    if (fournisseur.includes("centrale d'encaissement")) {
-        affOcrDate = false;
-        affOcrMontant = false;
-
-        operationTypeGroup.style.display = "none";
-
-        document.getElementById(
-            "operationTitle"
-        ).innerHTML = "🧾 Nouvelle opération CEESV"
-
-        if (data.fournisseur.toLowerCase().includes("ubs")) {
-            document.getElementById(
-                "operationTitle"
-            ).innerHTML = "🧾 Reçu UBS pour CEESV"
-
-        }
-
-        console.log(
-            "CEESV détecté",
-            data.ceesv
-        );
-
-
-    }
-
-
-
-    //
-    // MONTANTS
-    //
-
-    //console.log(
-    //    "Montants reçus :",
-    //    data.montants
-    //);
-
-    if (affOcrMontant &&
-        Array.isArray(data.montants) &&
-        data.montants.length > 0
-    ) {
-
-        // Premier montant par défaut
-        montantInput.value =
-            data.montants[0];
-
-        data.montants.forEach((m, index) => {
-
-            const chip =
-                document.createElement("div");
-
-            chip.className = "ocr-chip";
-
-            if (index === 0) {
-                chip.classList.add("active");
-            }
-
-            chip.textContent =
-                Number(m).toFixed(2) +
-                " CHF";
-
-            chip.onclick = () => {
-
-                montantContainer
-                    .querySelectorAll(".ocr-chip")
-                    .forEach(c =>
-                        c.classList.remove("active")
-                    );
-
-                chip.classList.add("active");
-
-                montantInput.value = m;
-            };
-
-            montantContainer.appendChild(chip);
-        });
-
-    }
-    else if (data.montant) {
-
-        // Fallback si le serveur ne renvoie
-        // qu'un seul montant
-        montantInput.value =
-            data.montant;
-    }
-
-
-
-
-
-    document.getElementById(
-        "ceesvInfo"
-    ).innerHTML = "";
-
-
-
-
-    if (data.ceesv && Object.keys(data.ceesv).length > 0) {
-
-        montantGroup.style.display = "none";
-
-        ceesvInfo.style.display = "block";
-
-        document.getElementById(
-            "depDate"
-        ).value =
-            convertDate(
-                data.ceesv.dateValeur
-            );
-
-
-
-        if (data.ceesv.type === "CEESV_UBS") {
-
-            commentaireGroup.style.display = "none";
-
-            document.getElementById("depMontant").value =
-                data.ceesv.montantBanque;
-
-            const match =
-                data.ceesv.match || {};
-
-            document.getElementById(
-                "ceesvInfo"
-            ).innerHTML = `
-                <div class="ceesv-box">
-                
-                    <div>
-                        🧾 Montant reçu :
-                        <strong>
-                            ${Number(data.ceesv.montantBanque).toFixed(2)} CHF
-                        </strong>
-                    </div>
-                
-                    ${match.trouve
-                    ? `
-                            <div>
-                                ✅ Ligne trouvée :
-                                <strong>${match.fournisseur}</strong>
-                            </div>
-                        `
-                    : `
-                            <div style="color:orange">
-                                Aucune ligne CEESV trouvée
-                            </div>
-                        `
-                }
-                        
-                </div>
-            `;
-        }
-        else {
-
-            document.getElementById(
-                "ceesvInfo"
-            ).innerHTML = `
-		    	<div class="ceesv-box">
-		    		<div>
-		    			🧾 Facturé :
-		    			<strong>
-		    				${Number(data.ceesv.montantFacture).toFixed(2)} CHF
-		    			</strong>
-                        ${data.ceesv.matchFacture?.trouve
-                    ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
-                    : ' <span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
-                }
-		    		</div>
-                
-		    		<div>
-		    			🏛 Etat :
-		    			<strong>
-		    				${Number(data.ceesv.montantEtat).toFixed(2)} CHF
-		    			</strong>
-                            ${data.ceesv.matchEtat?.trouve
-                    ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
-                    : ' <span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
-                }
-
-		    		</div>
-                
-		    		<div>
-		    			📋 Factures :
-		    			<strong>
-		    				${data.ceesv.nbFactures}
-		    			</strong>
-		    		</div>
-                
-		    	</div>
-		    `;
-        }
-
-
-    }
-
-    //
-    // DATES
-    //
-    if (affOcrDate &&
-        Array.isArray(data.dates) &&
-        data.dates.length > 0
-    ) {
-
-        // Première date par défaut
-        dateInput.value =
-            convertDate(
-                data.dates[0]
-            );
-
-        data.dates.forEach((date, index) => {
-
-            const chip =
-                document.createElement("div");
-
-            chip.className = "ocr-chip";
-
-            if (index === 0) {
-                chip.classList.add("active");
-            }
-
-            chip.textContent =
-                "📅 " + date;
-
-            chip.onclick = () => {
-
-                dateContainer
-                    .querySelectorAll(".ocr-chip")
-                    .forEach(c =>
-                        c.classList.remove("active")
-                    );
-
-                chip.classList.add("active");
-
-                dateInput.value =
-                    convertDate(date);
-            };
-
-            dateContainer.appendChild(chip);
-        });
-
-    }
-    else if (data.date) {
-
-        // Fallback si le serveur ne renvoie
-        // qu'une seule date
-        dateInput.value =
-            convertDate(
-                data.date
-            );
-    }
-
-
-}
 
 
 function detectCategorieFromFournisseur(fournisseur) {

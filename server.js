@@ -1215,12 +1215,22 @@ app.get("/api/exercices", requireAuth, async (req, res) => {
 
         console.error(err);
 
+        if (
+            err.message?.includes("invalid_grant")
+        ) {
+
+            return res.status(401).json({
+                reconnect: true,
+                error: "Google session expired"
+            });
+
+        }
+
         res.status(500).json({
             error: err.message
         });
 
     }
-
 });
 
 app.post(
@@ -1415,6 +1425,7 @@ app.post(
 
             let text = "";
 
+
             if (ext === ".pdf") {
 
                 text =
@@ -1422,7 +1433,24 @@ app.post(
                         req.file.path
                     );
 
-            } else {
+
+                const hasPrivateChars =
+                    /[\uE000-\uF8FF]/.test(text);
+
+                if (hasPrivateChars) {
+                    console.log(
+                        "PDF CID détecté -> PDFJS"
+                    );
+
+                    text =
+                        await ocr.readCorruptedPdf(
+                            req.file.path
+                        );
+
+                }
+
+            }
+            else {
 
                 text =
                     await ocr.extractText(
@@ -1431,8 +1459,9 @@ app.post(
 
             }
 
-            //console.log("=== TEXTE OCR ===");
-            //console.log(text);
+            console.log("=== OCR TEXTE OCR ===");
+            console.log(text);
+            console.log("===  ===");
 
             const ceesvData =
                 ocr.extractCEESVData(text);
@@ -1466,6 +1495,8 @@ app.post(
                     text,
                     ocrRules
                 );
+
+
 
             res.json({
                 type:

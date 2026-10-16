@@ -341,7 +341,7 @@ async function loadDepenses() {
             Number(
                 String(row[4] || "0")
                     .replace(",", ".")
-            );
+            ).toFixed(2);
         const classeMontant =
             montant < 0
                 ? "montant-negatif"
@@ -375,7 +375,7 @@ async function loadDepenses() {
 				<td title="${row[1] || ""}">${row[1] || ""}</td>
 				<td>${row[2] || ""}</td>
 				<td>${row[3] || ""}</td><!-- compte MEGA-->
-				<td class="${classeMontant}">${montant} CHF</td> <!-- compte montant-->
+				<td class="${classeMontant}">${montant}&nbsp;CHF</td> <!-- compte montant-->
                 <td>${row[7] || ""}</td>
 				<td>${pdfLink}</td>
                 <td>${banqueLink}</td>
