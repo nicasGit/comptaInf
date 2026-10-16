@@ -59,6 +59,12 @@ async function readCorruptedPdf(pdfPath) {
         fs.unlinkSync(pagePath);
     }
 
+
+    fs.rmSync(outputDir, {
+        recursive: true,
+        force: true
+    });
+
     return fullText;
 }
 

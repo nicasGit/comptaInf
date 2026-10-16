@@ -2051,26 +2051,43 @@ function cleanupUploads() {
     fs.readdirSync(uploadDir)
         .forEach(file => {
 
+            const filePath =
+                path.join(uploadDir, file);
+
             try {
 
-                fs.unlinkSync(
-                    path.join(uploadDir, file)
-                );
+                const stat =
+                    fs.statSync(filePath);
+
+                if (stat.isDirectory()) {
+
+                    fs.rmSync(filePath, {
+                        recursive: true,
+                        force: true
+                    });
+
+                } else {
+
+                    fs.unlinkSync(filePath);
+
+                }
 
             }
             catch (e) {
 
                 console.error(
                     "Erreur suppression :",
-                    file
+                    file,
+                    e.message
                 );
+
             }
+
         });
 
-    console.log(
-        "🧹 Uploads nettoyés"
-    )
+    console.log("🧹 Uploads nettoyés");
 }
+
 function cleanupOldUploads() {
 
     const uploadDir =
