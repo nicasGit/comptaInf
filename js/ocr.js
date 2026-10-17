@@ -9,8 +9,12 @@ const Tesseract = require("tesseract.js");
 const sharp = require("sharp");
 const path = require("path");
 
-const pdfPoppler = require("pdf-poppler");
+//const pdfPoppler = require("pdf-poppler");
+let pdfPoppler = null;
 
+if (process.platform === "win32") {
+    pdfPoppler = require("pdf-poppler");
+}
 
 async function readCorruptedPdf(pdfPath) {
 
