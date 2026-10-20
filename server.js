@@ -1,20 +1,8 @@
 //server.js
 
-
-const { execSync } = require("child_process");
-
-try {
-    console.log("PATH =", process.env.PATH);
-    console.log("which pdftocairo =", execSync("which pdftocairo").toString());
-} catch (e) {
-    console.log("pdftocairo introuvable");
-}
-
-try {
-    console.log(execSync("apk info | grep poppler").toString());
-} catch (e) {
-    console.log("poppler non installé");
-}
+const DEV_BYPASS_LOGIN = false;
+const DEV_AUTOLOGIN_LOCAL = false;
+const DEV_SHARE_SIMULATE = false;
 
 const express = require("express");
 const { exec } = require("child_process");
@@ -33,6 +21,7 @@ const {
 const session = require("express-session");
 
 const { getDepenses } = require("./js/sheets");
+const { FieldExistsAsNonTerminalError } = require("pdf-lib");
 
 const app = express();
 const PORT = 3000;
@@ -130,7 +119,7 @@ function requireAuth(
         req.hostname === "localhost" ||
         req.hostname === "127.0.0.1";
 
-    if (
+    if (DEV_AUTOLOGIN_LOCAL &&
         !req.session?.email &&
         isLocalhost
     ) {
@@ -170,19 +159,30 @@ function requireAuth(
         }
 
     }
-
+    /* console.log(
+         "AUTH",
+         req.path,
+         req.headers.accept,
+         req.accepts("html")
+     );*/
     if (!req.session?.email) {
 
-        // Requête venant d'un navigateur
-        if (req.accepts("html")) {
-            return res.redirect("/login");
+        const isApi =
+            req.path.startsWith("/api/")
+            || req.path === "/google-status"
+            || req.path === "/analyse-document"
+            || req.path === "/upload";
+
+        if (isApi) {
+            //console.log("Login Called from " + req.path);
+            return res.status(401).json({
+                redirect: "/login"
+            });
         }
 
-        return res.status(401).json({
-            error: "Non connecté"
-        });
-
+        return res.redirect("/login");
     }
+
 
     next();
 
@@ -263,7 +263,25 @@ app.get("/google-user", (req, res) => {
 //
 // LOGIN GOOGLE
 //
+
+
 app.get("/login", (req, res) => {
+
+    if (DEV_BYPASS_LOGIN) {
+
+        req.session.email =
+            "nicolas.jollois@gmail.com";
+
+        console.log(
+            "🧪 LOGIN BYPASS",
+            req.session.sharedFile
+        );
+
+        return res.redirect(
+            "/oauth/callback?dev=1"
+        );
+
+    }
 
     const url = oauth2Client.generateAuthUrl({
 
@@ -351,6 +369,71 @@ app.get("/api/user", requireAuth, (req, res) => {
 
 });
 
+app.post('/api/clear-session', (req, res) => {
+    // Supprime les variables de la session
+    delete req.session.sharedFile;
+    delete req.session.uploadMode;
+
+    // Sauvegarde explicitement la session avant de répondre
+    req.session.save((err) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        res.json({ success: true, message: "Session mise à jour" });
+    });
+});
+
+app.get("/api/startup", requireAuth, (req, res) => {
+
+    res.json({
+        openSharedFile:
+            !!req.session.openSharedFile
+    });
+
+    req.session.openSharedFile = false;
+
+});
+function redirectAfterLogin(req, res) {
+
+    // retour d'un import en attente
+    if (req.session.sharedFile) {
+
+        req.session.openSharedFile = true;
+
+        if (req.session.uploadMode === "android") {
+
+            console.log("📱 Retour Android");
+
+
+            return res.redirect("/share.html");
+        }
+
+        if (DEV_SHARE_SIMULATE) {
+
+            console.log("📱 Share Simulate");
+
+            return res.redirect("/share.html");
+        }
+
+        if (req.session.uploadMode === "browser") {
+
+            console.log("🌐 Retour Browser");
+
+            return res.redirect("/");
+        }
+
+        // fallback si pas de mode défini
+        console.log("⚠️ UploadMode inconnu");
+
+        return res.redirect("/");
+    }
+
+    // connexion normale
+    console.log("🏠 Retour Home");
+
+    return res.redirect("/");
+}
+
 //
 // CALLBACK OAUTH
 //
@@ -358,7 +441,7 @@ app.get(
     "/oauth/callback",
     async (req, res) => {
 
-        console.log("callback ", req.session?.email);
+        console.log("✅ oauth Callback");
 
         if (req.session?.email) {
 
@@ -367,7 +450,7 @@ app.get(
                 req.session.email
             );
 
-            return res.redirect("/");
+            return redirectAfterLogin(req, res);
 
         }
 
@@ -432,8 +515,10 @@ app.get(
                 "✅ Connecté :",
                 data.email
             );
+            //retour de la connection google et si on a un fichier on continue l'import
 
-            res.redirect("/");
+            return redirectAfterLogin(req, res);
+
 
         }
         catch (err) {
@@ -703,20 +788,30 @@ app.post(
 
         try {
 
+            // console.log("/addDepense");
+
             const depense = req.body;
+            // console.log(depense);
 
             const settings =
                 await sheets.getSettings(
                     req.session.email
                 );
 
+            // console.log(settings);
+
             const EXERCICE_COURANT =
                 settings.Exercice.toString();
 
+            // console.log(EXERCICE_COURANT);
+
+
             const anneeDepense = depense.date.substring(0, 4);
 
-            if (anneeDepense !== EXERCICE_COURANT) {
+            // console.log(anneeDepense);
 
+            if (anneeDepense !== EXERCICE_COURANT) {
+                console.log(`Probleme de date de facture ${anneeDepense} Different de l'Exercice actif : ${EXERCICE_COURANT}`);
                 return res
                     .status(400)
                     .send(
@@ -724,6 +819,8 @@ app.post(
                     );
 
             }
+
+            //console.log("await sheets.addDepense");
 
 
             await sheets.addDepense(
@@ -738,6 +835,8 @@ app.post(
                 depense.commentaire,
                 depense.justifBanque
             );
+
+            //console.log("✅ Dépense enregistrée");
 
             res.send(
                 "✅ Dépense enregistrée"
@@ -1274,6 +1373,8 @@ app.post(
                 mimetype: req.file.mimetype
             };
 
+            req.session.uploadMode = "android";
+
             return res.redirect("/login");
         }
 
@@ -1282,31 +1383,6 @@ app.post(
     },
     (req, res) => {
 
-        //
-        //console.log("headers =", req.headers);
-        //
-        //console.log("SESSION =", req.session?.email);
-        //console.log("FILES =", req.files);
-        //console.log("FILE =", req.file);
-        //console.log("BODY =", req.body);
-        /*
-                if (req.files?.length) {
-        
-                    req.files.forEach(f => {
-        
-                        console.log(
-                            "FIELD =",
-                            f.fieldname
-                        );
-        
-                        console.log(
-                            "NAME =",
-                            f.originalname
-                        );
-        
-                    });
-        
-                }*/
 
         try {
             if (!req.file) {
@@ -1323,8 +1399,10 @@ app.post(
                 originalname: req.file.originalname,
                 mimetype: req.file.mimetype
             };
+            req.session.uploadMode = "android";
 
             res.redirect("/share.html");
+
         } catch (err) {
             console.error("Erreur partage :", err);
             res.status(500).send("Erreur lors du partage du fichier");
@@ -1349,6 +1427,7 @@ app.get("/api/shared-file", requireAuth, (req, res) => {
 
 app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
 
+    //console.log("/api/analyse-shared-file");
     const sharedFile =
         req.session.sharedFile;
 
@@ -1378,9 +1457,37 @@ app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
 
 app.post(
     "/analyse-document",
-    requireAuth,
     upload.single("pdf"),
     async (req, res) => {
+
+
+        console.log("/analyse-document", {
+            name: req.file?.originalname,
+            type: req.file?.mimetype,
+            size: req.file?.size
+        });
+        //console.log("ANALYSE DOCUMENT CALLED");
+
+        if (!req.session?.email) {
+
+            console.log("SAVE SHAREDFILE");
+
+            req.session.sharedFile = {
+                path: req.file.path,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype
+            };
+
+            req.session.uploadMode = "browser";
+
+            return req.session.save(() => {
+                res.status(401).json({
+                    redirect: "/login"
+                });
+            });
+        }
+
+
 
         const result =
             await ocr.analyseDocument(
@@ -1596,9 +1703,13 @@ app.post(
     async (req, res) => {
 
         try {
+            console.log("/api/import-shared-file");
 
             const sharedFile =
                 req.session.sharedFile;
+
+            delete req.session.sharedFile;
+            delete req.session.uploadMode;
 
             if (
                 !sharedFile ||
@@ -1630,7 +1741,7 @@ app.post(
                 fs.unlinkSync(sharedFile.path);
             }
 
-            delete req.session.sharedFile;
+
 
             res.json(result);
 
@@ -1719,6 +1830,7 @@ app.post(
         }
 
         delete req.session.sharedFile;
+        delete req.session.uploadMode;
 
         res.json({
             success: true
@@ -1740,9 +1852,6 @@ function normalizeFournisseur(nom, converts) {
 app.post(
     "/api/checkDuplicate",
     async (req, res) => {
-
-
-        console.log("🔥 CHECK DUPLICATE CALLED");
 
         const {
             date,
@@ -1770,7 +1879,7 @@ app.post(
                 fournisseursConvert
             );
 
-        console.log(
+        /*console.log(
             "CHECK DUPLICATE",
             {
                 date,
@@ -1778,7 +1887,7 @@ app.post(
                 fournisseurRecherche,
                 montant
             }
-        );
+        );*/
 
 
         const rowIndex =
@@ -1816,9 +1925,7 @@ app.post(
             });
 
         }
-
-        console.log("Duplicate !");
-
+        console.log("🔥 Duplicate Found");
 
         res.json({
             duplicate: true,
@@ -1828,7 +1935,10 @@ app.post(
             operation: {
                 Date: duplicate[0],
                 Fournisseur: duplicate[1],
-                Montant: duplicate[4]
+                Categorie: duplicate[2],
+                Compte: duplicate[3],
+                Montant: duplicate[4],
+                Pdf: duplicate[5]
             }
         });
 

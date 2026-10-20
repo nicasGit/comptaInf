@@ -40,6 +40,57 @@ async function loadDashboard() {
 
         await initDashboard();
 
+        const startup =
+            await fetch("/api/startup");
+
+        const data =
+            await startup.json();
+
+        if (data.openSharedFile) {
+
+            console.log("📄 Reprise fichier après login");
+
+            const infoResponse =
+                await fetch("/api/shared-file");
+
+            if (!infoResponse.ok) {
+
+                console.warn(
+                    "Plus de fichier partagé disponible"
+                );
+
+                return;
+            }
+
+            const info =
+                await infoResponse.json();
+
+            const fileResponse =
+                await fetch("/api/shared-file-content");
+
+            if (!fileResponse.ok) {
+                throw new Error(
+                    "Impossible de récupérer le fichier partagé"
+                );
+            }
+
+            const blob =
+                await fileResponse.blob();
+
+            currentFile =
+                new File(
+                    [blob],
+                    info.originalname,
+                    {
+                        type: info.mimetype
+                    }
+                );
+            hideLoader();
+            openDepense();
+
+            await showFile(currentFile);
+        }
+
     }
     finally {
 
@@ -342,6 +393,32 @@ async function saveSettings() {
 // Drive
 async function processNextFile() {
 
+
+    console.log("PROCESS NEXT FILE");
+    console.log("pendingFiles =", pendingFiles);
+
+    const response = await fetch("/google-status");
+
+    if (response.status === 401) {
+
+        console.log("processNextFile navigation");
+        // mémoriser le fichier dans une variable globale
+        sessionStorage.setItem(
+            "resumeUpload",
+            "1"
+        );
+
+        // window.location.href = "/login";
+        return;
+    }
+
+    const status = await response.json();
+
+    if (!status.connected) {
+        window.location.href = "/login";
+        return;
+    }
+
     console.log(
         `processNextFile : ${pendingFiles.length} fichier(s)`
     );
@@ -437,6 +514,7 @@ function showDriveImportModal(files) {
 
 async function importDriveFiles(files) {
 
+    console.log("importDriveFiles");
     for (const file of files) {
 
         const response =

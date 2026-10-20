@@ -2,18 +2,7 @@
 const fs = require("fs");
 const pdf = require("pdf-parse");
 const sheets = require("./sheets");
-const { getEnvironment } = require("./config");
-const { fromPath } = require("pdf2pic");
 
-const { PDFDocument } = require("pdf-lib");
-
-const canvas = require("canvas");
-const { createCanvas, Image, ImageData } = require("canvas");
-
-const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.mjs");
-
-global.Image = Image;
-global.ImageData = ImageData;
 
 const Tesseract = require("tesseract.js");
 const sharp = require("sharp");
@@ -29,7 +18,23 @@ if (isWindows) {
 const { spawn } = require("child_process");
 //sous HAOS install : apk add --no-cache poppler-utils
 
+function convertDate(date) {
 
+    if (!date) {
+        return "";
+    }
+
+    if (date.includes(".") || date.includes("/")) {
+
+        const p = date.split(/[./]/);
+
+        if (p.length === 3) {
+            return `${p[2]}-${p[1]}-${p[0]}`;
+        }
+    }
+
+    return date;
+}
 
 async function pdfToImagesLinux(pdfPath, outputDir) {
 
@@ -50,187 +55,8 @@ async function pdfToImagesLinux(pdfPath, outputDir) {
 }
 
 
-async function pdfToImages(pdfPath, outputDir) {
-
-    const pdfData = new Uint8Array(
-        fs.readFileSync(pdfPath)
-    );
-
-    const pdf = await pdfjsLib
-        .getDocument({
-            data: pdfData,
-            isImageDecoderSupported: false
-        })
-        .promise;
-
-    console.log("Pages :", pdf.numPages);
-
-    const files = [];
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-
-        const page = await pdf.getPage(pageNum);
-
-        const textContent = await page.getTextContent();
-
-        console.log(
-            "Items texte =",
-            textContent.items.length
-        );
-
-        console.log(
-            textContent.items
-                .slice(0, 10)
-                .map(i => i.str)
-        );
-
-        const viewport = page.getViewport({
-            scale: 2
-        });
-
-        const canvas = createCanvas(
-            viewport.width,
-            viewport.height
-        );
-
-        await page.render({
-            canvasContext: context,
-            viewport,
-            canvasFactory: {
-                create(width, height) {
-
-                    const canvas = createCanvas(width, height);
-
-                    return {
-                        canvas,
-                        context: canvas.getContext("2d")
-                    };
-                },
-
-                reset(canvasAndContext, width, height) {
-
-                    canvasAndContext.canvas.width = width;
-                    canvasAndContext.canvas.height = height;
-                },
-
-                destroy(canvasAndContext) {
-
-                    canvasAndContext.canvas.width = 0;
-                    canvasAndContext.canvas.height = 0;
-                }
-            }
-        }).promise;
-
-
-        const pdfParse = require("pdf-parse");
-
-
-
-        const fileName = `page-${pageNum}.png`;
-        const filePath = path.join(outputDir, fileName);
-
-
-        const data = await pdfParse(
-            fs.readFileSync(filePath)
-        );
-
-        console.log(data.text);
-
-        fs.writeFileSync(
-            filePath,
-            canvas.toBuffer("image/png")
-        );
-
-        files.push(fileName);
-    }
-
-    return files;
-}
-
-async function readCorruptedPdfTEST(pdfPath) {
-
-    console.log("⚠️ PDF avec encodage corrompu");
-
-    const document = await pdfjsLib
-        .getDocument({
-            data: pdfData,
-            useSystemFonts: true
-        })
-        .promise;
-
-    console.log("Pages :", document.numPages);
-
-    const page = await document.getPage(1);
-
-    const textContent =
-        await page.getTextContent();
-
-
-
-    console.log(
-        "Items texte =",
-        textContent.items.length
-    );
-    /* 
-      console.log("=== ITEMS ===");
-  
-      for (const item of textContent.items.slice(0, 10)) {
-  
-          console.dir(item, {
-              depth: null
-          });
-  
-      }
-  
-      console.log("=== STYLES ===");
-  
-      console.dir(
-          textContent.styles,
-          {
-              depth: null
-          }
-      );
-  
-    const chars =
-          [...textContent.items
-              .map(i => i.str)
-              .join("")];
-  
-     console.log(
-          chars
-              .slice(0, 30)
-              .map(c => ({
-                  char: c,
-                  code: c.charCodeAt(0)
-              }))
-      );*/
-
-
-    /*
-    
-        const chars = {};
-    
-        for (const item of textContent.items) {
-    
-            for (const c of item.str) {
-    
-                const code = c.charCodeAt(0);
-    
-                chars[code] =
-                    (chars[code] || 0) + 1;
-            }
-        }
-    
-        console.log(chars);*/
-
-    return "";
-}
 
 async function pdfToImages(pdfPath, outputDir) {
-
-    console.log("pdfToImages");
-    console.log("pdfPath=" + pdfPath);
-    console.log("outputDir=" + outputDir);
 
     if (isWindows) {
         await pdfPoppler.convert(pdfPath, {
@@ -268,30 +94,12 @@ async function readCorruptedPdf(pdfPath) {
         });
     }
 
-
-    /*  const files = await pdfToImages(
-          pdfPath,
-          outputDir
-      );
-  */
-
-    /* await pdfPoppler.convert(pdfPath, {
-         format: "png",
-         out_dir: outputDir,
-         out_prefix: "page",
-         page: null,
-         scale: 2000
-     });*/
-
     const images = await pdfToImages(pdfPath, outputDir);
-
-    console.log(images);
 
     const files = fs.readdirSync(outputDir)
         .filter(f => f.endsWith(".png"))
         .sort();
 
-    console.log(files);
     let fullText = "";
     for (const file of files) {
 
@@ -300,17 +108,17 @@ async function readCorruptedPdf(pdfPath) {
             file
         );
 
-        console.log(
-            "📄 OCR page",
-            file
-        );
+        //console.log(
+        //   "📄 OCR page",
+        //   file
+        //);
 
         const text =
             await extractText(pagePath);
 
         fullText += "\n" + text;
 
-        // fs.unlinkSync(pagePath);
+        fs.unlinkSync(pagePath);
     }
 
 
@@ -318,11 +126,11 @@ async function readCorruptedPdf(pdfPath) {
     //console.log(fullText);
     //console.log("===================");
 
-    /*   fs.rmSync(outputDir, {
-           recursive: true,
-           force: true
-       });
-   */
+    fs.rmSync(outputDir, {
+        recursive: true,
+        force: true
+    });
+
     return fullText;
 }
 
@@ -330,7 +138,7 @@ async function readCorruptedPdf(pdfPath) {
 async function extractText(imagePath,
     email = null) {
 
-    console.log("🖼️ extractText appelé :", imagePath);
+    //console.log("🖼️ extractText appelé :", imagePath);
 
     const processedImage =
         imagePath + "_ocr.png";
@@ -345,10 +153,10 @@ async function extractText(imagePath,
         .normalize()
         .toBuffer();
 
-    console.log(
-        "✅ image OCR créée en memoire :",
-        processedImage
-    );
+    //console.log(
+    //    "✅ image OCR créée en memoire :",
+    //    processedImage
+    //);
     const result =
         await Tesseract.recognize(
             buffer,
@@ -589,6 +397,16 @@ async function detectCategorie(fournisseur, email) {
     }
 
 }
+
+async function detectCompte(categorie, email) {
+
+    const categories =
+        await sheets.getCategories(email);
+
+    return categories[categorie]?.compte || "";
+}
+
+
 function extractFournisseur(texte) {
 
     if (/ceesv.*centrale.*encaissement/i.test(texte)) {
@@ -967,8 +785,8 @@ async function analyseDocument(
             text = await readCorruptedPdf(
                 filePath
             );
-            console.log("extractMontants=" + extractMontants(text));
-            console.log("extractDates=" + extractDates(text));
+            // console.log("extractMontants=" + extractMontants(text));
+            // console.log("extractDates=" + extractDates(text));
 
         }
 
@@ -1008,7 +826,24 @@ async function analyseDocument(
         email
     );
 
+    const compte = await detectCompte(
+        categorie,
+        email
+    );
+
+    const dates = extractDates(text);
+    const date = convertDate(dates?.[0]);
+    // const date = dates?.[0];
+    const montants = extractMontantsWithRules(
+        text,
+        ocrRules
+    );
+    const montant = montants?.[0].toFixed(2);
+
+
     return {
+
+        email,
 
         text,
 
@@ -1019,17 +854,20 @@ async function analyseDocument(
 
         categorie,
 
-        dates:
-            extractDates(text),
+        compte,
 
-        montants:
-            extractMontantsWithRules(
-                text,
-                ocrRules
-            ),
+        dates,
+
+        date,
+
+        montants,
+
+        montant,
 
         ceesv:
-            extractCEESVData(text)
+            extractCEESVData(text),
+
+        pdf: filePath
 
     };
 }
@@ -1052,6 +890,7 @@ module.exports = {
     isEtatCEESV,
     isUBSCEESV,
     detectCategorie,
+    detectCompte,
     convertFournisseur,
     readCorruptedPdf,
     analyseDocument

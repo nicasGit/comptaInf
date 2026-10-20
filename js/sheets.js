@@ -45,9 +45,14 @@ function getSheets() {
 
 async function addDepense(email, date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "") {
 
-    const client = await auth.getClient();
+    // console.log("sheet addDepense")
+
+    //const client = await auth.getClient();
 
     const sheets = getSheets();
+
+
+
 
     const montantFinal =
         (

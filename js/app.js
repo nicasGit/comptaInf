@@ -39,6 +39,16 @@ zone.addEventListener('drop', async e => {
         body: formData
     });
 
+    if (response.status === 401) {
+
+        const data = await response.json();
+
+        if (data.redirect) {
+            window.location.href = data.redirect;
+            return;
+        }
+    }
+
     alert(await response.text());
 
 });

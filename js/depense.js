@@ -226,13 +226,13 @@ function buildDepense(driveUrl) {
             "operationType"
         ).value;
 
-    const categorie =
-        getCategorieSelectionnee();
-
     const fournisseur =
         document.getElementById(
             "depFournisseur"
         ).value.trim();
+
+    const categorie =
+        getCategorieSelectionnee();
 
     const date =
         document.getElementById(
@@ -315,6 +315,15 @@ function buildDepense(driveUrl) {
 
 
 async function showFile(file, analyseExistante = null) {
+
+    console.log("SHOWFILE", {
+        analyseExistante: !!analyseExistante,
+        name: file?.name,
+        type: file?.type,
+        size: file?.size
+    });
+
+    console.trace();
 
     const selectedFile =
         document.getElementById("selectedFile");
@@ -415,6 +424,7 @@ async function showFile(file, analyseExistante = null) {
 // CONVERSION DATE
 //
 
+/*
 function convertDate(date) {
 
     if (!date) {
@@ -441,7 +451,7 @@ function convertDate(date) {
     return date;
 }
 
-
+*/
 
 async function checkDuplicateAfterOCR(result) {
 
@@ -450,9 +460,7 @@ async function checkDuplicateAfterOCR(result) {
     const depenseOCR = {
         date: document.getElementById("depDate").value,
         fournisseur: document.getElementById("depFournisseur").value.trim(),
-        montant: parseFloat(
-            document.getElementById("depMontant").value
-        )
+        montant: parseFloat(document.getElementById("depMontant").value)
     };
 
 
@@ -469,10 +477,14 @@ async function checkDuplicateAfterOCR(result) {
             await checkDuplicate({
                 date: convertDate(result.dates[0]),
                 fournisseur: result.fournisseur,
+                categorie: result.categorie,
+                compte: result.compte,
                 montant: result.montants[0]
             });
 
         if (duplicateResult.duplicate) {
+
+
 
             const action =
                 await showDuplicateModal(
@@ -481,6 +493,8 @@ async function checkDuplicateAfterOCR(result) {
 
             duplicateAction = action;
             duplicateRow = duplicateResult.row;
+
+            console.log("duplicateAction =", duplicateAction);
 
             switch (action) {
 
@@ -1303,6 +1317,7 @@ async function checkDuplicate(depense) {
                 body: JSON.stringify({
                     date: depense.date,
                     fournisseur: depense.fournisseur,
+                    categorie: depense.categorie,
                     montant: depense.montant
                 })
             }
@@ -1355,6 +1370,8 @@ async function deleteRow(row) {
 
 
 async function refreshAfterSave() {
+
+    console.log("refreshAfterSave");
 
     duplicateAction = null;
     duplicateRow = null;
@@ -2140,6 +2157,7 @@ function initOperationType() {
 }
 
 
+
 async function initSharedAnalyse() {
 
     const sharedAnalyse =
@@ -2195,12 +2213,46 @@ async function initSharedAnalyse() {
             result.dates?.[0] &&
             result.montants?.[0];
 
-        if (ocrComplet) {
+
+        console.log("ocrComplet=" + ocrComplet);
+
+        if (!ocrComplet) {
+            return;
+        }
+
+        if (duplicateAction === "cancel") {
+            return;
+        }
+
+        if (duplicateAction === "insert") {
+
+            if (result.categorie) {
+                document.getElementById("depCategorie").value =
+                    result.categorie;
+            }
+            if (result.compte) {
+                document.getElementById("depCompte").value =
+                    result.compte;
+            }
+
+            console.log("AUTO SAVE", {
+                fournisseur:
+                    document.getElementById("depFournisseur").value,
+                categorie:
+                    document.getElementById("depCategorie").value,
+                date:
+                    document.getElementById("depDate").value,
+                montant:
+                    document.getElementById("depMontant").value,
+                resultCategorie:
+                    result.categorie
+            });
 
             await saveOperation();
             closeDepense();
-
         }
+
+
 
     }, 100);
 

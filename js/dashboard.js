@@ -102,7 +102,7 @@ function initDropzoneDashboard() {
             pendingFiles.push(
                 ...files
             );
-
+            console.log("dashboard drop");
             processNextFile();
 
         }
@@ -115,7 +115,7 @@ function initDropzoneDashboard() {
 
     input.addEventListener(
         "change",
-        e => {
+        async e => {
 
             const files =
                 Array.from(
@@ -126,10 +126,41 @@ function initDropzoneDashboard() {
                 return;
             }
 
+
+            // Vérifier login
+            const response =
+                await fetch("/google-status");
+
+            if (response.status === 401) {
+
+                const formData =
+                    new FormData();
+
+                formData.append(
+                    "pdf",
+                    files[0]
+                );
+
+                await fetch(
+                    "/analyse-document",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+                window.location.href =
+                    "/login";
+
+                return;
+            }
+
+
             pendingFiles.push(
                 ...files
             );
 
+            console.log("dashboard change");
             processNextFile();
 
         }
@@ -530,6 +561,10 @@ function showDuplicateModal(duplicateResult) {
     <div class="info-line">
         🏢 <strong>Fournisseur :</strong> ${duplicateResult.operation.Fournisseur}
     </div>
+   
+        <div class="info-line">
+        📂 <strong>Categorie :</strong> ${duplicateResult.operation.Categorie || "-"} / ${duplicateResult.operation.Compte || "-"}
+    </div>
 
     <div class="info-line">
         💰 <strong>Montant :</strong> ${duplicateResult.operation.Montant} CHF
@@ -553,9 +588,10 @@ function showDuplicateModal(duplicateResult) {
 
         window.duplicateChoice = action => {
 
-            document.getElementById(
-                "duplicatePdfPreview"
-            ).replaceChildren();
+            /* document.getElementById(
+                 "duplicatePdfPreview"
+             ).replaceChildren();
+             */
 
             document.getElementById(
                 "duplicateModal"
@@ -569,34 +605,34 @@ function showDuplicateModal(duplicateResult) {
             "duplicateModal"
         ).style.display = "flex";
 
-
-        if (
-            currentFile &&
-            (
-                currentFile.type === "application/pdf" ||
-                currentFile.name?.toLowerCase().endsWith(".pdf")
-            )
-        ) {
-
-            pdfZoom = 1;
-
-            const zoomLabel =
-                document.getElementById(
-                    "duplicateZoomLabel"
-                );
-
-            if (zoomLabel) {
-
-                zoomLabel.textContent =
-                    "100%";
-
-            }
-            renderPdfPreview(
-                currentFile,
-                "duplicatePdfPreview"
-            );
-        }
-
+        /*
+                if (
+                    currentFile &&
+                    (
+                        currentFile.type === "application/pdf" ||
+                        currentFile.name?.toLowerCase().endsWith(".pdf")
+                    )
+                ) {
+        
+                    pdfZoom = 1;
+        
+                    const zoomLabel =
+                        document.getElementById(
+                            "duplicateZoomLabel"
+                        );
+        
+                    if (zoomLabel) {
+        
+                        zoomLabel.textContent =
+                            "100%";
+        
+                    }
+                    renderPdfPreview(
+                        currentFile,
+                        "duplicatePdfPreview"
+                    );
+                }
+        */
 
 
     });
