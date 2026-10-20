@@ -1,4 +1,21 @@
 //server.js
+
+
+const { execSync } = require("child_process");
+
+try {
+    console.log("PATH =", process.env.PATH);
+    console.log("which pdftocairo =", execSync("which pdftocairo").toString());
+} catch (e) {
+    console.log("pdftocairo introuvable");
+}
+
+try {
+    console.log(execSync("apk info | grep poppler").toString());
+} catch (e) {
+    console.log("poppler non installé");
+}
+
 const express = require("express");
 const { exec } = require("child_process");
 const multer = require("multer");

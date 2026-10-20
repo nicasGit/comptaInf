@@ -33,17 +33,6 @@ const { spawn } = require("child_process");
 
 async function pdfToImagesLinux(pdfPath, outputDir) {
 
-    const { execSync } = require("child_process");
-
-    try {
-        console.log(
-            execSync("which pdftocairo").toString()
-        );
-    } catch (e) {
-        console.log("pdftocairo NON TROUVÉ");
-    }
-
-
     return new Promise((resolve, reject) => {
 
         const proc = spawn("pdftocairo", [
