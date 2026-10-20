@@ -1,9 +1,19 @@
-//ocr,js
+//ocr.js
 const fs = require("fs");
 const pdf = require("pdf-parse");
 const sheets = require("./sheets");
 const { getEnvironment } = require("./config");
 const { fromPath } = require("pdf2pic");
+
+const { PDFDocument } = require("pdf-lib");
+
+const canvas = require("canvas");
+const { createCanvas, Image, ImageData } = require("canvas");
+
+const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.mjs");
+
+global.Image = Image;
+global.ImageData = ImageData;
 
 const Tesseract = require("tesseract.js");
 const sharp = require("sharp");
@@ -11,10 +21,231 @@ const path = require("path");
 
 //const pdfPoppler = require("pdf-poppler");
 let pdfPoppler = null;
+const isWindows = process.platform === "win32";
 
-if (process.platform === "win32") {
+if (isWindows) {
     pdfPoppler = require("pdf-poppler");
 }
+const { spawn } = require("child_process");
+//sous HAOS install : apk add --no-cache poppler-utils
+
+
+
+async function pdfToImagesLinux(pdfPath, outputDir) {
+    return new Promise((resolve, reject) => {
+
+        const proc = spawn("pdftocairo", [
+            "-png",
+            "-r", "300",
+            pdfPath,
+            path.join(outputDir, "page")
+        ]);
+
+        proc.on("close", code => {
+            if (code === 0) resolve();
+            else reject(new Error(`pdftocairo exit code ${code}`));
+        });
+    });
+}
+
+
+async function pdfToImages(pdfPath, outputDir) {
+
+    const pdfData = new Uint8Array(
+        fs.readFileSync(pdfPath)
+    );
+
+    const pdf = await pdfjsLib
+        .getDocument({
+            data: pdfData,
+            isImageDecoderSupported: false
+        })
+        .promise;
+
+    console.log("Pages :", pdf.numPages);
+
+    const files = [];
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+
+        const page = await pdf.getPage(pageNum);
+
+        const textContent = await page.getTextContent();
+
+        console.log(
+            "Items texte =",
+            textContent.items.length
+        );
+
+        console.log(
+            textContent.items
+                .slice(0, 10)
+                .map(i => i.str)
+        );
+
+        const viewport = page.getViewport({
+            scale: 2
+        });
+
+        const canvas = createCanvas(
+            viewport.width,
+            viewport.height
+        );
+
+        await page.render({
+            canvasContext: context,
+            viewport,
+            canvasFactory: {
+                create(width, height) {
+
+                    const canvas = createCanvas(width, height);
+
+                    return {
+                        canvas,
+                        context: canvas.getContext("2d")
+                    };
+                },
+
+                reset(canvasAndContext, width, height) {
+
+                    canvasAndContext.canvas.width = width;
+                    canvasAndContext.canvas.height = height;
+                },
+
+                destroy(canvasAndContext) {
+
+                    canvasAndContext.canvas.width = 0;
+                    canvasAndContext.canvas.height = 0;
+                }
+            }
+        }).promise;
+
+
+        const pdfParse = require("pdf-parse");
+
+
+
+        const fileName = `page-${pageNum}.png`;
+        const filePath = path.join(outputDir, fileName);
+
+
+        const data = await pdfParse(
+            fs.readFileSync(filePath)
+        );
+
+        console.log(data.text);
+
+        fs.writeFileSync(
+            filePath,
+            canvas.toBuffer("image/png")
+        );
+
+        files.push(fileName);
+    }
+
+    return files;
+}
+
+async function readCorruptedPdfTEST(pdfPath) {
+
+    console.log("⚠️ PDF avec encodage corrompu");
+
+    const document = await pdfjsLib
+        .getDocument({
+            data: pdfData,
+            useSystemFonts: true
+        })
+        .promise;
+
+    console.log("Pages :", document.numPages);
+
+    const page = await document.getPage(1);
+
+    const textContent =
+        await page.getTextContent();
+
+
+
+    console.log(
+        "Items texte =",
+        textContent.items.length
+    );
+    /* 
+      console.log("=== ITEMS ===");
+  
+      for (const item of textContent.items.slice(0, 10)) {
+  
+          console.dir(item, {
+              depth: null
+          });
+  
+      }
+  
+      console.log("=== STYLES ===");
+  
+      console.dir(
+          textContent.styles,
+          {
+              depth: null
+          }
+      );
+  
+    const chars =
+          [...textContent.items
+              .map(i => i.str)
+              .join("")];
+  
+     console.log(
+          chars
+              .slice(0, 30)
+              .map(c => ({
+                  char: c,
+                  code: c.charCodeAt(0)
+              }))
+      );*/
+
+
+    /*
+    
+        const chars = {};
+    
+        for (const item of textContent.items) {
+    
+            for (const c of item.str) {
+    
+                const code = c.charCodeAt(0);
+    
+                chars[code] =
+                    (chars[code] || 0) + 1;
+            }
+        }
+    
+        console.log(chars);*/
+
+    return "";
+}
+
+async function pdfToImages(pdfPath, outputDir) {
+
+    console.log("pdfToImages");
+    console.log("pdfPath=" + pdfPath);
+    console.log("outputDir=" + outputDir);
+
+    if (isWindows) {
+        await pdfPoppler.convert(pdfPath, {
+            format: "png",
+            out_dir: outputDir,
+            out_prefix: "page",
+            page: null,
+            scale: 2000
+        });
+    } else {
+        await pdfToImagesLinux(pdfPath, outputDir);
+    }
+
+    return outputDir;
+}
+
 
 async function readCorruptedPdf(pdfPath) {
 
@@ -29,21 +260,31 @@ async function readCorruptedPdf(pdfPath) {
         });
     }
 
-    await pdfPoppler.convert(pdfPath, {
-        format: "png",
-        out_dir: outputDir,
-        out_prefix: "page",
-        page: null,
-        scale: 2000
-    });
 
+    /*  const files = await pdfToImages(
+          pdfPath,
+          outputDir
+      );
+  */
+
+    /* await pdfPoppler.convert(pdfPath, {
+         format: "png",
+         out_dir: outputDir,
+         out_prefix: "page",
+         page: null,
+         scale: 2000
+     });*/
+
+    const images = await pdfToImages(pdfPath, outputDir);
+
+    console.log(images);
 
     const files = fs.readdirSync(outputDir)
         .filter(f => f.endsWith(".png"))
         .sort();
 
+    console.log(files);
     let fullText = "";
-
     for (const file of files) {
 
         const pagePath = path.join(
@@ -61,15 +302,19 @@ async function readCorruptedPdf(pdfPath) {
 
         fullText += "\n" + text;
 
-        fs.unlinkSync(pagePath);
+        // fs.unlinkSync(pagePath);
     }
 
 
-    fs.rmSync(outputDir, {
-        recursive: true,
-        force: true
-    });
+    //console.log("========== OCR ==========");
+    //console.log(fullText);
+    //console.log("===================");
 
+    /*   fs.rmSync(outputDir, {
+           recursive: true,
+           force: true
+       });
+   */
     return fullText;
 }
 
@@ -104,9 +349,9 @@ async function extractText(imagePath,
 
 
 
-    // console.log("========== OCR ==========");
-    // console.log(JSON.stringify(result.data.text));
-    // console.log("=========================");
+    //console.log("========== OCR ==========");
+    //console.log(JSON.stringify(result.data.text));
+    //console.log("=========================");
 
 
     console.log(
@@ -291,6 +536,11 @@ async function detectCategorie(fournisseur, email) {
                 .replace(/[\u0300-\u036f]/g, "");
 
         const nomOCR = normaliser(fournisseur);
+
+        if (!nomOCR) {
+            console.log("❌ Fournisseur OCR vide");
+            return "";
+        }
 
         const correspondance =
             Object.keys(fournisseurs).find(f => {
@@ -697,12 +947,20 @@ async function analyseDocument(
         text =
             await analysePdf(filePath);
 
-        if (/[\uE000-\uF8FF]/.test(text)) {
+        const texteCorrompu =
+            /[\uE000-\uF8FF]/.test(text);
 
-            text =
-                await readCorruptedPdf(
-                    filePath
-                );
+        if (texteCorrompu) {
+
+            console.log(
+                "⚠️ PDF avec glyphes privés"
+            );
+
+            text = await readCorruptedPdf(
+                filePath
+            );
+            console.log("extractMontants=" + extractMontants(text));
+            console.log("extractDates=" + extractDates(text));
 
         }
 
