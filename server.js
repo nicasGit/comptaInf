@@ -2095,6 +2095,18 @@ function cleanupOldUploads() {
         });
 
 }
+
+app.get("/api/me", (req, res) => {
+
+    const user = getCurrentUser(req);
+
+    res.json({
+        email: req.session.email,
+        role: user?.role || ""
+    });
+
+});
+
 //
 // DEMARRAGE
 //

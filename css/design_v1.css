@@ -402,6 +402,15 @@ tr:hover {
 
 }
 
+.admin-only {
+    display: none;
+}
+
+.admin-only.visible {
+    display: flex;
+}
+
+
 /* =========================
    HEADER MODAL
 ========================= */
