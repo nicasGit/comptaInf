@@ -2,6 +2,7 @@
 const fs = require("fs");
 const pdf = require("pdf-parse");
 const sheets = require("./sheets");
+const { convertDate } = require("../utils/utils");
 
 
 const Tesseract = require("tesseract.js");
@@ -18,23 +19,25 @@ if (isWindows) {
 const { spawn } = require("child_process");
 //sous HAOS install : apk add --no-cache poppler-utils
 
-function convertDate(date) {
 
-    if (!date) {
-        return "";
-    }
+function normalizeOCRText(text) {
 
-    if (date.includes(".") || date.includes("/")) {
+    return text
 
-        const p = date.split(/[./]/);
+        // dates OCR
+        .replace(
+            /(\d{2}),(\d{2}),(\d{4})/g,
+            "$1.$2.$3"
+        )
 
-        if (p.length === 3) {
-            return `${p[2]}-${p[1]}-${p[0]}`;
-        }
-    }
+        // espaces au milieu des dates
+        .replace(
+            /(\d{2})\s+(\d{2})\s+(\d{4})/g,
+            "$1.$2.$3"
+        );
 
-    return date;
 }
+
 
 async function pdfToImagesLinux(pdfPath, outputDir) {
 
@@ -114,7 +117,7 @@ async function readCorruptedPdf(pdfPath) {
         //);
 
         const text =
-            await extractText(pagePath);
+            await extractTextFromImage(pagePath);
 
         fullText += "\n" + text;
 
@@ -135,10 +138,11 @@ async function readCorruptedPdf(pdfPath) {
 }
 
 
-async function extractText(imagePath,
+async function extractTextFromImage(imagePath,
     email = null) {
 
     //console.log("🖼️ extractText appelé :", imagePath);
+    console.log("🔍🖼️ Analyse Image");
 
     const processedImage =
         imagePath + "_ocr.png";
@@ -164,9 +168,11 @@ async function extractText(imagePath,
         );
 
 
+    result.data.text = normalizeOCRText(result.data.text);
 
     //console.log("========== OCR ==========");
     //console.log(JSON.stringify(result.data.text));
+    //console.log(result.data.text);
     //console.log("=========================");
 
 
@@ -204,6 +210,8 @@ async function extractText(imagePath,
 
 async function analysePdf(filePath) {
 
+    console.log("🔍📄 Analyse PDF");
+
     const buffer =
         fs.readFileSync(filePath);
 
@@ -212,6 +220,8 @@ async function analysePdf(filePath) {
 
     return data.text;
 }
+
+
 function extractMontants(text) {
 
     // Cherche les montants après CHF
@@ -248,6 +258,25 @@ function extractMontants(text) {
 
 function extractDates(texte) {
 
+
+
+    //
+    // CEESV : règle métier prioritaire
+    //
+    const dateValeur =
+        extractDateValeur(texte);
+
+    if (dateValeur) {
+
+        console.log(
+            "🎯 Date de valeur trouvée",
+            dateValeur
+        );
+
+        return [dateValeur];
+
+    }
+
     if (/centrale.*encaissement/i.test(texte)) {
 
         const dates =
@@ -258,10 +287,25 @@ function extractDates(texte) {
         return dates || [];
 
     }
-
-    const matches =
+    //
+    // Dates numériques
+    //
+    let matches =
         texte.match(
-            /\d{2}[./-]\d{2}[./-]\d{4}/g
+            /\d{2}[.,\/-]\d{2}[.,\/-]\d{4}/g
+        );
+
+    if (matches?.length) {
+        return matches;
+    }
+
+    //
+    // Exemple :
+    // 15 oct. 2026 15:56:49 UTC+2
+    //
+    matches =
+        texte.match(
+            /\d{1,2}\s+[a-zéûôàèùç]{3,}\.?\s+\d{4}/gi
         );
 
     return matches || [];
@@ -770,8 +814,7 @@ async function analyseDocument(
 
     if (ext === ".pdf") {
 
-        text =
-            await analysePdf(filePath);
+        text = await analysePdf(filePath);
 
         const texteCorrompu =
             /[\uE000-\uF8FF]/.test(text);
@@ -792,8 +835,9 @@ async function analyseDocument(
 
     } else {
 
+
         text =
-            await extractText(filePath);
+            await extractTextFromImage(filePath);
 
     }
 
@@ -831,13 +875,23 @@ async function analyseDocument(
         email
     );
 
-    const dates = extractDates(text);
-    const date = convertDate(dates?.[0]);
+    const dates =
+        extractDatesWithRules(
+            text,
+            ocrRules
+        );
+
+    const date =
+        dates?.[0]
+            ? convertDate(dates[0])
+            : "";
+
     // const date = dates?.[0];
     const montants = extractMontantsWithRules(
         text,
         ocrRules
     );
+
     const montant = montants?.[0].toFixed(2);
 
 
@@ -872,16 +926,127 @@ async function analyseDocument(
     };
 }
 
+//Fonction générique
+function extractDateByRule(
+    texte,
+    regex
+) {
+
+    if (!texte || !regex) {
+        return null;
+    }
+
+    try {
+
+        const match =
+            texte.match(
+                new RegExp(
+                    regex,
+                    "i"
+                )
+            );
+
+        if (!match?.[1]) {
+            return null;
+        }
+
+        const date =
+            convertDate(
+                match[1]
+            );
+
+        console.log(
+            "📅 Date trouvée par règle :",
+            regex,
+            "=>",
+            date
+        );
+
+        return date;
+
+    }
+    catch (err) {
+
+        console.error(
+            "❌ Regex Date invalide :",
+            regex,
+            err.message
+        );
+
+        return null;
+    }
+
+}
+//Parcours des règles
+function extractDateFromRules(
+    texte,
+    ocrRules
+) {
+
+    for (const [type, regex] of Object.entries(
+        ocrRules || {}
+    )) {
+
+        if (!type.endsWith("_DATE")) {
+            continue;
+        }
+
+        const date =
+            extractDateByRule(
+                texte,
+                regex
+            );
+
+        if (date) {
+
+            console.log(
+                "✅ Règle date utilisée :",
+                type
+            );
+
+            return date;
+        }
+
+    }
+
+    return null;
+
+}
+
+//Fallback OCR standard
+function extractDatesWithRules(
+    texte,
+    ocrRules
+) {
+
+    const dateRule =
+        extractDateFromRules(
+            texte,
+            ocrRules
+        );
+
+    if (dateRule) {
+        return [dateRule];
+    }
+
+    return extractDates(
+        texte
+    );
+
+}
+
 
 
 module.exports = {
     analysePdf,
-    extractText,
     extractMontants,
     extractMontantByRule,
     extractMontantFromRules,
     extractMontantsWithRules,
     extractDates,
+    extractDateByRule,
+    extractDateFromRules,
+    extractDatesWithRules,
     extractFournisseur,
     extractDateValeur,
     detectDocumentType,
@@ -893,5 +1058,6 @@ module.exports = {
     detectCompte,
     convertFournisseur,
     readCorruptedPdf,
-    analyseDocument
+    analyseDocument,
+    convertDate
 };

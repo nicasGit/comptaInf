@@ -84,6 +84,8 @@ function initDropzoneDashboard() {
         "drop",
         e => {
 
+            console.log("dashboard drop");
+
             e.preventDefault();
 
             dropzone.classList.remove(
@@ -102,7 +104,7 @@ function initDropzoneDashboard() {
             pendingFiles.push(
                 ...files
             );
-            console.log("dashboard drop");
+
             processNextFile();
 
         }
@@ -116,7 +118,7 @@ function initDropzoneDashboard() {
     input.addEventListener(
         "change",
         async e => {
-
+            console.log("dashboard change");
             const files =
                 Array.from(
                     e.target.files
@@ -125,14 +127,11 @@ function initDropzoneDashboard() {
             if (!files.length) {
                 return;
             }
-
-
             // Vérifier login
             const response =
                 await fetch("/google-status");
 
             if (response.status === 401) {
-
                 const formData =
                     new FormData();
 
@@ -155,12 +154,11 @@ function initDropzoneDashboard() {
                 return;
             }
 
-
             pendingFiles.push(
                 ...files
             );
 
-            console.log("dashboard change");
+
             processNextFile();
 
         }

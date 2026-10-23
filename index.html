@@ -90,7 +90,10 @@
                         </a>
                     </div>
 
-
+                    <a href="#" onclick="openExportModal(); return false;">
+                        <span class="icon">📤</span>
+                        <span class="label">Exporter</span>
+                    </a>
 
                     <a href="#" id="googleLogoutBtn" onclick="logoutGoogle(); return false;">
                         <span class="icon">🚪</span>
@@ -532,7 +535,93 @@
         </div>
     </div>
 
-    <script src="/js/utils.js"></script>
+
+
+    <div id="modalExport" class="modal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h2>📤 Export</h2>
+                <span class="close" onclick="closeExportModal()">
+                    &times;
+                </span>
+            </div>
+
+            <div class="modal-body">
+
+                <p>
+                    Choisissez le type d'export :
+                </p>
+
+                <div class="export-options">
+
+                    <label class="export-option">
+
+                        <input type="radio" name="exportType" value="sheet" checked>
+
+                        <span>
+                            📊 Google Sheets
+                        </span>
+
+                    </label>
+
+                    <label class="export-option">
+
+                        <input type="radio" name="exportType" value="mega">
+
+                        <span>
+                            💼 CSV Fiduciaire (MEGA)
+                        </span>
+
+                    </label>
+
+                    <label class="export-option">
+
+                        <input type="radio" name="exportType" value="zip">
+
+                        <span>
+                            📁 Archive complète ComptaInf (.zip)
+                        </span>
+
+                    </label>
+
+
+
+
+                    <label class="export-option">
+
+                        <input type="radio" name="exportType" value="pdf">
+
+                        <span>
+                            📄 PDF bilan annuel
+                        </span>
+
+                    </label>
+
+                </div>
+
+            </div>
+
+            <div class="modal-actions">
+
+                <button class="btn btn-grey" onclick="closeExportModal()">
+                    Annuler
+                </button>
+
+                <button class="btn" onclick="startExport()">
+                    Exporter
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <script src="/utils/utils.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/operations.js"></script>
     <script src="js/depense.js"></script>

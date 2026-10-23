@@ -68,6 +68,7 @@ function clearPdfPreview() {
   document.getElementById("pdfPreview").replaceChildren();
 }
 
+
 function zoomPdf(
   step,
   containerId = "pdfPreview",
@@ -81,6 +82,9 @@ function zoomPdf(
     Math.min(3, pdfZooms[containerId])
   );
 
+  const zoom =
+    pdfZooms[containerId];
+
   const label =
     document.getElementById(labelId);
 
@@ -88,11 +92,37 @@ function zoomPdf(
 
     label.textContent =
       Math.round(
-        pdfZooms[containerId] * 100
+        zoom * 100
       ) + "%";
 
   }
 
+  //
+  // IMAGE
+  //
+  const image =
+    document.getElementById(
+      "imagePreview"
+    );
+
+  if (
+    image &&
+    image.style.display !== "none"
+  ) {
+
+    image.style.transform =
+      `scale(${zoom})`;
+
+    image.style.transformOrigin =
+      "top center";
+
+    return;
+
+  }
+
+  //
+  // PDF
+  //
   if (currentFile) {
 
     renderPdfPreview(

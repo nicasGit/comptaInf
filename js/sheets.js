@@ -3,6 +3,7 @@ const { google } = require("googleapis");
 const { getEnvironment } = require("./config");
 const path = require("path");
 const { getConfig } = require("./config");
+const { convertDateCEESV } = require("../utils/utils");
 
 const DATA_DIR =
     process.env.DATA_DIR ||
@@ -29,6 +30,7 @@ function getSpreadsheetId(email) {
     const config = getConfig(email);
     return config.SpreadsheetId;
 }
+
 function getConfigSpreadsheetId(email) {
 
     return getConfig(email).SpreadsheetIdConfig;
@@ -163,7 +165,10 @@ async function findCEESVMatch(email, ceesv) {
                     .replace(",", ".")
             );
 
-
+        console.log("check match " + dateSheet + "=== " + dateOCR + "|" +
+            fournisseur + "  === UBS - Centrale d'encaissement" +
+            montantSheet + " === " + Number(ceesv.montantFacture)
+        );
         if (
             dateSheet === dateOCR &&
             fournisseur === "UBS - Centrale d'encaissement" &&
@@ -198,16 +203,7 @@ async function findCEESVMatch(email, ceesv) {
     return result;
 }
 
-function convertDateCEESV(dateStr) {
 
-    if (!dateStr) {
-        return "";
-    }
-
-    const p = dateStr.split(".");
-
-    return `${p[2]}-${p[1]}-${p[0]}`;
-}
 
 async function findUBSMatch(email, ceesv) {
 
@@ -268,7 +264,21 @@ async function findUBSMatch(email, ceesv) {
 
             result.trouve = true;
             result.ligne = i + 1;
+            result.fournisseur = fournisseur;
+            result.comment = row[7] || "";
             result.pdfUrl = row[5] || "";
+            result.pdfBanque = row[8] || "";
+            result.Date = row[0] || "";
+
+            result.operation = {
+                Date: row[0] || "",
+                Fournisseur: "Reçu UBS - Centrale d'encaissement pour " + fournisseur,
+                Categorie: row[2] || "",
+                Compte: row[3] || "",
+                Montant: row[4] || ""
+            };
+
+            result.row = i + 1;
 
             break;
         }
@@ -277,13 +287,6 @@ async function findUBSMatch(email, ceesv) {
     return result;
 }
 
-function convertDateCEESV(dateStr) {
-
-    const p = dateStr.split(".");
-
-    return `${p[2]}-${p[1]}-${p[0]}`;
-
-}
 
 async function getDepenses(email) {
 
@@ -296,7 +299,7 @@ async function getDepenses(email) {
 
             spreadsheetId: getSpreadsheetId(email),
 
-            range: "DEPENSES!A:L"
+            range: "DEPENSES!A:M"
 
         });
 
@@ -457,6 +460,8 @@ async function getSettings(email) {
         response.data.values || [];
 
     const settings = {};
+
+    settings.GoogleSheetId = getSpreadsheetId(email);
 
     rows.slice(1).forEach(row => {
 

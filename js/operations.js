@@ -476,3 +476,119 @@ async function loadOperationsSettings() {
                 : `📋 Mouvements - Exercice ${settings.Exercice}`;
 }
 
+
+
+
+async function exportOperations() {
+
+    try {
+
+        const response = await fetch(
+            "/api/export"
+        );
+
+        if (!response.ok) {
+            throw new Error("Erreur export");
+        }
+
+        const blob = await response.blob();
+
+        const url =
+            window.URL.createObjectURL(blob);
+
+        const a =
+            document.createElement("a");
+
+        a.href = url;
+
+        a.download =
+            `ComptaInf_${new Date()
+                .toISOString()
+                .substring(0, 10)}.csv`;
+
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+
+    }
+    catch (err) {
+
+        console.error(err);
+
+        alert(
+            "Erreur lors de l'export"
+        );
+
+    }
+
+}
+
+function openExportModal() {
+
+    document.getElementById(
+        "modalExport"
+    ).style.display = "flex";
+
+}
+
+function closeExportModal() {
+
+    document.getElementById(
+        "modalExport"
+    ).style.display = "none";
+
+}
+async function startExport() {
+
+    const type =
+        document.querySelector(
+            'input[name="exportType"]:checked'
+        ).value;
+
+    closeExportModal();
+
+    switch (type) {
+
+        case "sheet":
+            try {
+
+                const response =
+                    await fetch("/api/export-sheet");
+
+                const result =
+                    await response.json();
+
+                if (!result.success) {
+                    throw new Error("Export impossible");
+                }
+
+                window.open(
+                    result.url,
+                    "_blank"
+                );
+
+            } catch (e) {
+
+                console.error(e);
+
+                alert(
+                    "Impossible d'ouvrir Google Sheet"
+                );
+            }
+            break;
+        case "mega":
+            window.location =
+                "/api/export-mega";
+            break;
+
+        case "pdf":
+            window.location =
+                "/api/export-pdf";
+            break;
+
+        case "zip":
+            window.location =
+                "/api/export-justificatifs";
+            break;
+    }
+}

@@ -1,6 +1,6 @@
 //server.js
 
-const DEV_BYPASS_LOGIN = false;
+const DEV_BYPASS_LOGIN = true;
 const DEV_AUTOLOGIN_LOCAL = false;
 const DEV_SHARE_SIMULATE = false;
 
@@ -13,12 +13,17 @@ const ocr = require("./js/ocr");
 const oauth2Client = require("./js/oauth");
 const sheets = require("./js/sheets");
 const drive = require("./js/drive");
+const { ZipArchive } = require("archiver");
 const { importDocument } = require("./js/importDocument");
 const {
     getEnvironment,
-    setEnvironment
+    setEnvironment,
+    getExercice
 } = require("./js/config");
 const session = require("express-session");
+
+
+const { convertDateCEESV, normalizeFournisseur } = require("./utils/utils");
 
 const { getDepenses } = require("./js/sheets");
 const { FieldExistsAsNonTerminalError } = require("pdf-lib");
@@ -29,6 +34,7 @@ const PORT = 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
+app.use("/utils", express.static("utils"));
 
 const DATA_DIR =
     process.env.DATA_DIR ||
@@ -167,18 +173,30 @@ function requireAuth(
      );*/
     if (!req.session?.email) {
 
+        const apiPaths = [
+            '/google-status',
+            '/analyse-document',
+            '/upload'
+        ];
+
+        const apiExcludedPaths = [
+            '/api/export'
+        ];
+
         const isApi =
-            req.path.startsWith("/api/")
-            || req.path === "/google-status"
-            || req.path === "/analyse-document"
-            || req.path === "/upload";
+            (req.path.startsWith('/api/') ||
+                apiPaths.includes(req.path)) && !apiExcludedPaths.some(p => req.path.startsWith(p));
 
         if (isApi) {
-            //console.log("Login Called from " + req.path);
+
+
             return res.status(401).json({
-                redirect: "/login"
+                redirect: '/login'
             });
         }
+
+        //pour le retour apres login
+        req.session.returnTo = req.originalUrl;
 
         return res.redirect("/login");
     }
@@ -362,9 +380,7 @@ app.get("/api/exercice", requireAuth, (req, res) => {
 app.get("/api/user", requireAuth, (req, res) => {
 
     res.json(
-        getCurrentUser(
-            req.session.email
-        )
+        getCurrentUser(req)
     );
 
 });
@@ -394,6 +410,14 @@ app.get("/api/startup", requireAuth, (req, res) => {
 
 });
 function redirectAfterLogin(req, res) {
+
+    const returnTo = req.session.returnTo;
+    delete req.session.returnTo;
+    if (returnTo) {
+        console.log("↩️ Retour vers", returnTo);
+        return res.redirect(returnTo);
+    }
+
 
     // retour d'un import en attente
     if (req.session.sharedFile) {
@@ -1190,18 +1214,6 @@ app.post(
     }
 );
 
-function convertDateCEESV(dateStr) {
-
-    if (!dateStr) {
-        return "";
-    }
-
-    const p =
-        dateStr.split(".");
-
-    return `${p[2]}-${p[1]}-${p[0]}`;
-
-}
 
 
 /*app.use((req, res, next) => {
@@ -1461,11 +1473,7 @@ app.post(
     async (req, res) => {
 
 
-        console.log("/analyse-document", {
-            name: req.file?.originalname,
-            type: req.file?.mimetype,
-            size: req.file?.size
-        });
+
         //console.log("ANALYSE DOCUMENT CALLED");
 
         if (!req.session?.email) {
@@ -1487,7 +1495,11 @@ app.post(
             });
         }
 
-
+        console.log("/analyse-document", {
+            name: req.file?.originalname,
+            type: req.file?.mimetype,
+            size: req.file?.size
+        });
 
         const result =
             await ocr.analyseDocument(
@@ -1696,7 +1708,198 @@ app.post(
 
     }
 );
+app.get(
+    "/api/export-sheet",
+    requireAuth,
+    async (req, res) => {
 
+        try {
+
+
+            const settings =
+                await sheets.getSettings(req.session.email);
+
+            //console.log("📤 Export-sheet : ", JSON.stringify(settings, null, 2))
+
+            const sheetId = settings.GoogleSheetId;
+
+            res.json({
+                success: true,
+                url: `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`
+            });
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                success: false,
+                error: err.message
+            });
+
+        }
+
+    }
+);
+
+function extractDriveId(url) {
+    const match = url.match(/\/d\/([^/]+)/);
+    return match ? match[1] : null;
+}
+
+app.get(
+    "/api/export-justificatifs",
+    requireAuth,
+    async (req, res) => {
+
+        try {
+
+            const rows =
+                await sheets.getDepenses(
+                    req.session.email
+                );
+
+            const exercice =
+                await getExercice(
+                    req.session.email
+                );
+
+            res.setHeader(
+                "Content-Type",
+                "application/zip"
+            );
+
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename="ComptaInf_Justificatifs_${exercice}.zip"`
+            );
+
+            const archive = new ZipArchive({
+                zlib: { level: 9 }
+            });
+
+            archive.pipe(res);
+
+            let count = 0;
+
+            for (const row of rows.slice(1)) {
+
+                const pdfUrl = row[5];
+
+                if (!pdfUrl) {
+                    continue;
+                }
+
+                const fileId =
+                    extractDriveId(pdfUrl);
+
+                console.log(fileId);
+
+                if (!fileId) {
+                    continue;
+                }
+                continue;
+
+                try {
+
+                    const buffer =
+                        await drive.downloadFile(
+                            req.session.email,
+                            fileId
+                        );
+
+                    archive.append(
+                        buffer,
+                        {
+                            name:
+                                `${row[0]}_${count}.pdf`
+                        }
+                    );
+
+                    count++;
+
+                } catch (err) {
+
+                    console.error(
+                        "Erreur téléchargement :",
+                        pdfUrl,
+                        err.message
+                    );
+                }
+            }
+
+            await archive.finalize();
+
+        } catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+    }
+);
+app.get(
+    "/api/export-mega",
+    requireAuth,
+    async (req, res) => {
+
+        try {
+
+            const rows =
+                await sheets.getDepenses(
+                    req.session.email
+                );
+
+            let csv =
+                "Date;Type;Compte;Categorie;Fournisseur;Montant;Commentaire\n";
+
+            rows.forEach(row => {
+
+                csv += [
+                    row[0] || "",
+                    row[6] || "",
+                    row[3] || "",
+                    row[2] || "",
+                    row[1] || "",
+                    row[4] || "",
+                    row[7] || ""
+                ].join(";") + "\n";
+
+            });
+
+            const exercice =
+                await getExercice(req.session.email);
+
+            res.setHeader(
+                "Content-Type",
+                "text/csv; charset=utf-8"
+            );
+
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename="ComptaInf_MEGA_${exercice}.csv"`
+            );
+
+            res.send("\uFEFF" + csv);
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                success: false,
+                error: err.message
+            });
+
+        }
+
+    }
+);
 app.post(
     "/api/import-shared-file",
     requireAuth,
@@ -1839,16 +2042,6 @@ app.post(
     }
 );
 
-function normalizeFournisseur(nom, converts) {
-
-    const key = (nom || "")
-        .trim()
-        .toLowerCase();
-
-    return converts[key] || key;
-
-}
-
 app.post(
     "/api/checkDuplicate",
     async (req, res) => {
@@ -1874,12 +2067,12 @@ app.post(
             );
 
         const fournisseurRecherche =
-            normalizeFournisseur(
+            ocr.convertFournisseur(
                 fournisseur,
                 fournisseursConvert
             );
 
-        /*console.log(
+        console.log(
             "CHECK DUPLICATE",
             {
                 date,
@@ -1887,28 +2080,51 @@ app.post(
                 fournisseurRecherche,
                 montant
             }
-        );*/
+        );
 
 
         const rowIndex =
             rows.findIndex(row => {
 
-                const fournisseurLigne =
+                /*  const fournisseurLigne =
+                      ocr.convertFournisseur(
+                          row[1],
+                          fournisseursConvert
+                      );*/
+
+                let fournisseurRecherche =
                     normalizeFournisseur(
-                        row[1],
-                        fournisseursConvert
+                        ocr.convertFournisseur(
+                            fournisseur,
+                            fournisseursConvert
+                        )
                     );
+                const fournisseurLigne = row[1];
+
+                // cas particulier pour CEESV comme on change ensuite le nom...
+                const isCEESVRecherche =
+                    fournisseurRecherche?.includes("CEESV");
+
+                const isCEESVLigne =
+                    fournisseurLigne?.includes("CEESV");
+
+                if (isCEESVRecherche && isCEESVLigne) { fournisseurRecherche = fournisseurLigne }
+
+                const montantLigne = Math.abs(
+                    Number(
+                        String(row[4]).replace(",", ".")
+                    )
+                );
+                const montantRecheche = Math.abs(
+                    Number(montant)
+                );
+
+                //console.log(row[0] + " ==" + date + " | " + row[1] + "/" + fournisseurLigne + " ==" + fournisseurRecherche + " | " + Math.abs(Number(String(row[4]).replace(",", "."))) + " ==" + Math.abs(Number(montant)));
 
                 return (
                     row[0] === date &&
                     fournisseurLigne === fournisseurRecherche &&
-                    Math.abs(
-                        Number(
-                            String(row[4]).replace(",", ".")
-                        )
-                    ) === Math.abs(
-                        Number(montant)
-                    )
+                    montantLigne === montantRecheche
                 );
 
             });

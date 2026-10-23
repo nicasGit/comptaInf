@@ -15,8 +15,8 @@ function openDepense() {
 
 
     // Réinitialisation formulaire
-    document.getElementById("depDate").valueAsDate =
-        new Date();
+    document.getElementById("depDate").value = "";
+    //new Date();
 
     document.getElementById("depFournisseur").value = "";
 
@@ -80,7 +80,12 @@ function openDepense() {
 
 }
 
-function closeDepense() {
+async function closeDepense() {
+
+    await fetch("/api/shared-file-clear", {
+        method: "POST"
+    });
+
     resetDepense();
     document.getElementById("modalDepense")
         .classList.remove("ocr-loading");
@@ -420,38 +425,36 @@ async function showFile(file, analyseExistante = null) {
 }
 
 
-//
-// CONVERSION DATE
-//
+async function openDuplicateModal(duplicateResult) {
 
-/*
-function convertDate(date) {
 
-    if (!date) {
-        return "";
+    const action =
+        await showDuplicateModal(
+            duplicateResult
+        );
+
+    duplicateAction = action;
+    duplicateRow = duplicateResult.row;
+
+    console.log("duplicateAction =", duplicateAction);
+
+    switch (action) {
+
+        case "cancel":
+            closeDepense();
+            return;
+
+        case "insert":
+            break;
+
+        case "replace":
+            // action au moment du enregistrement 
+            break;
+
     }
 
-    if (
-        date.includes(".") ||
-        date.includes("/")
-    ) {
-
-        const p =
-            date.split(/[./]/);
-
-        if (p.length === 3) {
-
-            return (
-                `${p[2]}-${p[1]}-${p[0]}`
-            );
-
-        }
-    }
-
-    return date;
 }
 
-*/
 
 async function checkDuplicateAfterOCR(result) {
 
@@ -476,41 +479,41 @@ async function checkDuplicateAfterOCR(result) {
         const duplicateResult =
             await checkDuplicate({
                 date: convertDate(result.dates[0]),
-                fournisseur: result.fournisseur,
+                fournisseur: normalizeFournisseur(result.fournisseur),
                 categorie: result.categorie,
                 compte: result.compte,
                 montant: result.montants[0]
             });
 
         if (duplicateResult.duplicate) {
-
-
-
-            const action =
-                await showDuplicateModal(
-                    duplicateResult
-                );
-
-            duplicateAction = action;
-            duplicateRow = duplicateResult.row;
-
-            console.log("duplicateAction =", duplicateAction);
-
-            switch (action) {
-
-                case "cancel":
-                    closeDepense();
-                    return;
-
-                case "insert":
-                    break;
-
-                case "replace":
-                    // action au moment du enregistrement 
-                    break;
-
-            }
-
+            openDuplicateModal(duplicateResult);
+            /*
+             
+              const action =
+                  await showDuplicateModal(
+                      duplicateResult
+                  );
+            
+              duplicateAction = action;
+              duplicateRow = duplicateResult.row;
+            
+              console.log("duplicateAction =", duplicateAction);
+            
+              switch (action) {
+            
+                  case "cancel":
+                      closeDepense();
+                      return;
+            
+                  case "insert":
+                      break;
+            
+                  case "replace":
+                      // action au moment du enregistrement 
+                      break;
+            
+              }
+            */
         }
     }
 
@@ -623,7 +626,8 @@ function applyMontants(data,
         // Fallback si le serveur ne renvoie
         // qu'un seul montant
         montantInput.value =
-            data.montant.toFixed(2);
+            Number(data.montant)
+                .toFixed(2);
     }
 }
 function applyDates(data,
@@ -763,70 +767,82 @@ function applyCEESV(data,
             document.getElementById(
                 "ceesvInfo"
             ).innerHTML = `
-                <div class="ceesv-box">
-                
-                    <div>
-                        🧾 Montant reçu :
-                        <strong>
-                            ${Number(data.ceesv.montantBanque).toFixed(2)} CHF
-                        </strong>
-                    </div>
-                
-                    ${match.trouve
+      <div class="ceesv-box">
+      
+          <div>
+              🧾 Montant reçu :
+              <strong>
+                  ${Number(data.ceesv.montantBanque).toFixed(2)} CHF
+              </strong>
+          </div>
+      
+          ${match.trouve
                     ? `
-                            <div>
-                                ✅ Ligne trouvée :
-                                <strong>${match.fournisseur}</strong>
-                            </div>
-                        `
+                  <div>
+                      ✅ Ligne trouvée :
+                      <strong>${match.ligne} - ${match.fournisseur}</strong>
+                  </div>
+              `
                     : `
-                            <div style="color:orange">
-                                Aucune ligne CEESV trouvée
-                            </div>
-                        `
+                  <div style="color:orange">
+                      Aucune ligne CEESV trouvée
+                  </div>
+              `
                 }
-                        
-                </div>
-            `;
+              
+      </div>
+  `;
+
+            if (match.pdfBanque) {
+
+                // console.log("match.pdfBanque " + match.pdfBanque);
+
+                openDuplicateModal(match);
+
+            }
+
+
+
+
         }
         else {
 
             document.getElementById(
                 "ceesvInfo"
             ).innerHTML = `
-		    	<div class="ceesv-box">
-		    		<div>
-		    			🧾 Facturé :
-		    			<strong>
-		    				${Number(data.ceesv.montantFacture).toFixed(2)} CHF
-		    			</strong>
-                        ${data.ceesv.matchFacture?.trouve
+      <div class="ceesv-box">
+          <div>
+              🧾 Facturé :
+              <strong>
+                  ${Number(data.ceesv.montantFacture).toFixed(2)} CHF
+              </strong>
+              ${data.ceesv.matchFacture?.trouve
                     ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
                     : ' <span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
                 }
-		    		</div>
-                
-		    		<div>
-		    			🏛 Etat :
-		    			<strong>
-		    				${Number(data.ceesv.montantEtat).toFixed(2)} CHF
-		    			</strong>
-                            ${data.ceesv.matchEtat?.trouve
+          </div>
+      
+          <div>
+              🏛 Etat :
+              <strong>
+                  ${Number(data.ceesv.montantEtat).toFixed(2)} CHF
+              </strong>
+                  ${data.ceesv.matchEtat?.trouve
                     ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
                     : ' <span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
                 }
 
-		    		</div>
-                
-		    		<div>
-		    			📋 Factures :
-		    			<strong>
-		    				${data.ceesv.nbFactures}
-		    			</strong>
-		    		</div>
-                
-		    	</div>
-		    `;
+          </div>
+      
+          <div>
+              📋 Factures :
+              <strong>
+                  ${data.ceesv.nbFactures}
+              </strong>
+          </div>
+      
+      </div>
+  `;
         }
 
 
@@ -1164,7 +1180,7 @@ async function enrichCEESV() {
 
         const matchResponse =
             await fetch(
-                "/findCEESVMatch",
+                "/findUBSMatch",
                 {
                     method: "POST",
                     headers: {
@@ -1345,6 +1361,7 @@ async function addDepense(depense) {
                 )
         }
     );
+
 }
 async function deleteRow(row) {
 
@@ -1381,6 +1398,7 @@ async function refreshAfterSave() {
     await refreshStats();
     await loadCategories();
     await loadFournisseurs();
+    await refreshStandby();
 
     closeDepense();
     if (currentDriveFileId) {
@@ -1605,12 +1623,12 @@ async function startImportCEESV() {
 
         showToast(
             `
-            ✅ ${result.ceesvImportes || 0} CEESV détectés<br>
-            ✅ ${result.ubsRattaches || 0} UBS détectés<br>
-            ✅ ${result.ubsStandby || 0} UBS en attente<br>
-            ⚠️ ${(result.erreurs || []).length} erreur(s)
-            ${details}
-            `,
+  ✅ ${result.ceesvImportes || 0} CEESV détectés<br>
+  ✅ ${result.ubsRattaches || 0} UBS détectés<br>
+  ✅ ${result.ubsStandby || 0} UBS en attente<br>
+  ⚠️ ${(result.erreurs || []).length} erreur(s)
+  ${details}
+  `,
             "success"
         );
 
@@ -2160,6 +2178,9 @@ function initOperationType() {
 
 async function initSharedAnalyse() {
 
+
+    req.session.sharedFile
+
     const sharedAnalyse =
         sessionStorage.getItem(
             "sharedAnalyse"
@@ -2169,9 +2190,18 @@ async function initSharedAnalyse() {
         return;
     }
 
+
+
     sessionStorage.removeItem(
         "sharedAnalyse"
     );
+    sessionStorage.setItem(
+        "resumeUpload",
+        "0"
+    );
+
+    duplicateAction = null;
+    duplicateRow = null;
 
     const result =
         JSON.parse(sharedAnalyse);
@@ -2221,6 +2251,7 @@ async function initSharedAnalyse() {
         }
 
         if (duplicateAction === "cancel") {
+            closeDepense();
             return;
         }
 

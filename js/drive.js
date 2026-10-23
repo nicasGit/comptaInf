@@ -244,7 +244,26 @@ async function getExercices(email) {
 
 }
 
+async function downloadFile(email, fileId) {
+
+    const drive = getDrive(email);
+
+    const response =
+        await drive.files.get(
+            {
+                fileId,
+                alt: "media"
+            },
+            {
+                responseType: "arraybuffer"
+            }
+        );
+
+    return Buffer.from(response.data);
+}
+
 module.exports = {
     uploadFile,
-    getExercices
+    getExercices,
+    downloadFile
 };

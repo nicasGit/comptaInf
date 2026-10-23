@@ -19,7 +19,7 @@ const SETTINGS_FILE =
 
 
 
-function getSettings() {
+function getConfigSettings() {
 
     return JSON.parse(
         fs.readFileSync(
@@ -90,7 +90,7 @@ function setEnvironment(email, environment) {
 function getConfig(email) {
 
     const settings =
-        getSettings();
+        getConfigSettings();
 
     const environment =
         getEnvironment(email);
@@ -151,6 +151,5 @@ module.exports = {
     getCurrentUser,
     getExercice,
     setExercice,
-    getSettings,
     getConfig
 };
