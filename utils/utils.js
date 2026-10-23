@@ -1,4 +1,4 @@
-// js/utils.js
+// /utils/utils.js
 const fs = require("fs");
 const sharp = require("sharp");
 const { PDFDocument } = require("pdf-lib");
@@ -155,9 +155,7 @@ async function convertImageToPdf(
         pdfBytes
     );
 
-    fs.unlinkSync(
-        tempImagePath
-    );
+    fs.unlinkSync(tempImagePath);
 
     return {
         filePath: pdfPath,

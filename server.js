@@ -1,6 +1,6 @@
 //server.js
 
-const DEV_BYPASS_LOGIN = true;
+const DEV_BYPASS_LOGIN = false;
 const DEV_AUTOLOGIN_LOCAL = false;
 const DEV_SHARE_SIMULATE = false;
 
@@ -2025,11 +2025,7 @@ app.post(
             sharedFile.path &&
             fs.existsSync(sharedFile.path)
         ) {
-
-            fs.unlinkSync(
-                sharedFile.path
-            );
-
+            fs.unlinkSync(sharedFile.path);
         }
 
         delete req.session.sharedFile;

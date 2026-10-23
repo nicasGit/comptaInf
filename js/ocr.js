@@ -892,7 +892,7 @@ async function analyseDocument(
         ocrRules
     );
 
-    const montant = montants?.[0].toFixed(2);
+    const montant = Number(montants?.[0] || 0).toFixed(2);
 
 
     return {
