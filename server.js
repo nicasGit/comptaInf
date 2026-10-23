@@ -1,5 +1,5 @@
 //server.js
-
+console.log("Starting Server ComptaInf....");
 let DEV_BYPASS_LOGIN = false;
 let DEV_AUTOLOGIN_LOCAL = false;
 let DEV_SHARE_SIMULATE = false;
