@@ -636,3 +636,83 @@ function showDuplicateModal(duplicateResult) {
     });
 
 }
+
+
+function showOCRDebug() {
+
+    const win =
+        window.open(
+            "",
+            "_blank",
+            "width=900,height=700"
+        );
+
+    win.document.write(`
+        <html>
+        <head>
+            <title>OCR Debug</title>
+            <style>
+                body{
+                    font-family:monospace;
+                    padding:20px;
+                    white-space:pre-wrap;
+                }
+            </style>
+        </head>
+        <body>
+${currentOCRText || "Aucun texte OCR"}
+        </body>
+        </html>
+    `);
+
+}
+
+function showOCRRules() {
+
+    const win =
+        window.open(
+            "",
+            "_blank",
+            "width=900,height=700"
+        );
+
+    win.document.write(`
+        <html>
+        <head>
+            <title>OCR Rules</title>
+            <style>
+                body{
+                    font-family:monospace;
+                    padding:20px;
+                    white-space:pre-wrap;
+                }
+            </style>
+        </head>
+        <body>
+${JSON.stringify(currentOCRRules, null, 2) || "Aucune règle OCR"}
+        </body>
+        </html>
+    `);
+
+}
+function showOCRRulesOLD() {
+
+    if (!currentOCRRules.length) {
+
+        alert(
+            "Aucune règle OCR utilisée"
+        );
+
+        return;
+    }
+
+    const contenu =
+        currentOCRRules.map(r =>
+
+            `${r.nom}\n${r.regex}`
+
+        ).join("\n\n");
+
+    alert(contenu);
+
+}

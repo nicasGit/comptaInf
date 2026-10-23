@@ -165,10 +165,7 @@ async function findCEESVMatch(email, ceesv) {
                     .replace(",", ".")
             );
 
-        console.log("check match " + dateSheet + "=== " + dateOCR + "|" +
-            fournisseur + "  === UBS - Centrale d'encaissement" +
-            montantSheet + " === " + Number(ceesv.montantFacture)
-        );
+        //console.log("check match " + dateSheet + "=== " + dateOCR + "|" +            fournisseur + "  === UBS - Centrale d'encaissement" +            montantSheet + " === " + Number(ceesv.montantFacture));
         if (
             dateSheet === dateOCR &&
             fournisseur === "UBS - Centrale d'encaissement" &&
@@ -403,6 +400,32 @@ async function getFournisseursConvert(email) {
 }
 
 
+
+async function getMontantOcrRules(email) {
+
+    const ocrRules =
+        await getOCRRules(email);
+
+    return Object.fromEntries(
+        Object.entries(ocrRules)
+            .filter(([key]) =>
+                key.startsWith("MONTANT_")
+            )
+    );
+}
+
+async function getDateOcrRules(email) {
+
+    const ocrRules =
+        await getOCRRules(email);
+
+    return Object.fromEntries(
+        Object.entries(ocrRules)
+            .filter(([key]) =>
+                key.startsWith("DATE_")
+            )
+    );
+}
 
 async function getOCRRules(email) {
 
@@ -699,6 +722,8 @@ module.exports = {
     getFournisseursConvert,
 
     getOCRRules,
+    getMontantOcrRules,
+    getDateOcrRules,
 
     getSettings,
     saveSetting,

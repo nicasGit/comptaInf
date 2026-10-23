@@ -3,6 +3,8 @@ let currentCEESV = null;
 let ceesvFiles = [];
 let duplicateAction = null;
 let duplicateRow = null;
+let currentOCRText = "";
+let currentOCRRules = [];
 
 function openDepense() {
 
@@ -262,6 +264,12 @@ function buildDepense(driveUrl) {
         );
     }
 
+    if (montant === 0) {
+        erreurs.push(
+            "💰 Montant différent de 0 obligatoire"
+        );
+    }
+
     if (
         operationType === "DEPENSE" &&
         !categorie
@@ -386,6 +394,13 @@ async function showFile(file, analyseExistante = null) {
             false
         );
 
+        currentOCRText =
+            result.texte ||
+            result.text ||
+            "";
+
+        currentOCRRules =
+            result.matchedRules || [];
 
         // Vérification doublon après OCR
         await checkDuplicateAfterOCR(result);
@@ -653,6 +668,22 @@ function applyDates(data,
                 data.dates[0]
             );
 
+        const toggle =
+            document.getElementById("toggleDates");
+
+        toggle.style.display =
+            data.dates.length > 1
+                ? "block"
+                : "none";
+
+        document.getElementById(
+            "ocrDates"
+        ).style.display = "none";
+
+        toggle.textContent =
+            `📅 ${data.dates.length - 1} date(s) proposée(s)`;
+
+
         data.dates.forEach((date, index) => {
 
             const chip =
@@ -739,7 +770,15 @@ function applyCEESV(data,
 
     }
 
-    if (data.ceesv && Object.keys(data.ceesv).length > 0) {
+    const isRealCEESV =
+        data.ceesv &&
+        (
+            data.ceesv.montantFacture ||
+            data.ceesv.montantEtat ||
+            data.ceesv.montantBanque
+        );
+
+    if (isRealCEESV) {
 
         montantGroup.style.display = "none";
 
@@ -2179,8 +2218,6 @@ function initOperationType() {
 async function initSharedAnalyse() {
 
 
-    req.session.sharedFile
-
     const sharedAnalyse =
         sessionStorage.getItem(
             "sharedAnalyse"
@@ -2302,11 +2339,43 @@ async function initSharedAnalyse() {
 
 async function initDepense() {
 
+    //console.log("INIT DEPENSE");
+
     initFournisseurEvents();
     initDropzoneModalDepense();
     initOperationType();
     await initSharedAnalyse();
 
+
+    const toggle =
+        document.getElementById("toggleDates");
+
+    if (toggle) {
+        toggle.addEventListener(
+            "click",
+            () => {
+
+                const dates =
+                    document.getElementById(
+                        "ocrDates"
+                    );
+
+                const ouvert =
+                    dates.style.display === "flex";
+
+                dates.style.display =
+                    ouvert
+                        ? "none"
+                        : "flex";
+
+                toggle.textContent =
+                    ouvert
+                        ? "📅 Voir les autres dates"
+                        : "📅 Masquer les dates";
+            }
+        );
+
+    }
 }
 
 window.addEventListener(

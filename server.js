@@ -1,8 +1,8 @@
 //server.js
 
-const DEV_BYPASS_LOGIN = false;
-const DEV_AUTOLOGIN_LOCAL = false;
-const DEV_SHARE_SIMULATE = false;
+let DEV_BYPASS_LOGIN = false;
+let DEV_AUTOLOGIN_LOCAL = false;
+let DEV_SHARE_SIMULATE = false;
 
 const express = require("express");
 const { exec } = require("child_process");
@@ -45,6 +45,7 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 
+const matchedRules = [];
 
 const SERVICE_ACCOUNT_FILE =
     path.join(DATA_DIR, "service-account.json");
@@ -2324,6 +2325,9 @@ app.get("/api/me", (req, res) => {
 //
 
 app.listen(PORT, () => {
+
+
+
 
     cleanupUploads();      // nettoyage complet au démarrage
     cleanupOldUploads();   // sécurité supplémentaire

@@ -222,7 +222,7 @@ async function analysePdf(filePath) {
 }
 
 
-function extractMontants(text) {
+function extractMontants(text, matchedRules = []) {
 
     // Cherche les montants après CHF
     // Accepte :
@@ -239,11 +239,14 @@ function extractMontants(text) {
         return [];
     }
 
+
+
     const montants = matches
         .map(match => {
 
             const value = match[1]
                 .replace(/['’ ]/g, "")
+                .replace(/\s/g, "")
                 .replace(",", ".");
 
             return parseFloat(value);
@@ -251,14 +254,19 @@ function extractMontants(text) {
         })
         .filter(value => !isNaN(value));
 
+    matchedRules.push({
+        nom: "💰 extractMontants " + montants,
+        regex: regex.toString()
+    });
+
     // Supprime les doublons
     return [...new Set(montants)];
 }
 
 
-function extractDates(texte) {
+function extractDates(texte, matchedRules = []) {
 
-
+    let regex = "";
 
     //
     // CEESV : règle métier prioritaire
@@ -273,16 +281,27 @@ function extractDates(texte) {
             dateValeur
         );
 
+        matchedRules.push({
+            nom: "📅 Date trouvée par valeur metier",
+            regex: regex.toString()
+        });
+
         return [dateValeur];
 
     }
 
     if (/centrale.*encaissement/i.test(texte)) {
 
+        regex = /\d{2}\.\d{2}\.\d{4}/g;
         const dates =
             texte.match(
-                /\d{2}\.\d{2}\.\d{4}/g
+                regex
             );
+
+        matchedRules.push({
+            nom: "📅 Date trouvée par central encaissement ",
+            regex: regex.toString()
+        });
 
         return dates || [];
 
@@ -290,23 +309,38 @@ function extractDates(texte) {
     //
     // Dates numériques
     //
+    regex = /\d{2}[.,\/-]\d{2}[.,\/-]\d{4}/g;
     let matches =
         texte.match(
-            /\d{2}[.,\/-]\d{2}[.,\/-]\d{4}/g
+            regex
         );
 
     if (matches?.length) {
+
+        matchedRules.push({
+            nom: "📅 Date trouvée par gestion numerique",
+            regex: regex.toString()
+        });
+
+
         return matches;
     }
+
 
     //
     // Exemple :
     // 15 oct. 2026 15:56:49 UTC+2
     //
+    regex = /\d{1,2}\s+[a-zéûôàèùç]{3,}\.?\s+\d{4}/gi;
     matches =
         texte.match(
-            /\d{1,2}\s+[a-zéûôàèùç]{3,}\.?\s+\d{4}/gi
+            regex
         );
+
+    matchedRules.push({
+        nom: "📅 Date trouvée par autre texte",
+        regex: regex.toString()
+    });
 
     return matches || [];
 
@@ -379,7 +413,7 @@ function detectDocumentType(texte) {
     return "DEPENSE";
 }
 
-async function detectCategorie(fournisseur, email) {
+async function detectCategorie(fournisseur, email, matchedRules = []) {
 
     try {
 
@@ -399,6 +433,10 @@ async function detectCategorie(fournisseur, email) {
 
         if (!nomOCR) {
             console.log("❌ Fournisseur OCR vide");
+            matchedRules.push({
+                nom: "❌ Fournisseur OCR vide",
+                regex: ""
+            });
             return "";
         }
 
@@ -419,12 +457,21 @@ async function detectCategorie(fournisseur, email) {
 
         if (!correspondance) {
             console.log("❌ No Match Fournisseur/Categorie pour ", fournisseur)
+            matchedRules.push({
+                nom: "❌ No Match Fournisseur/Categorie pour " + fournisseur,
+                regex: ""
+            });
+
             return "";
         }
 
         const categorie = fournisseurs[correspondance]?.categorie || "";
 
         console.log("🎯 Match Fournisseur/Categorie :", categorie)
+        matchedRules.push({
+            nom: "🎯 Match Fournisseur/Categorie :" + fournisseur + " | " + categorie,
+            regex: ""
+        });
 
         return categorie;
 
@@ -470,7 +517,7 @@ function extractFournisseur(texte) {
 }
 
 
-
+/*
 function extractMontantEtat(texte) {
 
     const match =
@@ -487,7 +534,7 @@ function extractMontantEtat(texte) {
             .replace(/\s/g, "")
             .replace(",", ".")
     );
-}
+}*/
 
 function extractNbFactures(texte) {
 
@@ -628,6 +675,7 @@ function isEtatCEESV(texte) {
 function convertFournisseur(
     texte,
     fournisseursConvert
+    , matchedRules = []
 ) {
 
     if (!texte) {
@@ -668,6 +716,12 @@ function convertFournisseur(
             match[1]
         );
 
+
+        matchedRules.push({
+            nom: "🎯 Match OCR " + match[0] + "=>" + match[1],
+            regex: ""
+        });
+
         return match[1];
 
     }
@@ -678,7 +732,8 @@ function convertFournisseur(
 
 function extractMontantByRule(
     texte,
-    regex
+    regex,
+    matchedRules = []
 ) {
 
     if (!texte || !regex) {
@@ -696,12 +751,19 @@ function extractMontantByRule(
             );
 
         if (!match || !match[1]) {
+
+            // matchedRules.push({
+            //     nom: "💰❌ No Match OCR pour Montant",
+            //     regex: regex.toString()
+            // });
+
             return null;
         }
 
         const montant =
             parseFloat(
                 match[1]
+                    .replace(/['’]/g, "")
                     .replace(/\s/g, "")
                     .replace(",", ".")
             );
@@ -718,6 +780,12 @@ function extractMontantByRule(
             "=>",
             montant
         );
+
+
+        matchedRules.push({
+            nom: "💰 Montant trouvé par règle : " + montant,
+            regex: regex.toString()
+        });
 
         return montant;
 
@@ -737,7 +805,8 @@ function extractMontantByRule(
 }
 function extractMontantFromRules(
     texte,
-    ocrRules
+    ocrRules,
+    matchedRules = []
 ) {
 
     for (const [type, regex] of Object.entries(
@@ -755,7 +824,8 @@ function extractMontantFromRules(
         const montant =
             extractMontantByRule(
                 texte,
-                regex
+                regex,
+                matchedRules
             );
 
         if (montant !== null) {
@@ -765,11 +835,17 @@ function extractMontantFromRules(
                 type
             );
 
+            matchedRules.push({
+                nom: "✅ Règle utilisée :" + type,
+                regex: regex.toString()
+            });
+
             return montant;
 
         }
 
     }
+
 
     return null;
 
@@ -777,13 +853,15 @@ function extractMontantFromRules(
 
 function extractMontantsWithRules(
     texte,
-    ocrRules
+    ocrRules,
+    matchedRules = []
 ) {
 
     const montantOCR =
         extractMontantFromRules(
             texte,
-            ocrRules
+            ocrRules,
+            matchedRules
         );
 
     if (montantOCR !== null) {
@@ -793,7 +871,8 @@ function extractMontantsWithRules(
     }
 
     return extractMontants(
-        texte
+        texte,
+        matchedRules
     );
 
 }
@@ -804,6 +883,8 @@ async function analyseDocument(
     originalName,
     email
 ) {
+
+    const matchedRules = [];
 
     const ext =
         path.extname(
@@ -849,7 +930,8 @@ async function analyseDocument(
     let fournisseur =
         convertFournisseur(
             text,
-            fournisseursConvert
+            fournisseursConvert,
+            matchedRules
         );
 
     if (
@@ -862,12 +944,17 @@ async function analyseDocument(
 
     }
 
-    const ocrRules =
-        await sheets.getOCRRules(email);
+    const ocrRulesMontant =
+        await sheets.getMontantOcrRules(email);
+    //await sheets.getOCRRules(email);
+
+    const ocrRulesDate =
+        await sheets.getDateOcrRules(email);
 
     const categorie = await detectCategorie(
         fournisseur,
-        email
+        email,
+        matchedRules
     );
 
     const compte = await detectCompte(
@@ -878,7 +965,8 @@ async function analyseDocument(
     const dates =
         extractDatesWithRules(
             text,
-            ocrRules
+            ocrRulesDate,
+            matchedRules
         );
 
     const date =
@@ -889,10 +977,20 @@ async function analyseDocument(
     // const date = dates?.[0];
     const montants = extractMontantsWithRules(
         text,
-        ocrRules
+        ocrRulesMontant,
+        matchedRules
     );
 
-    const montant = Number(montants?.[0] || 0).toFixed(2);
+
+
+    let montant = Number(
+        String(montants?.[0] || "0")
+            .replace(",", ".")
+            .replace(/[^\d.-]/g, "")
+    );
+    montant = Number(montant).toFixed(2);
+
+    // console.log("montant normalisé =", montant);
 
 
     return {
@@ -921,7 +1019,9 @@ async function analyseDocument(
         ceesv:
             extractCEESVData(text),
 
-        pdf: filePath
+        pdf: filePath,
+
+        matchedRules
 
     };
 }
@@ -961,6 +1061,11 @@ function extractDateByRule(
             "=>",
             date
         );
+
+        matchedRules.push({
+            nom: "📅 Date trouvée par règle OCR ",
+            regex: regex.toString()
+        });
 
         return date;
 
@@ -1016,7 +1121,8 @@ function extractDateFromRules(
 //Fallback OCR standard
 function extractDatesWithRules(
     texte,
-    ocrRules
+    ocrRules,
+    matchedRules = []
 ) {
 
     const dateRule =
@@ -1030,7 +1136,8 @@ function extractDatesWithRules(
     }
 
     return extractDates(
-        texte
+        texte,
+        matchedRules
     );
 
 }

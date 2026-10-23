@@ -131,6 +131,18 @@
                     🧾 Nouvelle opération
                 </h2>
                 <span class="close" onclick="closeDepense()">&times;</span>
+
+                <span class="ocr-debug-icons">
+
+                    <span onclick="showOCRDebug()" title="Texte OCR">
+                        ❔
+                    </span>
+
+                    <span onclick="showOCRRules()" title="Règles OCR">
+                        🧩
+                    </span>
+
+                </span>
             </div>
 
             <div class="modal-body">
@@ -154,11 +166,21 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Date de valeur<span class="ocr-wait" title="Analyse OCR en cours"></span>
 
-                            <input type="date" id="depDate">
+                        <label>
+                            Date de valeur
+                            <span class="ocr-wait" title="Analyse OCR en cours">
+                            </span>
+                        </label>
 
-                            <div id="ocrDates" class="ocr-suggestions"></div>
+                        <input type="date" id="depDate">
+
+                        <button type="button" id="toggleDates" class="ocr-toggle" style="display:none;">
+                            📅 Voir les autres dates
+                        </button>
+
+                        <div id="ocrDates" class="ocr-suggestions" style="display:none;">
+                        </div>
 
                     </div>
 
