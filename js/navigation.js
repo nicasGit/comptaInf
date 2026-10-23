@@ -19,6 +19,48 @@ function hideLoader() {
         .getElementById("pageLoader")
         ?.classList.remove("active");
 }
+function initAdminMenu() {
+
+
+    const btn =
+        document.getElementById(
+            "adminMenuBtn"
+        );
+
+    const menu =
+        document.getElementById(
+            "adminMenu"
+        );
+
+    if (!btn || !menu) {
+        return;
+    }
+
+    btn.addEventListener(
+        "click",
+        (e) => {
+
+            e.stopPropagation();
+
+            menu.classList.toggle(
+                "hidden"
+            );
+
+        }
+    );
+
+    document.addEventListener(
+        "click",
+        () => {
+
+            menu.classList.add(
+                "hidden"
+            );
+
+        }
+    );
+
+}
 
 
 // Dashboard
@@ -27,6 +69,8 @@ async function loadDashboard() {
     showLoader();
 
     try {
+
+
 
         const response =
             await fetch("/views/dashboard.html");
@@ -37,6 +81,18 @@ async function loadDashboard() {
         document.getElementById(
             "content"
         ).innerHTML = html;
+
+        initAdminMenu();
+
+        if (window.isAdmin) {
+
+            document
+                .querySelectorAll(".admin-only")
+                .forEach(e => {
+                    e.classList.add("visible");
+                });
+
+        }
 
         await initDashboard();
 
@@ -706,3 +762,5 @@ window.addEventListener(
 
     }
 );
+
+

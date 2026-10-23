@@ -1,6 +1,4 @@
 <div>
-
-
     <div class="topbar">
 
         <div class="welcome">
@@ -27,6 +25,28 @@
                 <div class="current-date exercice-row">
                     <span>📚 Exercice</span>
                     <select id="exerciceSelect"></select>
+
+                    <div class="admin-toolbar admin-only">
+
+                        <button id="adminMenuBtn" class="admin-menu-btn" type="button">
+                            ⋮
+                        </button>
+
+                        <div id="adminMenu" class="admin-menu hidden">
+
+                            <a href="#" onclick="openSettings();return false;">
+                                ⚙️ Paramètres
+                            </a>
+
+                            <a href="#" onclick="importAutoCEESV();return false;">
+                                📥 Import
+                            </a>
+
+                        </div>
+
+                    </div>
+
+
                 </div>
 
                 <div id="googleBadge" class="google-badge disconnected">
