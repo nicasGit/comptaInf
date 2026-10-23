@@ -3,6 +3,7 @@
 let DEV_BYPASS_LOGIN = false;
 let DEV_AUTOLOGIN_LOCAL = false;
 let DEV_SHARE_SIMULATE = false;
+const packageJson = require("./package.json");
 
 const express = require("express");
 const { exec } = require("child_process");
@@ -2327,7 +2328,9 @@ app.get("/api/me", (req, res) => {
 app.listen(PORT, () => {
 
 
-
+    console.log(
+        `🚀 ComptaInf v${packageJson.version}`
+    );
 
     cleanupUploads();      // nettoyage complet au démarrage
     cleanupOldUploads();   // sécurité supplémentaire
