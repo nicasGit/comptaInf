@@ -876,6 +876,252 @@ function extractMontantsWithRules(
     );
 
 }
+function convertMonthToNumber(month) {
+
+    const months = {
+        janvier: "01",
+        février: "02",
+        fevrier: "02",
+        mars: "03",
+        avril: "04",
+        mai: "05",
+        juin: "06",
+        juillet: "07",
+        août: "08",
+        aout: "08",
+        septembre: "09",
+        octobre: "10",
+        novembre: "11",
+        décembre: "12",
+        decembre: "12"
+    };
+
+    return months[
+        month
+            .toLowerCase()
+            .trim()
+    ] || month;
+}
+
+
+function extractVariablesFromRules(
+    texte,
+    ocrVariableRules,
+    matchedRules = []
+) {
+
+    const variables = {};
+
+    //
+    // PASS 1
+    // Extraction OCR
+    //
+    for (const [name, expression] of Object.entries(
+        ocrVariableRules || {}
+    )) {
+
+        if (
+            /^year\(/i.test(expression) ||
+            /^month\(/i.test(expression) ||
+            /^day\(/i.test(expression)
+        ) {
+            continue;
+        }
+
+        try {
+
+            let value = "";
+
+            //
+            // Fonction OCR
+            //
+            const fonctionMatch =
+                expression.match(
+                    /^convMoisChiffre\((.+)\)$/i
+                );
+
+            if (fonctionMatch) {
+
+                const regex =
+                    new RegExp(
+                        fonctionMatch[1],
+                        "i"
+                    );
+
+                const match =
+                    texte.match(regex);
+
+                value =
+                    match?.[1] ||
+                    match?.[0] ||
+                    "";
+
+                value =
+                    convertMonthToNumber(value);
+
+            } else {
+
+                const match =
+                    texte.match(
+                        new RegExp(
+                            expression,
+                            "i"
+                        )
+                    );
+
+                value =
+                    match?.[1] ||
+                    match?.[0] ||
+                    "";
+            }
+
+            variables[name] = value;
+
+            if (value) {
+
+                matchedRules.push({
+                    nom:
+                        `🧩 Variable OCR ${name} = ${value}`,
+                    regex: expression
+                });
+
+                console.log(
+                    `🧩 Variable OCR ${name} = ${value}`
+                );
+            }
+
+        } catch (err) {
+
+            console.error(
+                `❌ Variable OCR ${name}`,
+                err.message
+            );
+        }
+    }
+
+    //
+    // PASS 2
+    // Variables calculées
+    //
+    for (const [name, expression] of Object.entries(
+        ocrVariableRules || {}
+    )) {
+
+        if (
+            !/^year\(/i.test(expression) &&
+            !/^month\(/i.test(expression) &&
+            !/^day\(/i.test(expression)
+        ) {
+            continue;
+        }
+
+        const value =
+            applyVariableTransform(
+                "",
+                expression,
+                variables
+            );
+
+        variables[name] = value;
+
+        matchedRules.push({
+            nom:
+                `🧩 Variable calculée ${name} = ${value}`,
+            regex: expression
+        });
+
+        console.log(
+            `🧩 Variable calculée ${name} = ${value}`
+        );
+    }
+
+    return variables;
+}
+
+function applyVariableTransform(
+    value,
+    transform,
+    variables = {}
+) {
+
+    let match;
+
+    match = transform.match(/^year\((.+)\)$/i);
+    if (match) {
+
+        const source =
+            variables[match[1]] || "";
+
+        return source
+            .split(/[\/\-.,]/)[2] || "";
+    }
+
+    match = transform.match(/^month\((.+)\)$/i);
+    if (match) {
+
+        const source =
+            variables[match[1]] || "";
+
+        return source
+            .split(/[\/\-.,]/)[1] || "";
+    }
+
+    match = transform.match(/^day\((.+)\)$/i);
+    if (match) {
+
+        const source =
+            variables[match[1]] || "";
+
+        return source
+            .split(/[\/\-.,]/)[0] || "";
+    }
+
+    match = transform.match(
+        /^convMoisChiffre\((.+)\)$/i
+    );
+
+    if (match) {
+
+        const regex =
+            new RegExp(match[1], "i");
+
+        const m =
+            value.match(regex);
+
+        return m
+            ? convertMonthToNumber(
+                m[1] || m[0]
+            )
+            : "";
+    }
+
+    switch (transform) {
+
+        case "convMoisChiffre":
+            return convertMonthToNumber(value);
+
+        default:
+            return value;
+    }
+}
+
+function replaceVariables(
+    texte,
+    variables = {}
+) {
+
+    if (!texte) {
+        return texte;
+    }
+
+    return texte.replace(
+        /\{([^}]+)\}/g,
+        (_, key) =>
+            variables[key] !== undefined
+                ? variables[key]
+                : `{${key}}`
+    );
+}
 
 
 async function analyseDocument(
@@ -922,6 +1168,38 @@ async function analyseDocument(
 
     }
 
+    const ocrRulesDate =
+        await sheets.getDateOcrRules(email);
+
+    const dates =
+        extractDatesWithRules(
+            text,
+            ocrRulesDate,
+            matchedRules
+        );
+
+    const date =
+        dates?.[0]
+            ? convertDate(dates[0])
+            : "";
+
+
+
+    const ocrVariableRules =
+        await sheets.getVariableOcrRules(email);
+
+    const ocrVariables =
+        extractVariablesFromRules(
+            text,
+            {
+                ...ocrRulesDate,
+                ...ocrVariableRules
+            },
+            matchedRules
+        );
+
+
+
     const fournisseursConvert =
         await sheets.getFournisseursConvert(
             email
@@ -944,12 +1222,19 @@ async function analyseDocument(
 
     }
 
+    //replace with variable from rules
+    fournisseur =
+        replaceVariables(
+            fournisseur,
+            ocrVariables
+        );
+
     const ocrRulesMontant =
         await sheets.getMontantOcrRules(email);
     //await sheets.getOCRRules(email);
 
-    const ocrRulesDate =
-        await sheets.getDateOcrRules(email);
+
+
 
     const categorie = await detectCategorie(
         fournisseur,
@@ -962,17 +1247,7 @@ async function analyseDocument(
         email
     );
 
-    const dates =
-        extractDatesWithRules(
-            text,
-            ocrRulesDate,
-            matchedRules
-        );
 
-    const date =
-        dates?.[0]
-            ? convertDate(dates[0])
-            : "";
 
     // const date = dates?.[0];
     const montants = extractMontantsWithRules(
@@ -1015,6 +1290,7 @@ async function analyseDocument(
         montants,
 
         montant,
+        ocrVariables,
 
         ceesv:
             extractCEESVData(text),

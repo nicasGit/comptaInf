@@ -414,6 +414,19 @@ async function getMontantOcrRules(email) {
     );
 }
 
+async function getVariableOcrRules(email) {
+
+    const ocrRules =
+        await getOCRRules(email);
+
+    return Object.fromEntries(
+        Object.entries(ocrRules)
+            .filter(([key]) =>
+                key.startsWith("VAR_")
+            )
+    );
+}
+
 async function getDateOcrRules(email) {
 
     const ocrRules =
@@ -724,6 +737,8 @@ module.exports = {
     getOCRRules,
     getMontantOcrRules,
     getDateOcrRules,
+    getVariableOcrRules,
+
 
     getSettings,
     saveSetting,
