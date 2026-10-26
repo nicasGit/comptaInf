@@ -134,20 +134,32 @@ function hideSavingOverlay() {
 
 
 async function saveOperation() {
+
+    console.log(
+        "💾 saveOperation",
+        duplicateAction
+    );
     try {
+
+
         if (
             duplicateAction === "replace" &&
             duplicateRow
         ) {
+
+            console.log(
+                "♻️ Remplacement ligne",
+                duplicateRow
+            );
 
             await deleteRow(
                 duplicateRow
             );
 
         }
-        showSavingOverlay(
-            "📤 Envoi du justificatif..."
-        );
+
+        showSavingOverlay("📤 Envoi du justificatif...");
+
         const driveUrl =
             await uploadCurrentFile();
 
@@ -2292,7 +2304,11 @@ async function initSharedAnalyse() {
             return;
         }
 
-        if (duplicateAction === "insert") {
+
+        if (
+            duplicateAction === "insert" ||
+            duplicateAction === "replace"
+        ) {
 
             if (result.categorie) {
                 document.getElementById("depCategorie").value =

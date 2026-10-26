@@ -1,8 +1,8 @@
 //server.js
 console.log("Starting Server ComptaInf....");
-let DEV_BYPASS_LOGIN = false;
+let DEV_BYPASS_LOGIN = true;
 let DEV_AUTOLOGIN_LOCAL = false;
-let DEV_SHARE_SIMULATE = false;
+let DEV_SHARE_SIMULATE = true;
 const packageJson = require("./package.json");
 
 const express = require("express");
@@ -814,7 +814,7 @@ app.post(
 
         try {
 
-            // console.log("/addDepense");
+            //console.log("/addDepense");
 
             const depense = req.body;
             // console.log(depense);
@@ -847,7 +847,19 @@ app.post(
             }
 
             //console.log("await sheets.addDepense");
+            //console.log(" depense.mode ", depense.mode);
+            if (
+                depense.mode === "replace" &&
+                depense.duplicateRow
+            ) {
 
+                await sheets.deleteRow(
+                    req.session.email,
+                    depense.duplicateRow
+                );
+
+
+            }
 
             await sheets.addDepense(
                 req.session.email,
@@ -861,6 +873,11 @@ app.post(
                 depense.commentaire,
                 depense.justifBanque
             );
+
+
+
+
+
 
             //console.log("✅ Dépense enregistrée");
 
@@ -1908,7 +1925,7 @@ app.post(
     async (req, res) => {
 
         try {
-            console.log("/api/import-shared-file");
+            console.log("🔥 API IMPORT SHARED FILE CALLED");
 
             const sharedFile =
                 req.session.sharedFile;
@@ -2065,10 +2082,15 @@ app.post(
             );
 
         const fournisseurRecherche =
+            normalizeFournisseur(
+                fournisseur
+            );
+
+        /*const fournisseurRecherche =
             ocr.convertFournisseur(
                 fournisseur,
                 fournisseursConvert
-            );
+            );*/
 
         console.log(
             "CHECK DUPLICATE",
@@ -2090,12 +2112,16 @@ app.post(
                           fournisseursConvert
                       );*/
 
-                let fournisseurRecherche =
+                /*let fournisseurRecherche =
                     normalizeFournisseur(
                         ocr.convertFournisseur(
                             fournisseur,
                             fournisseursConvert
                         )
+                    );*/
+                let fournisseurRecherche =
+                    normalizeFournisseur(
+                        fournisseur
                     );
                 const fournisseurLigne = row[1];
 

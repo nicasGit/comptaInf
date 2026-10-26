@@ -199,8 +199,11 @@
     <p><strong>Montant :</strong> ${data.montant || "-"}</p>
  `;
 
-
+        //console.log(duplicate);
         if (duplicate.duplicate) {
+
+          window.sharedAnalyse.duplicateRow =
+            duplicate.row;
 
           status.innerHTML += `
         <div style="color:orange">
@@ -215,7 +218,7 @@
 
         <button
             style="margin-top:10px"
-            onclick="importerAnalyse('modif')">
+            onclick="modifAvantImport()">
             ➕ Modifier
         </button>
 
@@ -250,6 +253,21 @@
         ✅ Importer
       </button>
 
+              <button
+            style="margin-top:10px"
+            onclick="modifAvantImport()">
+            ➕ Modifier
+        </button>
+
+              <button
+            style="
+                margin-top:10px;
+                background:#dc3545;
+            "
+            onclick="annulerImport()">
+            ❌ Annuler
+        </button>
+
     `;
 
 
@@ -264,9 +282,9 @@
 
     chargerFichier();
 
+    async function importerAnalyse(mode) {
 
-
-    async function importerAnalyse() {
+      window.sharedAnalyse.mode = mode;
 
       const loader =
         document.getElementById("loader");
@@ -275,8 +293,34 @@
 
       try {
 
-        //console.log(JSON.stringify(window.sharedAnalyse));
 
+        //
+        // Import Google Drive
+        //
+        const importResponse =
+          await fetch(
+            "/api/import-shared-file",
+            {
+              method: "POST"
+            }
+          );
+
+        const importResult =
+          await importResponse.json();
+
+        if (!importResult.success) {
+          throw new Error(
+            importResult.error ||
+            "Erreur import fichier"
+          );
+        }
+        //
+        // Remplace le chemin local par l'URL Drive
+        //
+        window.sharedAnalyse.pdf =
+          importResult.pdfUrl;
+
+        //console.log("window.sharedAnalyse", JSON.stringify(window.sharedAnalyse));
 
         const response =
           await fetch(
@@ -295,32 +339,9 @@
           );
 
 
-
-
-        /* const response =
-           await fetch(
-             "/api/import-shared-file",
-             {
-               method: "POST"
-             }
-           );*/
-
-        //const result =
-        //  await response.json();
-
-        //console.log("result = " + result);
-
         if (response.ok) {
           await fetch('/api/clear-session', { method: 'POST' });
         }
-
-        /*window.sharedAnalyse.pdfUrl =
-          result.pdfUrl;
-
-        sessionStorage.setItem(
-          "sharedAnalyse",
-          JSON.stringify(window.sharedAnalyse)
-        );*/
 
         window.location.href = "/";
 
@@ -337,7 +358,14 @@
 
     }
 
-    function annulerImport() {
+    async function modifAvantImport() {
+      // recharge sans clear 
+      window.location.href = "/";
+    }
+
+    async function annulerImport() {
+
+      await fetch('/api/clear-session', { method: 'POST' });
 
       window.location.href = "/";
     }

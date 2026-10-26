@@ -53,9 +53,6 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
 
     const sheets = getSheets();
 
-
-
-
     const montantFinal =
         (
             operationType === "RECETTE"
