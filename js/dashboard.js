@@ -399,6 +399,17 @@ async function loadDepenses() {
         const tr =
             document.createElement("tr");
 
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", (e) => {
+
+            // évite d'ouvrir le modal si on clique sur le PDF
+            if (e.target.closest("a")) {
+                return;
+            }
+
+            openOperation(row);
+        });
+
         tr.innerHTML = `
 				<td style="white-space: nowrap;">${row[0] || ""}</td>
 				<td  title="${row[1] || ""}">${row[1] || ""}</td>
@@ -417,6 +428,179 @@ async function loadDepenses() {
 
 }
 
+function openOperation(row) {
+
+    document.getElementById("operationTitle").textContent =
+        "👁️ Consultation opération";
+
+    document.getElementById("operationType").value =
+        Number(row[4]) >= 0
+            ? "RECETTE"
+            : "DEPENSE";
+
+    document.getElementById("depDate").value =
+        row[0];
+
+    document.getElementById("depFournisseur").value =
+        row[1] || "";
+
+    document.getElementById("depCategorie").value =
+        row[2] || "";
+
+    document.getElementById("depCompte").value =
+        row[3] || "";
+
+    document.getElementById("depMontant").value =
+        row[4] || "";
+
+    document.getElementById("depComment").value =
+        row[7] || "";
+
+    // lecture seule
+    document
+        .querySelectorAll(
+            "#modalDepense input, #modalDepense select, #modalDepense textarea"
+        )
+        .forEach(el => el.disabled = true);
+
+    document.querySelector(
+        '.modal-actions button[onclick="saveOperation()"]'
+    ).style.display = "none";
+
+    document.getElementById(
+        "modalDepense"
+    ).style.display = "flex";
+
+
+    // charger le pdf si présent
+    if (row[5]) {
+
+        const pdfPreview =
+            document.getElementById("pdfPreview");
+
+        pdfPreview.innerHTML =
+            `<a  href="${row[5]}"
+    			target="_blank" 
+    			class="pdf-link"
+    			title="Ouvrir le justificatif">📄</a>`;
+
+        /*    `<iframe src="${row[5]}"
+            style="width:100%;height:100%;border:none">
+         </iframe>`;*/
+
+        pdfPreview.style.display = "block";
+        document.getElementById("previewEmpty").style.display = "none";
+        document.getElementById("dropzoneDepense").style.display = "none";
+
+    }
+
+    document.getElementById(
+        "btnEditOperation"
+    ).style.display = "block";
+
+    document.getElementById(
+        "btnSaveOperation"
+    ).style.display = "inline-block";
+
+}
+
+function enableEditMode() {
+
+    document
+        .querySelectorAll(
+            "#modalDepense input, #modalDepense select, #modalDepense textarea"
+        )
+        .forEach(el => el.disabled = false);
+
+    document.getElementById(
+        "btnEditOperation"
+    ).style.display = "none";
+
+    document.getElementById(
+        "btnSaveOperation"
+    ).style.display = "inline-block";
+
+    document.getElementById(
+        "operationTitle"
+    ).textContent =
+        "✏️ Modification opération";
+}
+
+async function loadPreview(url) {
+
+    if (!url) {
+        return;
+    }
+
+    //
+    // Google Drive
+    //
+    if (
+        url.includes("drive.google.com") ||
+        url.includes("docs.google.com")
+    ) {
+
+        const match =
+            url.match(/\/d\/([^/]+)/);
+
+        if (!match) {
+            window.open(url, "_blank");
+            return;
+        }
+
+        const fileId = match[1];
+
+        // téléchargement via ton endpoint backend authentifié
+        const pdfUrl =
+            `/api/drive/download/${fileId}`;
+
+        renderPdfPreview(
+            pdfUrl,
+            "pdfPreview"
+        );
+
+        return;
+    }
+
+    //
+    // PDF local
+    //
+    if (
+        url.toLowerCase().endsWith(".pdf") ||
+        url.includes("/uploads/")
+    ) {
+
+        renderPdfPreview(
+            url,
+            "pdfPreview"
+        );
+
+        return;
+    }
+
+    //
+    // Image
+    //
+    const imagePreview =
+        document.getElementById(
+            "imagePreview"
+        );
+
+    const pdfPreview =
+        document.getElementById(
+            "pdfPreview"
+        );
+
+    if (imagePreview) {
+
+        imagePreview.src = url;
+        imagePreview.style.display = "block";
+    }
+
+    if (pdfPreview) {
+        pdfPreview.innerHTML = "";
+    }
+}
 
 async function refreshStats() {
 

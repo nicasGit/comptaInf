@@ -1836,3 +1836,11 @@ tr:hover {
 .hidden {
     display: none;
 }
+
+#lastOperationTable tbody tr {
+    cursor: pointer;
+}
+
+#lastOperationTable tbody tr:hover {
+    background: #f5f7fa;
+}

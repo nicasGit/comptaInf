@@ -63,6 +63,106 @@ async function renderPdfPreview(file,
   }
 }
 
+async function renderPdfUrl(
+  url,
+  containerId = "pdfPreview"
+) {
+
+  const version = ++previewVersion;
+
+  const container =
+    document.getElementById(containerId);
+
+  container.replaceChildren();
+  container.textContent =
+    "Chargement du PDF...";
+
+  try {
+
+    const pdf =
+      await pdfjsLib
+        .getDocument(url)
+        .promise;
+
+    if (version !== previewVersion) {
+      return;
+    }
+
+    container.replaceChildren();
+
+    for (
+      let number = 1;
+      number <= pdf.numPages;
+      number++
+    ) {
+
+      const page =
+        await pdf.getPage(number);
+
+      const original =
+        page.getViewport({
+          scale: 1
+        });
+
+      const width =
+        container.clientWidth || 350;
+
+      const scale =
+        Math.min(
+          width / original.width,
+          2
+        );
+
+      const viewport =
+        page.getViewport({
+          scale:
+            scale *
+            pdfZooms[containerId]
+        });
+
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+
+      const context =
+        canvas.getContext("2d");
+
+      canvas.width =
+        Math.ceil(
+          viewport.width
+        );
+
+      canvas.height =
+        Math.ceil(
+          viewport.height
+        );
+
+      canvas.style.display =
+        "block";
+
+      canvas.style.marginBottom =
+        "12px";
+
+      container.appendChild(
+        canvas
+      );
+
+      await page.render({
+        canvasContext: context,
+        viewport
+      }).promise;
+    }
+
+  } catch (err) {
+
+    console.error(err);
+
+    container.textContent =
+      "Impossible d'afficher le PDF";
+  }
+}
+
 function clearPdfPreview() {
   previewVersion++;
   document.getElementById("pdfPreview").replaceChildren();
