@@ -806,6 +806,50 @@ app.get(
     }
 );
 //
+// LOGIQUE COMMUNE DEPENSE
+//
+async function saveDepense(email, depense) {
+
+    const settings =
+        await sheets.getSettings(email);
+
+    const EXERCICE_COURANT =
+        settings.Exercice.toString();
+
+    const anneeDepense =
+        depense.date.substring(0, 4);
+
+    if (anneeDepense !== EXERCICE_COURANT) {
+        throw new Error(
+            `Probleme de date de facture ${anneeDepense} Different de l'Exercice actif : ${EXERCICE_COURANT}`
+        );
+    }
+
+    if (
+        depense.mode === "replace" &&
+        depense.duplicateRow
+    ) {
+        await sheets.deleteRow(
+            email,
+            depense.duplicateRow
+        );
+    }
+
+    await sheets.addDepense(
+        email,
+        depense.date,
+        depense.fournisseur,
+        depense.categorie,
+        depense.compte,
+        depense.montant,
+        depense.pdf,
+        depense.operationType,
+        depense.commentaire,
+        depense.justifBanque
+    );
+}
+
+//
 // AJOUT DEPENSE
 //
 app.post(
@@ -816,74 +860,12 @@ app.post(
 
             //console.log("/addDepense");
 
-            const depense = req.body;
-            // console.log(depense);
-
-            const settings =
-                await sheets.getSettings(
-                    req.session.email
-                );
-
-            // console.log(settings);
-
-            const EXERCICE_COURANT =
-                settings.Exercice.toString();
-
-            // console.log(EXERCICE_COURANT);
-
-
-            const anneeDepense = depense.date.substring(0, 4);
-
-            // console.log(anneeDepense);
-
-            if (anneeDepense !== EXERCICE_COURANT) {
-                console.log(`Probleme de date de facture ${anneeDepense} Different de l'Exercice actif : ${EXERCICE_COURANT}`);
-                return res
-                    .status(400)
-                    .send(
-                        `Probleme de date de facture ${anneeDepense} Different de l'Exercice actif : ${EXERCICE_COURANT}`
-                    );
-
-            }
-
-            //console.log("await sheets.addDepense");
-            //console.log(" depense.mode ", depense.mode);
-            if (
-                depense.mode === "replace" &&
-                depense.duplicateRow
-            ) {
-
-                await sheets.deleteRow(
-                    req.session.email,
-                    depense.duplicateRow
-                );
-
-
-            }
-
-            await sheets.addDepense(
+            await saveDepense(
                 req.session.email,
-                depense.date,
-                depense.fournisseur,
-                depense.categorie,
-                depense.compte,
-                depense.montant,
-                depense.pdf,
-                depense.operationType,
-                depense.commentaire,
-                depense.justifBanque
+                req.body
             );
 
-
-
-
-
-
-            //console.log("✅ Dépense enregistrée");
-
-            res.send(
-                "✅ Dépense enregistrée"
-            );
+            res.send("✅ Dépense enregistrée");
 
         }
         catch (err) {
@@ -898,6 +880,71 @@ app.post(
 
     }
 );
+
+//utilisé dans Share.html
+app.post(
+    "/addDepenseAndImport",
+    requireAuth,
+    async (req, res) => {
+
+        try {
+
+            const depense = req.body;
+
+            const sharedFile =
+                req.session.sharedFile;
+
+            if (
+                !sharedFile ||
+                !fs.existsSync(sharedFile.path)
+            ) {
+                throw new Error(
+                    "Aucun fichier partagé"
+                );
+            }
+
+
+            const fileName =
+                `${depense.fournisseur}_${depense.date}_${depense.montant}_${sharedFile.originalname}`
+                    .replace(/[<>:"/\\|?*]/g, "")
+                    .replace(/\s+/g, "_");
+
+
+            const imported =
+                await importDocument(
+                    sharedFile.path,
+                    fileName,
+                    req.session.email
+                );
+
+            depense.pdf =
+                imported.pdfUrl;
+
+            await saveDepense(
+                req.session.email,
+                depense
+            );
+
+            delete req.session.sharedFile;
+            delete req.session.uploadMode;
+
+            res.json({
+                success: true,
+                pdfUrl: imported.pdfUrl
+            });
+
+        } catch (err) {
+
+            console.error(err);
+
+            res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+    }
+);
+
 
 app.post("/updateCEESVUBS", requireAuth, async (req, res) => {
 
@@ -1919,8 +1966,7 @@ app.get(
 
     }
 );
-app.post(
-    "/api/import-shared-file",
+app.post("/api/import-shared-file",
     requireAuth,
     async (req, res) => {
 
@@ -1945,12 +1991,30 @@ app.post(
 
             }
 
+            /*const analyse =
+                req.body.analyse;
+
+            const fileName =
+                `${analyse.fournisseur}_${analyse.date}_${analyse.montant}_${sharedFile.originalname}`
+                    .replace(/[<>:"/\\|?*]/g, "")
+                    .replace(/\s+/g, "_");
+
+
+            const imported =
+                await importDocument(
+                    sharedFile.path,
+                    fileName,
+                    req.session.email
+                );*/
+
+
             const imported =
                 await importDocument(
                     sharedFile.path,
                     sharedFile.originalname,
                     req.session.email
                 );
+
 
             const result = {
                 success: true,

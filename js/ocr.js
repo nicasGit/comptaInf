@@ -1264,9 +1264,9 @@ async function analyseDocument(
             .replace(/[^\d.-]/g, "")
     );
     montant = Number(montant).toFixed(2);
-
     // console.log("montant normalisé =", montant);
 
+    const type = detectDocumentType(text);
 
     return {
 
@@ -1274,8 +1274,8 @@ async function analyseDocument(
 
         text,
 
-        type:
-            detectDocumentType(text),
+        type,
+        operationType: type,
 
         fournisseur,
 
@@ -1290,6 +1290,7 @@ async function analyseDocument(
         montants,
 
         montant,
+
         ocrVariables,
 
         ceesv:

@@ -293,38 +293,11 @@
 
       try {
 
-
-        //
-        // Import Google Drive
-        //
-        const importResponse =
-          await fetch(
-            "/api/import-shared-file",
-            {
-              method: "POST"
-            }
-          );
-
-        const importResult =
-          await importResponse.json();
-
-        if (!importResult.success) {
-          throw new Error(
-            importResult.error ||
-            "Erreur import fichier"
-          );
-        }
-        //
-        // Remplace le chemin local par l'URL Drive
-        //
-        window.sharedAnalyse.pdf =
-          importResult.pdfUrl;
-
-        //console.log("window.sharedAnalyse", JSON.stringify(window.sharedAnalyse));
+        console.log("window.sharedAnalyse", JSON.stringify(window.sharedAnalyse));
 
         const response =
           await fetch(
-            "/addDepense",
+            "/addDepenseAndImport",
             {
               method: "POST",
 

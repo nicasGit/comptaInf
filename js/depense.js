@@ -142,6 +142,57 @@ async function saveOperation() {
     try {
 
 
+        showSavingOverlay("📤 Envoi du justificatif...");
+
+        const driveUrl =
+            await uploadCurrentFile();
+
+        const depense =
+            buildDepense(driveUrl);
+
+        if (await handleCEESV(depense)) {
+
+            if (
+                duplicateAction === "replace" &&
+                duplicateRow
+            ) {
+
+                console.log(
+                    "♻️ Remplacement ligne",
+                    duplicateRow
+                );
+
+                await deleteRow(
+                    duplicateRow
+                );
+
+            }
+            return;
+        }
+
+        if (await handleUBS(driveUrl)) {
+            if (
+                duplicateAction === "replace" &&
+                duplicateRow
+            ) {
+
+                console.log(
+                    "♻️ Remplacement ligne",
+                    duplicateRow
+                );
+
+                await deleteRow(
+                    duplicateRow
+                );
+
+            }
+            return;
+        }
+        showSavingOverlay(
+            "💾 Enregistrement des données en cours..."
+        );
+        await saveNormalDepense(depense);
+
         if (
             duplicateAction === "replace" &&
             duplicateRow
@@ -158,25 +209,6 @@ async function saveOperation() {
 
         }
 
-        showSavingOverlay("📤 Envoi du justificatif...");
-
-        const driveUrl =
-            await uploadCurrentFile();
-
-        const depense =
-            buildDepense(driveUrl);
-
-        if (await handleCEESV(depense)) {
-            return;
-        }
-
-        if (await handleUBS(driveUrl)) {
-            return;
-        }
-        showSavingOverlay(
-            "💾 Enregistrement des données en cours..."
-        );
-        await saveNormalDepense(depense);
 
 
         duplicateAction = null;
@@ -1393,6 +1425,8 @@ async function checkDuplicate(depense) {
     return response.json();
 
 }
+
+
 
 async function addDepense(depense) {
 
