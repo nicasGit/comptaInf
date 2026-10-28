@@ -29,6 +29,13 @@ function getConfigSettings() {
     );
 
 }
+
+function getCurrentUserFromRequest(req) {
+
+    return getCurrentUser(req?.session?.email);
+}
+
+
 function getCurrentUser(email) {
 
     if (!email) {
@@ -149,6 +156,7 @@ module.exports = {
     getEnvironment,
     setEnvironment,
     getCurrentUser,
+    getCurrentUserFromRequest,
     getExercice,
     setExercice,
     getConfig

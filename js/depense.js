@@ -1166,83 +1166,17 @@ async function handleCEESV(depense) {
     ) {
         return false;
     }
-
-    const compteCEESV =
-        comptaCategories?.CEESV?.compte || "";
-
-    const ligneFacture = {
-
-        ...depense,
-
-        fournisseur:
-            "CEESV - Facture",
-
-        categorie: "CEESV",
-        compte: compteCEESV,
-
-        montant:
-            currentCEESV.montantFacture,
-
-        justifBanque:
-            currentCEESV
-                .matchFacture
-                ?.pdfUrl || ""
-
-    };
-
-    const ligneEtat = {
-
-        ...depense,
-
-        fournisseur:
-            "CEESV - Etat",
-
-        categorie: "CEESV",
-        compte: compteCEESV,
-
-        montant:
-            currentCEESV.montantEtat,
-
-        justifBanque:
-            currentCEESV
-                .matchEtat
-                ?.pdfUrl || ""
-
-    };
-
-    await addDepense(
-        ligneFacture
-    );
-
-    await addDepense(
-        ligneEtat
-    );
-
-    if (
-        currentCEESV
-            .matchFacture
-            ?.trouve
-    ) {
-
-        await deleteRow(
-            currentCEESV
-                .matchFacture
-                .ligne
-        );
-    }
-
-    if (
-        currentCEESV
-            .matchEtat
-            ?.trouve
-    ) {
-
-        await deleteRow(
-            currentCEESV
-                .matchEtat
-                .ligne
-        );
-    }
+    console.log("function handleCEESV depense.js ", data);
+    await fetch("/api/processCEESV", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            depense,
+            ceesv: currentCEESV
+        })
+    });
 
     showToast(
         "✅ CEESV enregistré",

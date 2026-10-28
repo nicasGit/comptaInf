@@ -14,20 +14,22 @@ const ocr = require("./js/ocr");
 const oauth2Client = require("./js/oauth");
 const sheets = require("./js/sheets");
 const drive = require("./js/drive");
+const ceesv = require("./js/ceesv");
+
 const { ZipArchive } = require("archiver");
 const { importDocument } = require("./js/importDocument");
 const {
     getEnvironment,
     setEnvironment,
+    getCurrentUser,
+    getCurrentUserFromRequest,
     getExercice
 } = require("./js/config");
 const session = require("express-session");
 
-
-const { convertDateCEESV, normalizeFournisseur } = require("./utils/utils");
-
-const { getDepenses } = require("./js/sheets");
-const { FieldExistsAsNonTerminalError } = require("pdf-lib");
+const {
+    normalizeFournisseur,
+    convertDate } = require("./utils/utils");
 
 const app = express();
 const PORT = 3000;
@@ -79,26 +81,6 @@ app.get("/share.html", requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, "share.html"));
 });
 
-function getCurrentUser(req) {
-
-    if (!req.session.email) {
-        return null;
-    }
-
-    const users = JSON.parse(
-        fs.readFileSync(
-            path.join(DATA_DIR, "users.json"),
-            "utf8"
-        )
-    );
-
-    return users.users.find(
-        u =>
-            u.email.toLowerCase() ===
-            req.session.email.toLowerCase()
-    );
-
-}
 
 app.use(session({
     secret: "ComptaInfSecretSessionNJO",
@@ -225,9 +207,7 @@ app.get("/settings", requireAuth, async (req, res) => {
     try {
 
         const settings =
-            await sheets.getSettings(
-                req.session.email
-            );
+            await sheets.getSettings(req.session.email);
 
 
         res.json(settings);
@@ -257,7 +237,7 @@ app.get("/google-status", requireAuth, (req, res) => {
 });
 app.get("/google-user", (req, res) => {
 
-    const user = getCurrentUser(req);
+    const user = getCurrentUserFromRequest(req);
 
     if (user) {
         return res.json(user);
@@ -353,7 +333,7 @@ app.get("/api/environment", requireAuth, (req, res) => {
 app.post("/api/environment", requireAuth, (req, res) => {
 
     const currentUser =
-        getCurrentUser(req);
+        getCurrentUserFromRequest(req);
 
     setEnvironment(
         currentUser.email,
@@ -370,7 +350,7 @@ app.post("/api/environment", requireAuth, (req, res) => {
 app.get("/api/exercice", requireAuth, (req, res) => {
 
     const user =
-        getCurrentUser(req);
+        getCurrentUserFromRequest(req);
 
     res.json({
         exercice:
@@ -382,7 +362,7 @@ app.get("/api/exercice", requireAuth, (req, res) => {
 app.get("/api/user", requireAuth, (req, res) => {
 
     res.json(
-        getCurrentUser(req)
+        getCurrentUserFromRequest(req)
     );
 
 });
@@ -810,6 +790,8 @@ app.get(
 //
 async function saveDepense(email, depense) {
 
+    console.log("function saveDepense");
+
     const settings =
         await sheets.getSettings(email);
 
@@ -825,14 +807,23 @@ async function saveDepense(email, depense) {
         );
     }
 
-    if (
-        depense.mode === "replace" &&
-        depense.duplicateRow
-    ) {
-        await sheets.deleteRow(
-            email,
-            depense.duplicateRow
-        );
+    if (depense.mode === "replace") {
+
+        if (depense.duplicateRow) {
+            await sheets.deleteRow(
+                email,
+                depense.duplicateRow
+            );
+        }
+        //delete CEESV
+        if (depense.duplicateRows && depense.duplicateRows.length > 0) {
+            const rows = [...depense.duplicateRows].sort((a, b) => b - a);
+
+            for (const row of rows) {
+                await sheets.deleteRow(email, row);
+            }
+        }
+
     }
 
     await sheets.addDepense(
@@ -880,6 +871,31 @@ app.post(
 
     }
 );
+
+
+app.post("/api/processCEESV", async (req, res) => {
+
+    try {
+
+        //console.log("route /api/processCEESV", req.body)
+
+        await ceesv.processCEESV(req.body);
+
+        res.json({
+            success: true
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+});
 
 //utilisé dans Share.html
 app.post(
@@ -950,7 +966,7 @@ app.post("/updateCEESVUBS", requireAuth, async (req, res) => {
 
     try {
 
-        await sheets.updateCEESVUBS(
+        await ceesv.updateCEESVUBS(
             req.session.email,
             req.body.ligne,
             req.body.pdfUrl
@@ -978,7 +994,7 @@ app.post("/findUBSMatch", requireAuth, async (req, res) => {
     try {
 
         const result =
-            await sheets.findUBSMatch(
+            await ceesv.findUBSMatch(
                 req.session.email,
                 req.body.ceesv
             );
@@ -1016,7 +1032,7 @@ app.post("/findCEESVMatch", requireAuth, async (req, res) => {
     try {
 
         const result =
-            await sheets.findCEESVMatch(
+            await ceesv.findCEESVMatch(
                 req.session.email,
                 req.body.ceesv
             );
@@ -1066,10 +1082,10 @@ app.post(
                             req.session.email
                         );
 
-                    const ceesv =
+                    const analyseCeesv =
                         analyse.ceesv;
 
-                    if (!ceesv) {
+                    if (!analyseCeesv) {
 
                         result.erreurs.push({
                             fichier:
@@ -1086,18 +1102,18 @@ app.post(
                     // ETAT CEESV
                     //
                     if (
-                        ceesv.type ===
+                        analyseCeesv.type ===
                         "CEESV_ETAT"
                     ) {
 
                         const date =
                             convertDateCEESV(
-                                ceesv.dateValeur
+                                analyseCeesv.dateValeur
                             );
 
                         const fileName =
                             `CEESV_${date}_${Number(
-                                ceesv.montantFacture || ceesv.montantBanque
+                                analyseCeesv.montantFacture || analyseCeesv.montantBanque
                             ).toFixed(2)}_${file.originalname}`;
 
                         const imported =
@@ -1111,9 +1127,9 @@ app.post(
                             imported.pdfUrl;
 
                         const match =
-                            await sheets.findCEESVMatch(
+                            await ceesv.findCEESVMatch(
                                 req.session.email,
-                                ceesv
+                                analyseCeesv
                             );
 
                         if (match.matchFacture) {
@@ -1141,7 +1157,7 @@ app.post(
                             "CEESV - Facture",
                             "",
                             "",
-                            ceesv.montantFacture,
+                            analyseCeesv.montantFacture,
                             pdfUrl,
                             "RECETTE",
                             "",
@@ -1154,7 +1170,7 @@ app.post(
                             "CEESV - Etat",
                             "",
                             "",
-                            ceesv.montantEtat,
+                            analyseCeesv.montantEtat,
                             pdfUrl,
                             "RECETTE",
                             "",
@@ -1173,15 +1189,15 @@ app.post(
                     // UBS
                     //
                     else if (
-                        ceesv.type ===
+                        analyseCeesv.type ===
                         "CEESV_UBS"
                     ) {
 
 
                         const fileName =
                             `UBS_${convertDateCEESV(
-                                ceesv.dateValeur
-                            )}_${ceesv.montantBanque}.pdf`;
+                                analyseCeesv.dateValeur
+                            )}_${analyseCeesv.montantBanque}.pdf`;
 
 
                         const imported =
@@ -1197,9 +1213,9 @@ app.post(
 
 
                         const match =
-                            await sheets.findUBSMatch(
+                            await ceesv.findUBSMatch(
                                 req.session.email,
-                                ceesv
+                                analyseCeesv
                             );
 
                         console.log(match);
@@ -1207,7 +1223,7 @@ app.post(
                         if (match.trouve) {
 
 
-                            await sheets.updateCEESVUBS(
+                            await ceesv.updateCEESVUBS(
                                 req.session.email,
                                 match.ligne,
                                 pdfUrl
@@ -1226,12 +1242,12 @@ app.post(
                             await sheets.addDepense(
                                 req.session.email,
                                 convertDateCEESV(
-                                    ceesv.dateValeur
+                                    analyseCeesv.dateValeur
                                 ),
                                 "UBS - Centrale d'encaissement",
                                 "",
                                 "",
-                                ceesv.montantBanque,
+                                analyseCeesv.montantBanque,
                                 pdfUrl,
                                 "RECETTE",
                                 "Import UBS"
@@ -2128,20 +2144,15 @@ app.post(
         const {
             date,
             fournisseur,
-            montant
+            montant,
+            montantEtat,
+            montantFacture,
+            montantBanque
         } = req.body;
-
-
 
 
         const rows =
             await sheets.getDepenses(
-                req.session.email
-            );
-
-
-        const fournisseursConvert =
-            await sheets.getFournisseursConvert(
                 req.session.email
             );
 
@@ -2150,79 +2161,89 @@ app.post(
                 fournisseur
             );
 
-        /*const fournisseurRecherche =
-            ocr.convertFournisseur(
-                fournisseur,
-                fournisseursConvert
-            );*/
+        const isCEESVRecherche = fournisseurRecherche?.includes("CEESV");
+
+        const dateNormalized = convertDate(date);
 
         console.log(
             "CHECK DUPLICATE",
             {
-                date,
+                dateNormalized,
                 fournisseur,
                 fournisseurRecherche,
-                montant
+                montant,
+                montantEtat,
+                montantFacture,
+                montantBanque
             }
         );
 
 
-        const rowIndex =
-            rows.findIndex(row => {
 
-                /*  const fournisseurLigne =
-                      ocr.convertFournisseur(
-                          row[1],
-                          fournisseursConvert
-                      );*/
+        const multiLignes = [];
 
-                /*let fournisseurRecherche =
-                    normalizeFournisseur(
-                        ocr.convertFournisseur(
-                            fournisseur,
-                            fournisseursConvert
-                        )
-                    );*/
-                let fournisseurRecherche =
-                    normalizeFournisseur(
-                        fournisseur
-                    );
-                const fournisseurLigne = row[1];
+        //const rowIndex =
+        let rowIndex = -1;
+        //    rows.findIndex(row => {
+        rows.forEach((row, index) => {
 
-                // cas particulier pour CEESV comme on change ensuite le nom...
-                const isCEESVRecherche =
-                    fournisseurRecherche?.includes("CEESV");
 
-                const isCEESVLigne =
-                    fournisseurLigne?.includes("CEESV");
+            let fournisseurRecherche = normalizeFournisseur(fournisseur);
 
-                if (isCEESVRecherche && isCEESVLigne) { fournisseurRecherche = fournisseurLigne }
+            const fournisseurLigne = normalizeFournisseur(row[1]);
+            const dateLigne = convertDate(row[0]);
 
-                const montantLigne = Math.abs(
-                    Number(
-                        String(row[4]).replace(",", ".")
-                    )
-                );
-                const montantRecheche = Math.abs(
-                    Number(montant)
-                );
+            const montantLigne = Math.abs(Number(String(row[4]).replace(",", ".")));
 
-                //console.log(row[0] + " ==" + date + " | " + row[1] + "/" + fournisseurLigne + " ==" + fournisseurRecherche + " | " + Math.abs(Number(String(row[4]).replace(",", "."))) + " ==" + Math.abs(Number(montant)));
+            const montantRecheche = Math.abs(Number(montant));
+            const montantEtatRecheche = Math.abs(Number(montantEtat));
+            const montantFactureRecheche = Math.abs(Number(montantFacture));
 
-                return (
-                    row[0] === date &&
+            //console.log(row[0] + " ==" + date + " | " + row[1] + "/" + fournisseurLigne + " ==" + fournisseurRecherche + " | " + Math.abs(Number(String(row[4]).replace(",", "."))) + " ==" + Math.abs(Number(montant)));
+            // CEESV : on doit distinguer Etat et Facture
+            if (isCEESVRecherche) {
+
+                //console.log("check CEESV ligne :", fournisseurLigne, montantLigne, dateLigne);
+                //console.log("check CEESV search:", fournisseurRecherche, montantRecheche, dateNormalized);
+
+                if (
+                    fournisseurLigne === fournisseurRecherche &&
+                    dateLigne === dateNormalized &&
+                    (montantLigne === montantRecheche ||
+                        montantLigne === montantEtatRecheche ||
+                        montantLigne === montantFactureRecheche)
+                ) {
+                    //console.log("found CEESV", rowIndex);
+                    rowIndex = index;
+
+                    multiLignes.push({
+                        ligne: rowIndex + 1,
+                        fournisseur: fournisseurLigne,
+                        montant: montantLigne,
+                        date: dateLigne
+                    });
+
+
+                }
+            } else {
+
+                //retour gerer uniquement hors ceesv
+                if (
+                    dateLigne === dateNormalized &&
                     fournisseurLigne === fournisseurRecherche &&
                     montantLigne === montantRecheche
-                );
+                ) {
+                    rowIndex = index;
+                    return;
+                }
 
-            });
+            }
 
-
+        });
 
         const duplicate = rows[rowIndex];
 
-
-        if (!duplicate) {
+        if (!duplicate && multiLignes.length === 0) {
 
             return res.json({
                 duplicate: false
@@ -2230,10 +2251,12 @@ app.post(
 
         }
         console.log("🔥 Duplicate Found");
+        console.log("duplicate result", multiLignes);
 
         res.json({
             duplicate: true,
             row: rowIndex + 1, // ou +2 selon l'entête
+            rowsCeesv: multiLignes || "",
             line: rows[rowIndex],
             comment: duplicate[7] || "",
             operation: {
@@ -2255,7 +2278,7 @@ app.get(
     async (req, res) => {
 
         const rows =
-            await getDepenses(
+            await sheets.getDepenses(
                 req.session.email
             );
 
@@ -2402,7 +2425,7 @@ function cleanupOldUploads() {
 
 app.get("/api/me", (req, res) => {
 
-    const user = getCurrentUser(req);
+    const user = getCurrentUserFromRequest(req);
 
     res.json({
         email: req.session.email,

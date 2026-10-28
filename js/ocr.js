@@ -1,6 +1,6 @@
 //ocr.js
 const fs = require("fs");
-const pdf = require("pdf-parse");
+const pdfParse = require("pdf-parse");
 const sheets = require("./sheets");
 const { convertDate } = require("../utils/utils");
 
@@ -216,7 +216,7 @@ async function analysePdf(filePath) {
         fs.readFileSync(filePath);
 
     const data =
-        await pdf(buffer);
+        await pdfParse(buffer);
 
     return data.text;
 }
@@ -1297,6 +1297,7 @@ async function analyseDocument(
             extractCEESVData(text),
 
         pdf: filePath,
+        originalName,
 
         matchedRules
 

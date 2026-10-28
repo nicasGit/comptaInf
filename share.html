@@ -169,6 +169,16 @@
           throw new Error(data.error || "Erreur pendant l'analyse");
         }
 
+
+        const isRealCEESV =
+          data.ceesv &&
+          (
+            data.ceesv.montantFacture ||
+            data.ceesv.montantEtat ||
+            data.ceesv.montantBanque
+          );
+
+
         window.sharedAnalyse = data;
 
         const duplicateResponse =
@@ -178,10 +188,13 @@
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              date: convertDate(data.dates?.[0]),
+              date: convertDate(data.date),
               fournisseur: data.fournisseur,
               categorie: data.categorie,
-              montant: data.montants?.[0]
+              montant: data.montant,
+              montantEtat: data.ceesv.montantFacture,
+              montantFacture: data.ceesv.montantEtat,
+              montantBanque: data.ceesv.montantBanque
             })
           });
 
@@ -197,13 +210,58 @@
     <p><strong>Categorie :</strong> ${data.categorie || "-"} / ${data.compte || "-"}</p>
     <p><strong>Date :</strong> ${data.date || "-"}</p>
     <p><strong>Montant :</strong> ${data.montant || "-"}</p>
+    <div id="ceesvInfo"></div>
  `;
 
+
+        if (isRealCEESV) {
+
+          document.getElementById(
+            "ceesvInfo"
+          ).innerHTML = `
+        <div class="ceesv-box">
+
+            <div>
+                🧾 Facturé :
+                <strong>
+                    ${Number(data.ceesv.montantFacture || 0).toFixed(2)} CHF
+                </strong>
+                ${data.ceesv.matchFacture?.trouve
+              ? '<span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
+              : '<span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
+            }
+            </div>
+
+            <div style="margin-top:8px;">
+                🏛 Etat :
+                <strong>
+                    ${Number(data.ceesv.montantEtat || 0).toFixed(2)} CHF
+                </strong>
+                ${data.ceesv.matchEtat?.trouve
+              ? '<span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
+              : '<span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
+            }
+            </div>
+
+            <div style="margin-top:8px;">
+                📋 Factures :
+                <strong>
+                    ${data.ceesv.nbFactures || 0}
+                </strong>
+            </div>
+
+        </div>
+    `;
+        }
         //console.log(duplicate);
         if (duplicate.duplicate) {
 
           window.sharedAnalyse.duplicateRow =
             duplicate.row;
+          window.sharedAnalyse.duplicateRows =
+            duplicate.rowsCeesv;
+
+
 
           status.innerHTML += `
         <div style="color:orange">
@@ -293,24 +351,46 @@
 
       try {
 
-        console.log("window.sharedAnalyse", JSON.stringify(window.sharedAnalyse));
+        //console.log("window.sharedAnalyse", JSON.stringify(window.sharedAnalyse));
 
-        const response =
-          await fetch(
-            "/addDepenseAndImport",
-            {
-              method: "POST",
+        let response = null;
+        // Import CEESV automatique
+        if (window.sharedAnalyse.ceesv) {
 
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
+          console.log("Import CEESV automatique");
+          response = await fetch("/api/processCEESV", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              analyse: window.sharedAnalyse,
+              mode
+            })
+          });
 
-              body:
-                JSON.stringify(window.sharedAnalyse)
-            }
-          );
+        } else {
 
+          console.log("Import automatique");
+          response =
+            await fetch(
+              "/addDepenseAndImport",
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
+
+                body:
+                  JSON.stringify(window.sharedAnalyse)
+              }
+            );
+
+        }
+
+        console.log("Import response=", response.ok);
 
         if (response.ok) {
           await fetch('/api/clear-session', { method: 'POST' });
@@ -329,6 +409,40 @@
 
       }
 
+    }
+
+    async function processCEESV(data) {
+
+      try {
+
+
+        console.log("function processCEESV share", data);
+
+
+        const response = await fetch("/api/processCEESV", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Erreur CEESV");
+        }
+
+        // si l'API renvoie des valeurs modifiées
+        Object.assign(data, result);
+
+        return true;
+
+      } catch (err) {
+
+        alert("❌ CEESV : " + err.message);
+        return false;
+      }
     }
 
     async function modifAvantImport() {

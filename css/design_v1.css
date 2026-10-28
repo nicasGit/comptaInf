@@ -1844,3 +1844,14 @@ tr:hover {
 #lastOperationTable tbody tr:hover {
     background: #f5f7fa;
 }
+
+.ceesv-box {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #f3f8ff;
+    border-left: 4px solid #168c8c;
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.8;
+}

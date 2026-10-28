@@ -1,11 +1,5 @@
 // js/importDocument.js
-
 const drive = require("./drive");
-const sheets = require("./sheets");
-const { PDFDocument } = require("pdf-lib");
-const fs = require("fs");
-const sharp = require("sharp");
-
 const { convertImageToPdf } = require("../utils/utils");
 
 async function importDocument(
@@ -13,12 +7,11 @@ async function importDocument(
     originalName,
     email
 ) {
+    //console.log("function importDocument", filePath, originalName);
 
-
+    const sheets = require("./sheets");
     const settings =
-        await sheets.getSettings(
-            email
-        );
+        await sheets.getSettings(email);
 
     //convertion image en pdf 
     if (/\.(jpg|jpeg|png)$/i.test(originalName)) {
@@ -37,6 +30,7 @@ async function importDocument(
     }
 
     console.log("📥 import " + originalName)
+
     const fileId =
         await drive.uploadFile(
             email,

@@ -1,9 +1,9 @@
 //Sheets.js
 const { google } = require("googleapis");
-const { getEnvironment } = require("./config");
 const path = require("path");
 const { getConfig } = require("./config");
-const { convertDateCEESV } = require("../utils/utils");
+const { convertDate } = require("../utils/utils");
+
 
 const DATA_DIR =
     process.env.DATA_DIR ||
@@ -62,6 +62,11 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
             .toFixed(2)
             .replace(".", ",");
 
+    const now = new Date().toLocaleString("fr-CH");
+
+    const dateNormalized = convertDate(date);
+    console.log("sheets date=" + dateNormalized);
+
     await sheets.spreadsheets.values.append({
         spreadsheetId: getSpreadsheetId(email),
         range: "DEPENSES!A:M",
@@ -69,7 +74,7 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
         requestBody: {
             values: [
                 [
-                    date,
+                    dateNormalized,
                     fournisseur,
                     categorie,
                     compte,
@@ -77,227 +82,56 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
                     pdf,
                     operationType,
                     commentaire,
-                    justifBanque
+                    justifBanque,
+                    "",
+                    now
                 ]
             ]
         }
     });
-    console.log("✅ Dépense ajoutée " + operationType + "  " + montantFinal);
+    console.log("✅ Dépense ajoutée " + operationType + "  " + fournisseur + " " + montantFinal + " " + dateNormalized);
 }
-async function updateCEESVUBS(email, ligne, pdfUrl) {
 
-    const client = await auth.getClient();
+async function updateCell(
+    email,
+    cell,
+    ligne,
+    value
+) {
 
     const sheetsApi = getSheets();
 
     await sheetsApi.spreadsheets.values.update({
-
         spreadsheetId: getSpreadsheetId(email),
-
-        range: `DEPENSES!I${ligne}`,
-
+        range: `DEPENSES!${cell}${ligne}`,
         valueInputOption: "USER_ENTERED",
-
         requestBody: {
-            values: [[pdfUrl]]
+            values: [[value]]
         }
-
     });
 
-    console.log(
-        "✅ Justif Banque mise à jour ligne",
-        ligne
-    );
+    return true;
 }
 
 
-async function findCEESVMatch(email, ceesv) {
 
-    const client = await auth.getClient();
+async function getData(email) {
 
     const sheetsApi = getSheets();
 
     const response =
         await sheetsApi.spreadsheets.values.get({
-
             spreadsheetId: getSpreadsheetId(email),
-
             range: "DEPENSES!A:M"
-
-        });
-
-    const rows = response.data.values || [];
-
-    const result = {
-
-        matchFacture: false,
-        matchEtat: false,
-
-        ligneFacture: null,
-        ligneEtat: null
-
-    };
-
-
-
-    const dateOCR =
-        convertDateCEESV(
-            ceesv.dateValeur
-        );
-
-
-    for (let i = 1; i < rows.length; i++) {
-
-        const row = rows[i];
-
-        const dateSheet =
-            row[0] || "";
-
-        const fournisseur =
-            row[1] || "";
-
-        const montantSheet =
-            Number(
-                String(row[4] || "0")
-                    .replace(",", ".")
-            );
-
-        //console.log("check match " + dateSheet + "=== " + dateOCR + "|" +            fournisseur + "  === UBS - Centrale d'encaissement" +            montantSheet + " === " + Number(ceesv.montantFacture));
-        if (
-            dateSheet === dateOCR &&
-            fournisseur === "UBS - Centrale d'encaissement" &&
-            montantSheet === Number(ceesv.montantFacture)
-        ) {
-
-            result.matchFacture = true;
-            result.ligneFacture = i + 1;
-            result.pdfFacture = row[5];
-            console.log(
-                "✅ Match Facture trouvé",
-                montantSheet
-            );
-        }
-
-        if (
-            dateSheet === dateOCR &&
-            fournisseur === "UBS - Centrale d'encaissement" &&
-            montantSheet === Number(ceesv.montantEtat)
-        ) {
-
-            result.matchEtat = true;
-            result.ligneEtat = i + 1;
-            result.pdfEtat = row[5];
-            console.log(
-                "✅ Match Etat trouvé",
-                montantSheet
-            );
-        }
-    }
-
-    return result;
-}
-
-
-
-async function findUBSMatch(email, ceesv) {
-
-    const client = await auth.getClient();
-
-    const sheetsApi = getSheets();
-
-    const response =
-        await sheetsApi.spreadsheets.values.get({
-
-            spreadsheetId: getSpreadsheetId(email),
-
-            range: "DEPENSES!A:M"
-
-        });
-
-    const rows = response.data.values || [];
-
-    const result = {
-        trouve: false,
-        ligne: null,
-        pdfUrl: ""
-    };
-
-    const dateOCR =
-        convertDateCEESV(
-            ceesv.dateValeur
-        );
-
-
-    for (let i = 1; i < rows.length; i++) {
-
-        const row = rows[i];
-
-        const dateSheet = row[0] || "";
-        const fournisseur = row[1] || "";
-
-        const montant =
-            Number(
-                String(row[4] || "0")
-                    .replace(",", ".")
-            );
-
-        const montantBanque =
-            Number(
-                String(ceesv.montantBanque)
-                    .replace(",", ".")
-            );
-
-        //fournisseur === "UBS - Centrale d'encaissement"
-        if (
-            (fournisseur === "CEESV - Etat" || fournisseur === "CEESV - Facture")
-            &&
-            dateSheet === dateOCR
-            &&
-            montant === montantBanque
-        ) {
-
-            result.trouve = true;
-            result.ligne = i + 1;
-            result.fournisseur = fournisseur;
-            result.comment = row[7] || "";
-            result.pdfUrl = row[5] || "";
-            result.pdfBanque = row[8] || "";
-            result.Date = row[0] || "";
-
-            result.operation = {
-                Date: row[0] || "",
-                Fournisseur: "Reçu UBS - Centrale d'encaissement pour " + fournisseur,
-                Categorie: row[2] || "",
-                Compte: row[3] || "",
-                Montant: row[4] || ""
-            };
-
-            result.row = i + 1;
-
-            break;
-        }
-    }
-
-    return result;
-}
-
-
-async function getDepenses(email) {
-
-    const client = await auth.getClient();
-
-    const sheets = getSheets();
-
-    const response =
-        await sheets.spreadsheets.values.get({
-
-            spreadsheetId: getSpreadsheetId(email),
-
-            range: "DEPENSES!A:M"
-
         });
 
     return response.data.values || [];
+}
+
+
+
+async function getDepenses(email) {
+    return getData(email);
 }
 
 
@@ -362,13 +196,13 @@ async function getFournisseurs(email) {
 
     return fournisseurs;
 }
+
+
 async function getFournisseursConvert(email) {
 
     const client = await auth.getClient();
 
     const sheets = getSheets();
-
-
 
     const response =
         await sheets.spreadsheets.values.get({
@@ -475,8 +309,6 @@ async function getOCRRules(email) {
 }
 
 async function getSettings(email) {
-
-    const client = await auth.getClient();
 
     const sheets = getSheets();
 
@@ -668,7 +500,7 @@ async function saveSetting(email, cle, valeur) {
 
 async function deleteRow(email, rowNumber) {
 
-    const client = await auth.getClient();
+    console.log("function deleteRow", rowNumber);
 
     const sheetsApi = getSheets();
 
@@ -719,10 +551,10 @@ async function deleteRow(email, rowNumber) {
 
 }
 
-
 module.exports = {
     addDepense,
     getDepenses,
+    getData,
 
     addCategorie,
     getCategories,
@@ -740,8 +572,6 @@ module.exports = {
     getSettings,
     saveSetting,
 
-    updateCEESVUBS,
-    findCEESVMatch,
-    findUBSMatch,
+
     deleteRow
 };

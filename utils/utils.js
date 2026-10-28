@@ -1,9 +1,68 @@
 // /utils/utils.js
-const fs = require("fs");
-const sharp = require("sharp");
-const { PDFDocument } = require("pdf-lib");
-
 function convertDate(date) {
+
+    if (!date) {
+        return "";
+    }
+
+    const mois = {
+        jan: "01",
+        fév: "02",
+        fev: "02",
+        mar: "03",
+        avr: "04",
+        mai: "05",
+        jun: "06",
+        juil: "07",
+        aoû: "08",
+        aou: "08",
+        sep: "09",
+        oct: "10",
+        nov: "11",
+        déc: "12",
+        dec: "12"
+    };
+
+    const txt = date
+        .toLowerCase()
+        .replace(".", "")
+        .trim();
+
+    const match = txt.match(
+        /^(\d{1,2})\s+([a-zéû]+)\s+(\d{4})$/
+    );
+
+    if (match) {
+
+        const jour = match[1].padStart(2, "0");
+
+        const moisNum =
+            mois[match[2].substring(0, 3)];
+
+        if (moisNum) {
+            return `${match[3]}-${moisNum}-${jour}`;
+        }
+    }
+
+    // Normalisation finale
+    const p = date.replace(/,/g, ".").split(/[./-]/);
+
+    if (p.length === 3) {
+
+        let [a, b, c] = p.map(x => x.trim());
+
+        // déjà yyyy-mm-dd
+        if (a.length === 4) {
+            return `${a}-${b.padStart(2, "0")}-${c.padStart(2, "0")}`;
+        }
+
+        // dd-mm-yyyy
+        return `${c}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+    }
+
+    return date;
+}
+function convertDateOLD(date) {
 
     if (!date) {
         return "";
@@ -87,6 +146,10 @@ async function convertImageToPdf(
     filePath,
     originalName
 ) {
+
+    const fs = require("fs");
+    const sharp = require("sharp");
+    const { PDFDocument } = require("pdf-lib");
 
     const tempImagePath =
         filePath + "_processed.jpg";
@@ -199,7 +262,5 @@ if (typeof module !== "undefined") {
         convertDateCEESV,
         convertImageToPdf,
         normalizeFournisseur
-
-
     };
 }
