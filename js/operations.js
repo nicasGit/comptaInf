@@ -236,6 +236,16 @@ function renderOperationsTable() {
                 document.createElement(
                     "tr"
                 );
+            tr.style.cursor = "pointer";
+            tr.addEventListener("click", (event) => {
+                if (event.target.closest("a")) {
+                    return;
+                }
+                const rowNumber = allRows.indexOf(row) + 1;
+                if (typeof openOperation === "function") {
+                    openOperation(row, rowNumber);
+                }
+            });
             const montant =
                 Number(
                     String(row[4] || "0")

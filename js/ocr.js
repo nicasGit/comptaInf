@@ -578,7 +578,7 @@ function extractCEESVData(texte) {
     // CAS UBS
     //
     if (
-        /centrale.*encaissement/i.test(texte) &&
+        /centrale[\s\S]*encaissement/i.test(texte) &&
         /date de transaction/i.test(texte)
     ) {
 
@@ -1231,10 +1231,6 @@ async function analyseDocument(
 
     const ocrRulesMontant =
         await sheets.getMontantOcrRules(email);
-    //await sheets.getOCRRules(email);
-
-
-
 
     const categorie = await detectCategorie(
         fournisseur,
@@ -1247,16 +1243,11 @@ async function analyseDocument(
         email
     );
 
-
-
-    // const date = dates?.[0];
     const montants = extractMontantsWithRules(
         text,
         ocrRulesMontant,
         matchedRules
     );
-
-
 
     let montant = Number(
         String(montants?.[0] || "0")

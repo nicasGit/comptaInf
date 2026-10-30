@@ -3,9 +3,12 @@ let currentCEESV = null;
 let ceesvFiles = [];
 let duplicateAction = null;
 let duplicateRow = null;
+let currentWorkflowId = null;
+let currentWorkflowDuplicate = null;
 let currentOCRText = "";
 let currentOCRRules = [];
-
+currentWorkflowId = null;
+currentWorkflowDuplicate = null;
 function openDepense() {
 
     document.getElementById("modalDepense")
@@ -83,6 +86,13 @@ function openDepense() {
 }
 
 async function closeDepense() {
+    window.currentOperationRow = null;
+    document.querySelectorAll("#modalDepense input, #modalDepense select, #modalDepense textarea")
+        .forEach(el => el.disabled = false);
+    const editButton = document.getElementById("btnEditOperation");
+    if (editButton) editButton.style.display = "none";
+    const saveButton = document.getElementById("btnSaveOperation");
+    if (saveButton) saveButton.style.display = "inline-block";
 
     await fetch("/api/shared-file-clear", {
         method: "POST"
@@ -135,22 +145,79 @@ function hideSavingOverlay() {
 
 async function saveOperation() {
 
-    console.log(
-        "💾 saveOperation",
-        duplicateAction
-    );
+    console.log("💾 saveOperation", duplicateAction);
+
     try {
 
+        if (window.currentOperationRow?.rowNumber) {
+            const operation = buildDepense(window.currentOperationRow.data[5] || null);
+            const response = await fetch("/api/operations/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    rowNumber: window.currentOperationRow.rowNumber,
+                    operation
+                })
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Impossible de modifier l'opération");
+            }
+            window.currentOperationRow = null;
+            await refreshAfterSave();
+            closeDepense();
+            showToast("✅ Opération modifiée", "success");
+            return;
+        }
+
+        if (currentWorkflowId) {
+            duplicateAction ||= "insert";
+            console.log("[saveOperation] chemin workflow", currentWorkflowId, "action", duplicateAction);
+            showSavingOverlay("💾 Enregistrement du workflow en cours...");
+            const depense = buildDepense(null);
+
+            const response = await fetch("/api/import/workflow/decide", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    workflowId: currentWorkflowId,
+                    action: duplicateAction || "insert",
+                    comment: depense.commentaire,
+                    document: depense
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Impossible d'enregistrer l'import");
+            }
+
+            currentWorkflowId = null;
+            duplicateAction = null;
+            duplicateRow = null;
+            await refreshAfterSave();
+            closeDepense();
+            showToast("✅ Document enregistré", "success");
+            return;
+        }
 
         showSavingOverlay("📤 Envoi du justificatif...");
+        console.log("uploadCurrentFile");
+        const pdfUrl = await uploadCurrentFile();
 
-        const driveUrl =
-            await uploadCurrentFile();
+        showSavingOverlay("💾 Enregistrement des données en cours...");
+        console.log("buildDepense");
+        const depense = buildDepense(pdfUrl);
 
-        const depense =
-            buildDepense(driveUrl);
-
+        console.log("handle");
         if (await handleCEESV(depense)) {
+            console.log("handleCEESV");
+            return;
+        }
+
+        if (await handleUBS(pdfUrl)) {
+
+            console.log("handleUBS");
 
             if (
                 duplicateAction === "replace" &&
@@ -170,27 +237,10 @@ async function saveOperation() {
             return;
         }
 
-        if (await handleUBS(driveUrl)) {
-            if (
-                duplicateAction === "replace" &&
-                duplicateRow
-            ) {
 
-                console.log(
-                    "♻️ Remplacement ligne",
-                    duplicateRow
-                );
 
-                await deleteRow(
-                    duplicateRow
-                );
 
-            }
-            return;
-        }
-        showSavingOverlay(
-            "💾 Enregistrement des données en cours..."
-        );
+        console.log("saveNormalDepense");
         await saveNormalDepense(depense);
 
         if (
@@ -265,12 +315,11 @@ function buildDepense(driveUrl) {
         currentCEESV &&
         currentCEESV.type !== "CEESV_UBS";
 
-    let montant =
-        parseFloat(
-            document.getElementById(
-                "depMontant"
-            ).value
-        );
+    let montant = Number(String(
+        document.getElementById(
+            "depMontant"
+        ).value
+    ).replace(/,/g, "."));
 
     const operationType =
         document.getElementById(
@@ -373,6 +422,7 @@ function buildDepense(driveUrl) {
 
 async function showFile(file, analyseExistante = null) {
 
+    let action = "";
     console.log("SHOWFILE", {
         analyseExistante: !!analyseExistante,
         name: file?.name,
@@ -412,7 +462,7 @@ async function showFile(file, analyseExistante = null) {
             formData.append("pdf", file);
 
             const response =
-                await fetch("/analyse-document", {
+                await fetch("/api/import/workflow/prepare", {
                     method: "POST",
                     body: formData
                 });
@@ -423,8 +473,10 @@ async function showFile(file, analyseExistante = null) {
                 );
             }
 
-            result =
-                await response.json();
+            const workflowResult = await response.json();
+            currentWorkflowId = workflowResult.workflowId;
+            currentWorkflowDuplicate = workflowResult.duplicate;
+            result = workflowResult.analysis;
 
         }
 
@@ -446,8 +498,10 @@ async function showFile(file, analyseExistante = null) {
         currentOCRRules =
             result.matchedRules || [];
 
+        console.log("depense showFile call checkDuplicateAfterOCR", result);
+
         // Vérification doublon après OCR
-        await checkDuplicateAfterOCR(result);
+        action = await checkDuplicateAfterOCR(result);
 
 
         document.getElementById(
@@ -467,6 +521,8 @@ async function showFile(file, analyseExistante = null) {
                 🔄 Remplacer
             </button>
         `;
+
+        return action;
 
     }
     catch (err) {
@@ -500,8 +556,20 @@ async function openDuplicateModal(duplicateResult) {
     switch (action) {
 
         case "cancel":
+            if (currentWorkflowId) {
+                await fetch("/api/import/workflow/decide", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        workflowId: currentWorkflowId,
+                        action: "cancel"
+                    })
+                });
+                currentWorkflowId = null;
+                currentWorkflowDuplicate = null;
+            }
             closeDepense();
-            return;
+            break;
 
         case "insert":
             break;
@@ -512,11 +580,46 @@ async function openDuplicateModal(duplicateResult) {
 
     }
 
+    return action;
+
 }
 
 
 async function checkDuplicateAfterOCR(result) {
 
+
+    console.log("function checkDuplicateAfterOCR", result);
+
+    let action = "";
+
+    if (currentWorkflowId && currentWorkflowDuplicate?.found) {
+        const matches = currentWorkflowDuplicate.matches;
+        const selected = currentWorkflowDuplicate.selected;
+
+        action = await openDuplicateModal({
+            duplicate: true,
+            row: selected?.row,
+            rowsCeesv: matches,
+            line: selected ? [
+                selected.date,
+                selected.fournisseur,
+                selected.categorie,
+                selected.compte,
+                selected.montant,
+                selected.pdfUrl
+            ] : [],
+            comment: selected?.commentaire || "",
+            operation: {
+                Date: selected?.date,
+                Fournisseur: selected?.fournisseur,
+                Categorie: selected?.categorie,
+                Compte: selected?.compte,
+                Montant: selected?.montant,
+                Pdf: selected?.pdfUrl
+            }
+        });
+        return action;
+    }
 
     //
     const depenseOCR = {
@@ -537,44 +640,23 @@ async function checkDuplicateAfterOCR(result) {
 
         const duplicateResult =
             await checkDuplicate({
-                date: convertDate(result.dates[0]),
+                date: convertDate(result.date),
                 fournisseur: normalizeFournisseur(result.fournisseur),
                 categorie: result.categorie,
                 compte: result.compte,
-                montant: result.montants[0]
+                montant: result.montant,
+                montantFacture: result.ceesv?.montantFacture,
+                montantEtat: result.ceesv?.montantEtat,
+                montantBanque: result.ceesv?.montantBanque
             });
 
         if (duplicateResult.duplicate) {
-            openDuplicateModal(duplicateResult);
-            /*
-             
-              const action =
-                  await showDuplicateModal(
-                      duplicateResult
-                  );
-            
-              duplicateAction = action;
-              duplicateRow = duplicateResult.row;
-            
-              console.log("duplicateAction =", duplicateAction);
-            
-              switch (action) {
-            
-                  case "cancel":
-                      closeDepense();
-                      return;
-            
-                  case "insert":
-                      break;
-            
-                  case "replace":
-                      // action au moment du enregistrement 
-                      break;
-            
-              }
-            */
+            action = openDuplicateModal(duplicateResult);
+
         }
     }
+
+    return action;
 
 }
 
@@ -900,7 +982,7 @@ function applyCEESV(data,
                   ${Number(data.ceesv.montantFacture).toFixed(2)} CHF
               </strong>
               ${data.ceesv.matchFacture?.trouve
-                    ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
+                    ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé (' + data.ceesv.matchFacture.ligne + ')</span>'
                     : ' <span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
                 }
           </div>
@@ -911,7 +993,7 @@ function applyCEESV(data,
                   ${Number(data.ceesv.montantEtat).toFixed(2)} CHF
               </strong>
                   ${data.ceesv.matchEtat?.trouve
-                    ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
+                    ? ' <span style="color:#28a745;font-weight:bold;">✅ UBS trouvé (' + data.ceesv.matchEtat.ligne + ')</span>'
                     : ' <span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
                 }
 
@@ -922,6 +1004,7 @@ function applyCEESV(data,
               <strong>
                   ${data.ceesv.nbFactures}
               </strong>
+
           </div>
       
       </div>
@@ -1157,16 +1240,13 @@ function updateCategorieFromFournisseur() {
 
 async function handleCEESV(depense) {
 
-
     if (
-        depense.fournisseur !==
-        "CEESV - Centrale d'Encaissement"
-        ||
+        depense.fournisseur !== "CEESV - Centrale d'Encaissement" ||
         !currentCEESV
     ) {
         return false;
     }
-    console.log("function handleCEESV depense.js ", data);
+    //console.log("function handleCEESV depense.js ");
     await fetch("/api/processCEESV", {
         method: "POST",
         headers: {
@@ -1174,7 +1254,8 @@ async function handleCEESV(depense) {
         },
         body: JSON.stringify({
             depense,
-            ceesv: currentCEESV
+            ceesv: currentCEESV,
+            duplicateAction
         })
     });
 
@@ -1261,6 +1342,7 @@ async function handleUBS(driveUrl) {
         return false;
     }
 
+    console.log("[handleUBS] rattachement", currentCEESV.match);
     await fetch(
         "/updateCEESVUBS",
         {
@@ -1277,6 +1359,11 @@ async function handleUBS(driveUrl) {
                     currentCEESV
                         .match
                         .ligne,
+
+                ligneUBS:
+                    currentCEESV
+                        .match
+                        .ligneUBS,
 
                 pdfUrl:
                     driveUrl
@@ -1338,6 +1425,8 @@ async function saveNormalDepense(depense) {
 
 async function checkDuplicate(depense) {
 
+    console.log("function checkDuplicate", depense);
+
     const response =
         await fetch(
             "/api/checkDuplicate",
@@ -1351,7 +1440,10 @@ async function checkDuplicate(depense) {
                     date: depense.date,
                     fournisseur: depense.fournisseur,
                     categorie: depense.categorie,
-                    montant: depense.montant
+                    montant: depense.montant,
+                    montantFacture: depense.montantFacture,
+                    montantEtat: depense.montantEtat,
+                    montantBanque: depense.montantBanque
                 })
             }
         );
@@ -1415,6 +1507,9 @@ async function refreshAfterSave() {
 
     await loadDepenses();
     await refreshStats();
+    if (typeof loadOperationsData === "function" && document.getElementById("depensesBody")) {
+        await loadOperationsData();
+    }
     await loadCategories();
     await loadFournisseurs();
     await refreshStandby();
@@ -2196,26 +2291,19 @@ function initOperationType() {
 
 
 async function initSharedAnalyse() {
-
-
-    const sharedAnalyse =
-        sessionStorage.getItem(
-            "sharedAnalyse"
-        );
+    const editSharedAnalyse = sessionStorage.getItem("editSharedAnalyse");
+    const sharedAnalyse = editSharedAnalyse || sessionStorage.getItem("sharedAnalyse");
 
     if (!sharedAnalyse) {
         return;
     }
 
-
-
-    sessionStorage.removeItem(
-        "sharedAnalyse"
-    );
-    sessionStorage.setItem(
-        "resumeUpload",
-        "0"
-    );
+    if (editSharedAnalyse) {
+        sessionStorage.removeItem("editSharedAnalyse");
+    } else {
+        sessionStorage.removeItem("sharedAnalyse");
+    }
+    sessionStorage.setItem("resumeUpload", "0");
 
     duplicateAction = null;
     duplicateRow = null;
@@ -2251,6 +2339,10 @@ async function initSharedAnalyse() {
         );
 
     await showFile(currentFile, result);
+
+    if (editSharedAnalyse) {
+        return;
+    }
 
     setTimeout(async () => {
 

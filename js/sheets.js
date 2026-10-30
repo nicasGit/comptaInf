@@ -92,6 +92,35 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
     console.log("✅ Dépense ajoutée " + operationType + "  " + fournisseur + " " + montantFinal + " " + dateNormalized);
 }
 
+async function updateOperation(email, rowNumber, operation) {
+    const sheetsApi = getSheets();
+    const montant = Number(String(operation.montant ?? "").replace(/,/g, "."));
+    const montantFinal = Number.isFinite(montant)
+        ? (operation.operationType === "RECETTE"
+            ? Math.abs(montant)
+            : -Math.abs(montant)).toFixed(2).replace(".", ",")
+        : operation.montant;
+
+    await sheetsApi.spreadsheets.values.update({
+        spreadsheetId: getSpreadsheetId(email),
+        range: `DEPENSES!A${rowNumber}:H${rowNumber}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+            values: [[
+                operation.date,
+                operation.fournisseur,
+                operation.categorie,
+                operation.compte,
+                montantFinal,
+                operation.pdf,
+                operation.operationType,
+                operation.commentaire
+            ]]
+        }
+    });
+    return true;
+}
+
 async function updateCell(
     email,
     cell,
@@ -512,9 +541,15 @@ async function deleteRow(email, rowNumber) {
                     getSpreadsheetId(email)
             });
 
+    const depensesSheet =
+        spreadsheet.data.sheets.find(sheet =>
+            String(sheet.properties.title).trim().toUpperCase() === "DEPENSES"
+        );
+    console.log("🗑️ Suppression DEPENSES ligne Sheets", rowNumber, "sheetId", depensesSheet?.properties.sheetId);
+
     const sheetId =
-        spreadsheet.data.sheets[0]
-            .properties.sheetId;
+        depensesSheet?.properties.sheetId ??
+        spreadsheet.data.sheets[0].properties.sheetId;
 
     await sheetsApi.spreadsheets.batchUpdate({
 
@@ -573,5 +608,7 @@ module.exports = {
     saveSetting,
 
 
-    deleteRow
+    deleteRow,
+    updateCell,
+    updateOperation
 };

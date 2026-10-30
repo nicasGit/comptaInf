@@ -1484,12 +1484,12 @@ tr:hover {
     min-width: 0;
     max-width: 100%;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     box-sizing: border-box;
 }
 
 .pdf-preview canvas {
-    max-width: 100%;
+   max-width: none;
 }
 
 /* =========================

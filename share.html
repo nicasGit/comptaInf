@@ -173,13 +173,42 @@
         const isRealCEESV =
           data.ceesv &&
           (
-            data.ceesv.montantFacture ||
-            data.ceesv.montantEtat ||
-            data.ceesv.montantBanque
+            data.ceesv?.montantFacture ||
+            data.ceesv?.montantEtat ||
+            data.ceesv?.montantBanque
           );
 
 
+        if (data.ceesv?.type === "CEESV_ETAT") {
+          const matchResponse = await fetch("/findCEESVMatch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ceesv: data.ceesv })
+          });
+          data.ceesv.match = await matchResponse.json();
+          data.ceesv.matchFacture = {
+            trouve: data.ceesv.match.matchFacture,
+            ligne: data.ceesv.match.ligneFacture,
+            pdfUrl: data.ceesv.match.pdfFacture
+          };
+          data.ceesv.matchEtat = {
+            trouve: data.ceesv.match.matchEtat,
+            ligne: data.ceesv.match.ligneEtat,
+            pdfUrl: data.ceesv.match.pdfEtat
+          };
+        } else if (data.ceesv?.type === "CEESV_UBS") {
+          const matchResponse = await fetch("/findUBSMatch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ceesv: data.ceesv })
+          });
+          data.ceesv.match = await matchResponse.json();
+        }
+
         window.sharedAnalyse = data;
+
+        const date = data.date || data.ceesv?.dateValeur || "";
+        console.log("share call api/checkDuplicate", date);
 
         const duplicateResponse =
           await fetch("/api/checkDuplicate", {
@@ -188,13 +217,13 @@
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              date: convertDate(data.date),
+              date: convertDate(date),
               fournisseur: data.fournisseur,
               categorie: data.categorie,
               montant: data.montant,
-              montantEtat: data.ceesv.montantFacture,
-              montantFacture: data.ceesv.montantEtat,
-              montantBanque: data.ceesv.montantBanque
+              montantEtat: data.ceesv?.montantFacture,
+              montantFacture: data.ceesv?.montantEtat,
+              montantBanque: data.ceesv?.montantBanque
             })
           });
 
@@ -215,43 +244,34 @@
 
 
         if (isRealCEESV) {
+          const ceesvHtml = data.ceesv.type === "CEESV_UBS"
+            ? `
+              <div class="ceesv-box">
+                <div>🏦 <strong>Reçu UBS CEESV</strong></div>
+                <div>Montant : <strong>${Number(data.ceesv.montantBanque || 0).toFixed(2)} CHF</strong></div>
+                <div>Date de valeur : <strong>${data.ceesv.dateValeur || "-"}</strong></div>
+                ${data.ceesv.match?.trouve
+                  ? `✅ Ligne CEESV trouvée (${data.ceesv.match.fournisseur || ""}, ligne ${data.ceesv.match.ligne || "-"})`
+                  : "⏳ Aucune ligne CEESV correspondante"}
+              </div>`
+            : `
+              <div class="ceesv-box">
+                <div>
+                  🧾 Facturé : <strong>${Number(data.ceesv?.montantFacture || 0).toFixed(2)} CHF</strong>
+                  ${data.ceesv?.matchFacture?.trouve
+                    ? " <span style=\"color:#28a745;font-weight:bold;\">✅ UBS trouvé</span>"
+                    : " <span style=\"color:#f39c12;font-weight:bold;\">⏳ UBS en attente</span>"}
+                </div>
+                <div style="margin-top:8px;">
+                  🏛 Etat : <strong>${Number(data.ceesv?.montantEtat || 0).toFixed(2)} CHF</strong>
+                  ${data.ceesv?.matchEtat?.trouve
+                    ? " <span style=\"color:#28a745;font-weight:bold;\">✅ UBS trouvé</span>"
+                    : " <span style=\"color:#f39c12;font-weight:bold;\">⏳ UBS en attente</span>"}
+                </div>
+                <div style="margin-top:8px;">📋 Factures : <strong>${data.ceesv?.nbFactures || 0}</strong></div>
+              </div>`;
 
-          document.getElementById(
-            "ceesvInfo"
-          ).innerHTML = `
-        <div class="ceesv-box">
-
-            <div>
-                🧾 Facturé :
-                <strong>
-                    ${Number(data.ceesv.montantFacture || 0).toFixed(2)} CHF
-                </strong>
-                ${data.ceesv.matchFacture?.trouve
-              ? '<span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
-              : '<span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
-            }
-            </div>
-
-            <div style="margin-top:8px;">
-                🏛 Etat :
-                <strong>
-                    ${Number(data.ceesv.montantEtat || 0).toFixed(2)} CHF
-                </strong>
-                ${data.ceesv.matchEtat?.trouve
-              ? '<span style="color:#28a745;font-weight:bold;">✅ UBS trouvé</span>'
-              : '<span style="color:#f39c12;font-weight:bold;">⏳ UBS en attente</span>'
-            }
-            </div>
-
-            <div style="margin-top:8px;">
-                📋 Factures :
-                <strong>
-                    ${data.ceesv.nbFactures || 0}
-                </strong>
-            </div>
-
-        </div>
-    `;
+          document.getElementById("ceesvInfo").innerHTML = ceesvHtml;
         }
         //console.log(duplicate);
         if (duplicate.duplicate) {
@@ -355,7 +375,7 @@
 
         let response = null;
         // Import CEESV automatique
-        if (window.sharedAnalyse.ceesv) {
+        if (window.sharedAnalyse.ceesv?.type === "CEESV_ETAT" || window.sharedAnalyse.ceesv?.type === "CEESV_UBS") {
 
           console.log("Import CEESV automatique");
           response = await fetch("/api/processCEESV", {
@@ -446,8 +466,8 @@
     }
 
     async function modifAvantImport() {
-      // recharge sans clear 
-      window.location.href = "/";
+      sessionStorage.setItem("editSharedAnalyse", JSON.stringify(window.sharedAnalyse));
+      window.location.href = "/?editShared=1";
     }
 
     async function annulerImport() {

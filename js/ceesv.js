@@ -4,64 +4,83 @@ const sheets = require("./sheets");
 const { importDocument } = require("./importDocument");
 const { convertDateCEESV } = require("../utils/utils");
 
+//Import pdf + update sheet ETAT + FACTURE
 async function processCEESV(data) {
 
-    //console.log("function processCEESV ceesv.js", data);
-    console.log("function processCEESV ceesv.js");
+    console.log("function processCEESV ceesv.js", data);
+    //console.log("function processCEESV ceesv.js");
 
-    const mode = data.analyse.mode;
+    const email = data.email;
+    const originalname = data.originalname;
+
+    //soit on a data soit on a depense...
+    const source = data.analyse || data.depense || data;
+
+
+
+    const mode = data.duplicateAction;
 
     // import pdf 
 
-    const fileName =
-        `${data.analyse.fournisseur}_${data.analyse.date}_${data.analyse.montant}_${data.analyse.originalName}`
-            .replace(/[<>:"/\\|?*]/g, "")
-            .replace(/\s+/g, "_");
-
-
-
-    const imported =
-        await importDocument(
-            data.analyse.pdf,
-            fileName,
-            data.analyse.email
-        );
-
-    const pdfUrl = imported.pdfUrl;
-    //console.log("date", data.analyse.ceesv.dateValeur, convertDateCEESV(data.analyse.ceesv.dateValeur));
-
+    const pdfUrl = source.pdf;
+    /*
+        const fileName =
+            `${source.fournisseur}_${source.date}_${source.montant}_${originalname}`
+                .replace(/[<>:"/\\|?*]/g, "")
+                .replace(/\s+/g, "_");
+    
+    
+    
+        const imported =
+            await importDocument(
+                source.pdf,
+                fileName,
+                email
+            );
+    
+        const pdfUrl = imported.pdfUrl;
+        //console.log("date", source.ceesv.dateValeur, convertDateCEESV(source.ceesv.dateValeur));
+    */
     // import sheet
+    if (!data.ceesv?.dateValeur) {
+        throw new Error("Date CEESV manquante");
+    }
+
+    if (data.ceesv.montantFacture == null || data.ceesv.montantEtat == null) {
+        throw new Error("Montants CEESV facture/état manquants");
+    }
+
     const ligneFacture = {
 
-        date: convertDateCEESV(data.analyse.ceesv.dateValeur),
+        date: convertDateCEESV(data.ceesv.dateValeur),
         fournisseur: "CEESV - Facture",
         categorie: "CEESV",
-        compte: data.analyse.ceesv.Compte,
-        montant: data.analyse.ceesv.montantFacture,
+        compte: data.ceesv.Compte || "",
+        montant: Number(data.ceesv.montantFacture),
         pdf: pdfUrl,
         operationType: "RECETTE",
-        commentaire: "",
+        commentaire: data.commentaire || data.depense?.commentaire || "",
         justifBanque:
-            data.analyse.ceesv.matchFacture?.pdfUrl || ""
+            data.ceesv.matchFacture?.pdfUrl || ""
     };
 
     const ligneEtat = {
 
-        date: convertDateCEESV(data.analyse.ceesv.dateValeur),
+        date: convertDateCEESV(data.ceesv.dateValeur),
         fournisseur: "CEESV - Etat",
         categorie: "CEESV",
-        compte: data.analyse.ceesv.Compte,
-        montant: data.analyse.ceesv.montantEtat,
+        compte: data.ceesv.Compte || "",
+        montant: Number(data.ceesv.montantEtat),
         pdf: pdfUrl,
         operationType: "RECETTE",
-        commentaire: "",
+        commentaire: data.commentaire || data.depense?.commentaire || "",
         justifBanque:
-            data.analyse.ceesv.matchEtat?.pdfUrl || ""
+            data.ceesv.matchEtat?.pdfUrl || ""
     };
 
 
     await sheets.addDepense(
-        data.analyse.email,
+        email,
         ligneFacture.date,
         ligneFacture.fournisseur,
         ligneFacture.categorie,
@@ -74,7 +93,7 @@ async function processCEESV(data) {
     );
 
     await sheets.addDepense(
-        data.analyse.email,
+        email,
         ligneEtat.date,
         ligneEtat.fournisseur,
         ligneEtat.categorie,
@@ -86,19 +105,29 @@ async function processCEESV(data) {
         ligneEtat.justifBanque
     );
 
+    const lignesUBSTemporaires = [...new Set([
+        Number(data.ceesv?.ligneFacture || data.ceesv?.matchFacture?.ligne || 0),
+        Number(data.ceesv?.ligneEtat || data.ceesv?.matchEtat?.ligne || 0)
+    ])].filter(ligne => ligne > 0).sort((a, b) => b - a);
 
-    if (mode == "replace") {
+    for (const ligne of lignesUBSTemporaires) {
+        console.log("🗑️ Suppression ligne UBS temporaire CEESV", ligne);
+        await sheets.deleteRow(email, ligne);
+    }
 
-        if (data.analyse.duplicateRows && data.analyse.duplicateRows.length > 0) {
-            const rows = [...data.analyse.duplicateRows]
+    console.log("mode =", mode)
+    if (mode === "replace") {
+
+        if (data.duplicateRows && data.duplicateRows.length > 0) {
+            const rows = [...data.duplicateRows]
                 .sort((a, b) => b.ligne - a.ligne);
 
             for (const row of rows) {
                 console.log(`🗑️ Suppression ligne ${row.ligne} (${row.fournisseur})`);
 
                 await sheets.deleteRow(
-                    data.analyse.email,
-                    row.ligne
+                    email,
+                    Number(row.ligne)
                 );
             }
         }
@@ -191,14 +220,13 @@ async function findCEESVMatch(email, ceesv) {
 
 async function findUBSMatch(email, ceesv) {
 
-    const client = await auth.getClient();
-
     const rows =
         await sheets.getData(email);
 
     const result = {
         trouve: false,
         ligne: null,
+        ligneUBS: null,
         pdfUrl: ""
     };
 
@@ -227,6 +255,14 @@ async function findUBSMatch(email, ceesv) {
                     .replace(",", ".")
             );
 
+        if (
+            fournisseur === "UBS - Centrale d'encaissement" &&
+            dateSheet === dateOCR &&
+            montant === montantBanque
+        ) {
+            result.ligneUBS = i + 1;
+        }
+
         //fournisseur === "UBS - Centrale d'encaissement"
         if (
             (fournisseur === "CEESV - Etat" || fournisseur === "CEESV - Facture")
@@ -253,8 +289,6 @@ async function findUBSMatch(email, ceesv) {
             };
 
             result.row = i + 1;
-
-            break;
         }
     }
 
@@ -263,8 +297,6 @@ async function findUBSMatch(email, ceesv) {
 
 
 async function updateCEESVUBS(email, ligne, pdfUrl) {
-
-    const client = await auth.getClient();
 
     await sheets.updateCell(
         email,

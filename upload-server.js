@@ -18,7 +18,7 @@ app.post(
 
         console.log(req.file);
 
-        res.send("✅ PDF reçu");
+        res.send("✅ PDF reçu (upload server)");
 
     }
 );

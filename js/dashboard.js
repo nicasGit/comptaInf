@@ -363,7 +363,8 @@ async function loadDepenses() {
 
     tbody.innerHTML = "";
 
-    rows.slice(1).reverse().forEach(row => {
+    rows.slice(1).reverse().forEach((row, reverseIndex) => {
+        const rowNumber = rows.length - reverseIndex;
 
 
         const montant =
@@ -407,7 +408,7 @@ async function loadDepenses() {
                 return;
             }
 
-            openOperation(row);
+            openOperation(row, rowNumber);
         });
 
         tr.innerHTML = `
@@ -428,15 +429,21 @@ async function loadDepenses() {
 
 }
 
-function openOperation(row) {
+window.currentOperationRow = null;
+
+function openOperation(row, rowNumber = null) {
+
+    window.currentOperationRow = rowNumber ? { data: [...row], rowNumber } : { data: [...row], rowNumber: null };
 
     document.getElementById("operationTitle").textContent =
         "👁️ Consultation opération";
 
+    const operationTypeFromSheet = String(row[6] ?? "").trim().toUpperCase();
+    const montantConsultation = Number(String(row[4] ?? "").replace(/,/g, "."));
     document.getElementById("operationType").value =
-        Number(row[4]) >= 0
-            ? "RECETTE"
-            : "DEPENSE";
+        operationTypeFromSheet === "RECETTE" || operationTypeFromSheet === "DEPENSE"
+            ? operationTypeFromSheet
+            : (Number.isFinite(montantConsultation) && montantConsultation >= 0 ? "RECETTE" : "DEPENSE");
 
     document.getElementById("depDate").value =
         row[0];
@@ -451,7 +458,7 @@ function openOperation(row) {
         row[3] || "";
 
     document.getElementById("depMontant").value =
-        row[4] || "";
+        Number.isFinite(montantConsultation) ? Math.abs(montantConsultation) : "";
 
     document.getElementById("depComment").value =
         row[7] || "";
@@ -463,9 +470,7 @@ function openOperation(row) {
         )
         .forEach(el => el.disabled = true);
 
-    document.querySelector(
-        '.modal-actions button[onclick="saveOperation()"]'
-    ).style.display = "none";
+    document.getElementById("btnSaveOperation").style.display = "none";
 
     document.getElementById(
         "modalDepense"
@@ -475,31 +480,20 @@ function openOperation(row) {
     // charger le pdf si présent
     if (row[5]) {
 
-        const pdfPreview =
-            document.getElementById("pdfPreview");
-
-        pdfPreview.innerHTML =
-            `<a  href="${row[5]}"
-    			target="_blank" 
-    			class="pdf-link"
-    			title="Ouvrir le justificatif">📄</a>`;
-
-        /*    `<iframe src="${row[5]}"
-            style="width:100%;height:100%;border:none">
-         </iframe>`;*/
-
-        pdfPreview.style.display = "block";
         document.getElementById("previewEmpty").style.display = "none";
         document.getElementById("dropzoneDepense").style.display = "none";
+        loadPreview(row[5]);
 
+    } else {
+        clearPdfPreview();
+        document.getElementById("previewEmpty").style.display = "flex";
+        document.getElementById("dropzoneDepense").style.display = "flex";
     }
+
+    document.getElementById("btnSaveOperation").style.display = "none";
 
     document.getElementById(
         "btnEditOperation"
-    ).style.display = "block";
-
-    document.getElementById(
-        "btnSaveOperation"
     ).style.display = "inline-block";
 
 }
@@ -554,7 +548,7 @@ async function loadPreview(url) {
         const pdfUrl =
             `/api/drive/download/${fileId}`;
 
-        renderPdfPreview(
+        renderPdfUrl(
             pdfUrl,
             "pdfPreview"
         );
@@ -570,7 +564,7 @@ async function loadPreview(url) {
         url.includes("/uploads/")
     ) {
 
-        renderPdfPreview(
+        renderPdfUrl(
             url,
             "pdfPreview"
         );

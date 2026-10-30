@@ -7,6 +7,10 @@ const pdfZooms = {
   pdfPreview: 1,
   duplicatePdfPreview: 1
 };
+const pdfUrls = {
+  pdfPreview: null,
+  duplicatePdfPreview: null
+};
 
 async function renderPdfPreview(file,
   containerId = "pdfPreview") {
@@ -69,11 +73,14 @@ async function renderPdfUrl(
 ) {
 
   const version = ++previewVersion;
+  pdfUrls[containerId] = url;
 
   const container =
     document.getElementById(containerId);
 
   container.replaceChildren();
+  container.style.display = "block";
+  container.style.overflowY = "auto";
   container.textContent =
     "Chargement du PDF...";
 
@@ -138,11 +145,11 @@ async function renderPdfUrl(
           viewport.height
         );
 
-      canvas.style.display =
-        "block";
-
-      canvas.style.marginBottom =
-        "12px";
+      canvas.style.width = `${Math.ceil(viewport.width)}px`;
+      canvas.style.height = `${Math.ceil(viewport.height)}px`;
+      canvas.style.maxWidth = "none";
+      canvas.style.display = "block";
+      canvas.style.margin = "0 auto 12px";
 
       container.appendChild(
         canvas
@@ -165,7 +172,9 @@ async function renderPdfUrl(
 
 function clearPdfPreview() {
   previewVersion++;
+  pdfUrls.pdfPreview = null;
   document.getElementById("pdfPreview").replaceChildren();
+  document.getElementById("pdfPreview").style.display = "none";
 }
 
 
@@ -223,13 +232,10 @@ function zoomPdf(
   //
   // PDF
   //
-  if (currentFile) {
-
-    renderPdfPreview(
-      currentFile,
-      containerId
-    );
-
+  if (pdfUrls[containerId]) {
+    renderPdfUrl(pdfUrls[containerId], containerId);
+  } else if (typeof currentFile !== "undefined" && currentFile) {
+    renderPdfPreview(currentFile, containerId);
   }
 
 }

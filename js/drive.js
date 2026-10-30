@@ -262,8 +262,23 @@ async function downloadFile(email, fileId) {
     return Buffer.from(response.data);
 }
 
+async function archiveFile(email, fileId, folderTraites) {
+    const drive = getDrive(email);
+    const file = await drive.files.get({
+        fileId,
+        fields: "parents"
+    });
+
+    await drive.files.update({
+        fileId,
+        addParents: folderTraites,
+        removeParents: (file.data.parents || []).join(",")
+    });
+}
+
 module.exports = {
     uploadFile,
     getExercices,
-    downloadFile
+    downloadFile,
+    archiveFile
 };

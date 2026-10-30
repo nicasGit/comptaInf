@@ -1,7 +1,7 @@
 //server.js
 console.log("Starting Server ComptaInf....");
-let DEV_BYPASS_LOGIN = false;
-let DEV_AUTOLOGIN_LOCAL = false;
+let DEV_BYPASS_LOGIN = true;
+let DEV_AUTOLOGIN_LOCAL = true;
 let DEV_SHARE_SIMULATE = false;
 const packageJson = require("./package.json");
 
@@ -19,6 +19,10 @@ const ceesv = require("./js/ceesv");
 const { ZipArchive } = require("archiver");
 const { importDocument } = require("./js/importDocument");
 const {
+    prepareWorkflow,
+    decideWorkflow
+} = require("./js/import/importWorkflow");
+const {
     getEnvironment,
     setEnvironment,
     getCurrentUser,
@@ -29,7 +33,8 @@ const session = require("express-session");
 
 const {
     normalizeFournisseur,
-    convertDate } = require("./utils/utils");
+    convertDate,
+    convertDateCEESV } = require("./utils/utils");
 
 const app = express();
 const PORT = 3000;
@@ -189,6 +194,70 @@ function requireAuth(
     next();
 
 }
+
+app.post("/api/operations/update", requireAuth, async (req, res) => {
+    try {
+        const rowNumber = Number(req.body.rowNumber);
+        const operation = req.body.operation;
+        if (!rowNumber || !operation) {
+            return res.status(400).json({ error: "Ligne ou opération invalide" });
+        }
+        await sheets.updateOperation(req.session.email, rowNumber, operation);
+        res.json({ success: true });
+    } catch (error) {
+        console.error("[operations/update]", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post("/api/import/workflow/prepare", requireAuth, upload.single("pdf"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: "Aucun fichier importé" });
+        }
+
+        const workflow = await prepareWorkflow("manual", req.file, req.session.email);
+        res.json({
+            success: true,
+            workflowId: workflow.id,
+            status: workflow.status,
+            document: workflow.document,
+            duplicate: workflow.duplicate,
+            analysis: workflow.analysis.data,
+            proposedDecisions: workflow.duplicate.found
+                ? ["insert", "replace", "cancel"]
+                : ["insert", "cancel"]
+        });
+    } catch (error) {
+        console.error("[ImportWorkflow] prepare", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post("/api/import/workflow/decide", requireAuth, async (req, res) => {
+    try {
+        console.log("[ImportWorkflow] decide workflow", req.body.workflowId, "action", req.body.action);
+        const workflow = await decideWorkflow(
+            req.body.workflowId,
+            req.body.action,
+            req.session.email,
+            req.body.comment,
+            req.body.document
+        );
+
+        console.log("[ImportWorkflow] decide terminé", workflow.id, workflow.normalized.metadata.ceesv?.type || null);
+        res.json({
+            success: true,
+            status: workflow.status,
+            execution: workflow.execution,
+            decision: workflow.decision
+        });
+    } catch (error) {
+        console.error("[ImportWorkflow] decide", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 //
 // PAGE PRINCIPALE
 //
@@ -876,10 +945,50 @@ app.post(
 app.post("/api/processCEESV", async (req, res) => {
 
     try {
-
         //console.log("route /api/processCEESV", req.body)
 
-        await ceesv.processCEESV(req.body);
+        const payload = req.body;
+        const ceesvData = payload.ceesv || payload.analyse?.ceesv;
+
+        if (ceesvData?.type === "CEESV_UBS") {
+            const uploaded = await importDocument(
+                payload.analyse?.pdf,
+                payload.analyse?.originalName || payload.originalname || req.session.sharedFile?.originalname || "document.pdf",
+                req.session.email
+            );
+            const match = await ceesv.findUBSMatch(req.session.email, ceesvData);
+
+            if (match.trouve) {
+                await ceesv.updateCEESVUBS(req.session.email, match.ligne, uploaded.pdfUrl);
+                if (match.ligneUBS) {
+                    await sheets.deleteRow(req.session.email, match.ligneUBS);
+                }
+            } else {
+                await sheets.addDepense(
+                    req.session.email,
+                    convertDateCEESV(ceesvData.dateValeur),
+                    "UBS - Centrale d'encaissement",
+                    "",
+                    "",
+                    ceesvData.montantBanque,
+                    uploaded.pdfUrl,
+                    "RECETTE",
+                    "Import UBS"
+                );
+            }
+
+            return res.json({ success: true });
+        }
+
+        await ceesv.processCEESV({
+            ...payload,
+            email: req.session.email,
+            ceesv: payload.ceesv || payload.analyse?.ceesv,
+            analyse: payload.analyse || payload.depense?.analyse,
+            originalname: payload.originalname || payload.analyse?.originalname || req.session.sharedFile?.originalname || "",
+            commentaire: payload.commentaire ?? payload.depense?.commentaire ?? "",
+            duplicateAction: payload.duplicateAction ?? payload.mode
+        });
 
         res.json({
             success: true
@@ -902,7 +1011,7 @@ app.post(
     "/addDepenseAndImport",
     requireAuth,
     async (req, res) => {
-
+        console.log("addDepenseAndImport");
         try {
 
             const depense = req.body;
@@ -966,11 +1075,22 @@ app.post("/updateCEESVUBS", requireAuth, async (req, res) => {
 
     try {
 
+        const ligneCEESV = Number(req.body.ligne);
+        const ligneUBS = Number(req.body.ligneUBS);
+
         await ceesv.updateCEESVUBS(
             req.session.email,
-            req.body.ligne,
+            ligneCEESV,
             req.body.pdfUrl
         );
+
+        if (ligneUBS) {
+            console.log("[/updateCEESVUBS] suppression ligne UBS temporaire", ligneUBS);
+            await sheets.deleteRow(req.session.email, ligneUBS);
+            console.log("[/updateCEESVUBS] ligne UBS supprimée", ligneUBS);
+        } else {
+            console.warn("[/updateCEESVUBS] ligne UBS absente dans la requête");
+        }
 
         res.json({
             success: true
@@ -1029,6 +1149,7 @@ app.post("/deleteRow", requireAuth, async (req, res) => {
 
 app.post("/findCEESVMatch", requireAuth, async (req, res) => {
 
+    console.log("findCEESVMatch");
     try {
 
         const result =
@@ -1056,6 +1177,8 @@ app.post(
     requireAuth,
     upload.array("files"),
     async (req, res) => {
+
+        console.log("/api/import-auto-ceesv");
 
         const result = {
             ceesvImportes: 0,
@@ -1222,12 +1345,15 @@ app.post(
 
                         if (match.trouve) {
 
-
                             await ceesv.updateCEESVUBS(
                                 req.session.email,
                                 match.ligne,
                                 pdfUrl
                             );
+
+                            if (match.ligneUBS) {
+                                await sheets.deleteRow(req.session.email, match.ligneUBS);
+                            }
 
                             result.ubsRattaches++;
 
@@ -1332,15 +1458,14 @@ app.use((req, res, next) => {
 });
 
 
-app.post(
-    "/upload",
+app.post("/upload",
     requireAuth,
     upload.single("pdf"),
     async (req, res) => {
 
         try {
 
-            console.log("✅ PDF reçu");
+            console.log("✅ PDF reçu (Server)");
             //console.log('=== UPLOAD ===');
             //console.log(req.file);
 
@@ -1595,8 +1720,8 @@ app.post(
 //
 // FICHIERS UPLOADS
 //
-app.use(
-    "/uploads", requireAuth,
+app.use("/uploads",
+    requireAuth,
     express.static(
         path.join(
             __dirname,
@@ -1722,23 +1847,11 @@ app.get(
         const fileId =
             req.params.id;
 
-        const response =
-            await drive.files.get(
-                {
-                    fileId,
-                    alt: "media"
-                },
-                {
-                    responseType:
-                        "arraybuffer"
-                }
-            );
+        const pdf = await drive.downloadFile(req.session.email, fileId);
 
-        res.send(
-            Buffer.from(
-                response.data
-            )
-        );
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Cache-Control", "private, no-store");
+        res.send(pdf);
 
     }
 );
@@ -1752,26 +1865,16 @@ app.post(
             const fileId =
                 req.body.fileId;
 
+            const settings =
+                await sheets.getSettings(req.session.email);
             const folderTraites =
                 settings.GoogleDrive.FolderTraites;
 
-            const file =
-                await drive.files.get({
-                    fileId,
-                    fields: "parents"
-                });
-
-            await drive.files.update({
-
+            await drive.archiveFile(
+                req.session.email,
                 fileId,
-
-                addParents:
-                    folderTraites,
-
-                removeParents:
-                    file.data.parents.join(",")
-
-            });
+                folderTraites
+            );
 
             res.json({
                 success: true
@@ -2007,23 +2110,6 @@ app.post("/api/import-shared-file",
 
             }
 
-            /*const analyse =
-                req.body.analyse;
-
-            const fileName =
-                `${analyse.fournisseur}_${analyse.date}_${analyse.montant}_${sharedFile.originalname}`
-                    .replace(/[<>:"/\\|?*]/g, "")
-                    .replace(/\s+/g, "_");
-
-
-            const imported =
-                await importDocument(
-                    sharedFile.path,
-                    fileName,
-                    req.session.email
-                );*/
-
-
             const imported =
                 await importDocument(
                     sharedFile.path,
@@ -2141,6 +2227,8 @@ app.post(
     "/api/checkDuplicate",
     async (req, res) => {
 
+        console.log("route /api/checkDuplicate", req.body);
+
         const {
             date,
             fournisseur,
@@ -2178,15 +2266,11 @@ app.post(
             }
         );
 
-
-
         const multiLignes = [];
 
-        //const rowIndex =
         let rowIndex = -1;
-        //    rows.findIndex(row => {
-        rows.forEach((row, index) => {
 
+        rows.forEach((row, index) => {
 
             let fournisseurRecherche = normalizeFournisseur(fournisseur);
 
@@ -2202,9 +2286,6 @@ app.post(
             //console.log(row[0] + " ==" + date + " | " + row[1] + "/" + fournisseurLigne + " ==" + fournisseurRecherche + " | " + Math.abs(Number(String(row[4]).replace(",", "."))) + " ==" + Math.abs(Number(montant)));
             // CEESV : on doit distinguer Etat et Facture
             if (isCEESVRecherche) {
-
-                //console.log("check CEESV ligne :", fournisseurLigne, montantLigne, dateLigne);
-                //console.log("check CEESV search:", fournisseurRecherche, montantRecheche, dateNormalized);
 
                 if (
                     fournisseurLigne === fournisseurRecherche &&
