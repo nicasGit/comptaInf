@@ -1311,15 +1311,23 @@ tr:hover {
         border-radius: 10px;
     }
 
-    #lastOperationTable table {
-        font-size: 14px;
-        /* ou 15px */
+    .operations-table-wrapper {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    #lastOperationTable {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+        font-size: 13px;
     }
 
     #lastOperationTable th,
     #lastOperationTable td {
-        padding: 6px 8px;
-
+        padding: 6px 4px;
+        box-sizing: border-box;
     }
 
     #lastOperationTable th:nth-child(3),
@@ -1335,21 +1343,33 @@ tr:hover {
         display: none;
     }
 
-
     #lastOperationTable th:nth-child(1),
     #lastOperationTable td:nth-child(1) {
+        width: 28%;
         white-space: nowrap;
-        max-width: 22px;
+        overflow: hidden;
     }
 
-    #lastOperationTable td:nth-child(2),
-    #lastOperationTable th:nth-child(2) {
-
-        max-width: 45px;
+    #lastOperationTable th:nth-child(2),
+    #lastOperationTable td:nth-child(2) {
+        width: 42%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
 
+    #lastOperationTable th:nth-child(5),
+    #lastOperationTable td:nth-child(5) {
+        width: 24%;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    #lastOperationTable th:nth-child(7),
+    #lastOperationTable td:nth-child(7) {
+        width: 6%;
+        text-align: center;
     }
 
 
@@ -1489,7 +1509,7 @@ tr:hover {
 }
 
 .pdf-preview canvas {
-   max-width: none;
+    max-width: none;
 }
 
 /* =========================
