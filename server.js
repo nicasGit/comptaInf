@@ -1,8 +1,25 @@
 //server.js
 console.log("Starting Server ComptaInf....");
-let DEV_BYPASS_LOGIN = true;
-let DEV_AUTOLOGIN_LOCAL = true;
-let DEV_SHARE_SIMULATE = false;
+function envFlag(name, defaultValue = false) {
+    const value = process.env[name];
+    if (value === undefined || value === "") return defaultValue;
+    return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", true);
+let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", true);
+let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", false);
+
+function isLocalRequest(req) {
+    const hostname = String(req.hostname || "")
+        .toLowerCase()
+        .replace(/^\[|\]$/g, "");
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function devFeatureEnabled(req, flag) {
+    return isLocalRequest(req) && flag;
+}
 const packageJson = require("./package.json");
 
 const express = require("express");
@@ -110,11 +127,9 @@ function requireAuth(
     next
 ) {
 
-    const isLocalhost =
-        req.hostname === "localhost" ||
-        req.hostname === "127.0.0.1";
+    const isLocalhost = isLocalRequest(req);
 
-    if (DEV_AUTOLOGIN_LOCAL &&
+    if (devFeatureEnabled(req, DEV_AUTOLOGIN_LOCAL) &&
         !req.session?.email &&
         isLocalhost
     ) {
@@ -313,9 +328,7 @@ app.get("/google-user", (req, res) => {
     }
 
 
-    const isLocalhost =
-        req.hostname === "localhost" ||
-        req.hostname === "127.0.0.1";
+    const isLocalhost = isLocalRequest(req);
 
     if (req.session?.email === DEV_USER && isLocalhost) {
 
@@ -336,7 +349,7 @@ app.get("/google-user", (req, res) => {
 
 app.get("/login", (req, res) => {
 
-    if (DEV_BYPASS_LOGIN) {
+    if (devFeatureEnabled(req, DEV_BYPASS_LOGIN)) {
 
         req.session.email =
             "nicolas.jollois@gmail.com";
@@ -483,7 +496,7 @@ function redirectAfterLogin(req, res) {
             return res.redirect("/share.html");
         }
 
-        if (DEV_SHARE_SIMULATE) {
+        if (devFeatureEnabled(req, DEV_SHARE_SIMULATE)) {
 
             console.log("📱 Share Simulate");
 
