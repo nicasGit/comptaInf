@@ -420,6 +420,20 @@ function buildDepense(driveUrl) {
 }
 
 
+async function refreshOperationAnalysis() {
+    if (!currentFile) {
+        showToast("⚠️ Aucun fichier à analyser", "warning");
+        return;
+    }
+
+    currentWorkflowId = null;
+    currentWorkflowDuplicate = null;
+    duplicateAction = null;
+    duplicateRow = null;
+
+    await showFile(currentFile);
+}
+
 async function showFile(file, analyseExistante = null) {
 
     let action = "";
