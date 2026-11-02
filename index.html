@@ -68,7 +68,7 @@
                         <span class="label">Dépenses</span>
                     </a>
 
-                    <a href="">
+                    <a href="#" onclick="loadMileage(); return false;">
                         <span class="icon">🚗</span>
                         <span class="label">Frais kilométriques</span>
                     </a>
@@ -142,7 +142,8 @@
                         🧩
                     </span>
 
-                    <span onclick="refreshOperationAnalysis()" title="Relancer l'analyse OCR et le contrôle des doublons">
+                    <span onclick="refreshOperationAnalysis()"
+                        title="Relancer l'analyse OCR et le contrôle des doublons">
                         🔄
                     </span>
 
@@ -275,6 +276,15 @@
                             <div id="ocrMontants" class="ocr-suggestions">
                             </div>
 
+                    </div>
+
+                    <div class="form-group" id="litresGroup" style="display:none;">
+                        <label>Quantités de carburant</label>
+                        <div id="ocrLitres"></div>
+                        <button type="button" class="btn" onclick="addManualLitresInput()"
+                            style="margin-top:8px; padding:6px 12px;">
+                            + Ajouter un plein
+                        </button>
                     </div>
 
                     <div class="form-group" id="commentaireGroup">
@@ -431,6 +441,11 @@
 
                     <input type="text" id="settingExercice" readonly>
 
+                </div>
+
+                <div class="form-group">
+                    <label for="mileageConsumptionSetting">Consommation (L/100 km)</label>
+                    <input type="number" id="mileageConsumptionSetting" min="0.1" step="0.1" value="7.3">
                 </div>
 
                 <div id="environmentInfo" class="info-box">
@@ -659,6 +674,7 @@
     <script src="js/categorie.js"></script>
     <script src="js/fournisseur.js"></script>
     <script src="js/navigation.js"></script>
+    <script src="js/mileage.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <script src="js/pdf-preview.js"></script>

@@ -45,7 +45,7 @@ function getSheets() {
 }
 
 
-async function addDepense(email, date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "") {
+async function addDepense(email, date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "", litres = "") {
 
     // console.log("sheet addDepense")
 
@@ -67,29 +67,38 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
     const dateNormalized = convertDate(date);
     console.log("sheets date=" + dateNormalized);
 
-    await sheets.spreadsheets.values.append({
+    const existing = await sheets.spreadsheets.values.get({
         spreadsheetId: getSpreadsheetId(email),
-        range: "DEPENSES!A:M",
+        range: "DEPENSES!A:A"
+    });
+    const rows = existing.data.values || [];
+    const rowNumber = rows.length + 1;
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: getSpreadsheetId(email),
+        range: `DEPENSES!A${rowNumber}:N${rowNumber}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
-            values: [
-                [
-                    dateNormalized,
-                    fournisseur,
-                    categorie,
-                    compte,
-                    montantFinal,
-                    pdf,
-                    operationType,
-                    commentaire,
-                    justifBanque,
-                    "",
-                    now
-                ]
-            ]
+            values: [[
+                dateNormalized,
+                fournisseur,
+                categorie,
+                compte,
+                montantFinal,
+                pdf,
+                operationType,
+                commentaire,
+                justifBanque,
+                "",
+                now,
+                "",
+                "",
+                litres
+            ]]
         }
     });
     console.log("✅ Dépense ajoutée " + operationType + "  " + fournisseur + " " + montantFinal + " " + dateNormalized);
+    return { row: rowNumber };
 }
 
 async function updateOperation(email, rowNumber, operation) {
@@ -151,7 +160,7 @@ async function getData(email) {
     const response =
         await sheetsApi.spreadsheets.values.get({
             spreadsheetId: getSpreadsheetId(email),
-            range: "DEPENSES!A:M"
+            range: "DEPENSES!A:N"
         });
 
     return response.data.values || [];

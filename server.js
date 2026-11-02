@@ -949,9 +949,64 @@ async function saveDepense(email, depense) {
         depense.pdf,
         depense.operationType,
         depense.commentaire,
-        depense.justifBanque
+        depense.justifBanque,
+        depense.litres || ""
     );
 }
+
+//
+// FRAIS KILOMETRIQUES
+//
+app.post("/api/mileage", requireAuth, async (req, res) => {
+    try {
+        const distance = Number(req.body.distance);
+        const fullTankPrice = Number(req.body.fullTankPrice);
+        const tankCapacity = Number(req.body.tankCapacity ?? 45);
+        const consumption = Number(req.body.consumption ?? 7.3);
+
+        if (!req.body.date || !Number.isFinite(distance) || distance <= 0) {
+            return res.status(400).json({ success: false, error: "Distance invalide" });
+        }
+        if (!Number.isFinite(fullTankPrice) || fullTankPrice <= 0) {
+            return res.status(400).json({ success: false, error: "Prix du plein invalide" });
+        }
+        if (!Number.isFinite(tankCapacity) || tankCapacity <= 0 || !Number.isFinite(consumption) || consumption <= 0) {
+            return res.status(400).json({ success: false, error: "Paramètres du véhicule invalides" });
+        }
+
+        const litresFromInvoice = Array.isArray(req.body.litres)
+            ? req.body.litres.map(Number).filter(value => Number.isFinite(value) && value > 0)
+            : [];
+        const litres = litresFromInvoice.length > 0
+            ? litresFromInvoice.reduce((sum, value) => sum + value, 0)
+            : distance / 100 * consumption;
+        const amount = litres * fullTankPrice / tankCapacity;
+        const categories = await sheets.getCategories(req.session.email);
+        const compte = categories["Frais Véhicule"]?.compte || "";
+        const litresRounded = litres.toFixed(2).replace(".", ",");
+        const litresDetail = litresFromInvoice.length
+            ? ` - pleins enregistrés ${litresFromInvoice.map(value => String(value).replace(".", ",")).join(" + ")} L`
+            : "";
+
+        await saveDepense(req.session.email, {
+            date: req.body.date,
+            fournisseur: "Volenery BP",
+            categorie: "Frais Véhicule",
+            compte,
+            montant: amount.toFixed(2),
+            pdf: "",
+            operationType: "DEPENSE",
+            commentaire: `${distance.toLocaleString("fr-CH")} km - ${litresRounded} L${litresDetail} - conso ${String(consumption).replace(".", ",")} L/100 km - plein ${tankCapacity} L pour ${fullTankPrice.toFixed(2).replace(".", ",")} CHF`,
+            justifBanque: "",
+            litres: litresFromInvoice.join("|")
+        });
+
+        res.json({ success: true, amount, litres });
+    } catch (err) {
+        console.error("Erreur frais kilométriques :", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 //
 // AJOUT DEPENSE
@@ -1253,16 +1308,43 @@ app.post(
                         analyse.ceesv;
 
                     if (!analyseCeesv) {
+                        const date = analyse.date;
+                        const montant = analyse.montant;
+                        const fournisseur = analyse.fournisseur;
 
-                        result.erreurs.push({
-                            fichier:
-                                file.originalname,
-                            erreur:
-                                "CEESV non reconnu"
-                        });
+                        if (!date || montant == null || !fournisseur) {
+                            result.erreurs.push({
+                                fichier: file.originalname,
+                                erreur: "Document non exploitable (date, montant ou fournisseur manquant)"
+                            });
+                            continue;
+                        }
 
+                        const fileName = [
+                            String(fournisseur).replace(/[<>:"/\\|?*]/g, " ").replace(/\s+/g, " ").trim(),
+                            String(date).replace(/[<>:"/\\|?*]/g, "-"),
+                            Number(montant).toFixed(2),
+                            file.originalname
+                        ].join("_");
+                        const imported = await importDocument(file.path, fileName, req.session.email);
+                        const litres = Array.isArray(analyse.litres) ? analyse.litres.join("|") : "";
+
+                        await sheets.addDepense(
+                            req.session.email,
+                            date,
+                            fournisseur,
+                            analyse.categorie || "",
+                            analyse.compte || "",
+                            montant,
+                            imported.pdfUrl,
+                            analyse.operationType || analyse.type || "DEPENSE",
+                            analyse.description || "",
+                            "",
+                            litres
+                        );
+                        result.facturesImportees = (result.facturesImportees || 0) + 1;
+                        console.log("✅ Facture importée", fournisseur, litres);
                         continue;
-
                     }
 
                     //
@@ -1599,6 +1681,18 @@ app.post(
                 "Environment",
                 req.body.environment
             );
+
+            if (req.body.mileageConsumption != null) {
+                const consumption = Number(String(req.body.mileageConsumption).replace(',', '.'));
+                if (!Number.isFinite(consumption) || consumption <= 0) {
+                    return res.status(400).json({ success: false, error: "Consommation invalide" });
+                }
+                await sheets.saveSetting(
+                    req.session.email,
+                    "MileageConsumption",
+                    String(consumption)
+                );
+            }
 
             res.json({
                 success: true

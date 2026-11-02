@@ -7,6 +7,7 @@ let currentWorkflowId = null;
 let currentWorkflowDuplicate = null;
 let currentOCRText = "";
 let currentOCRRules = [];
+let currentOCRLitres = [];
 currentWorkflowId = null;
 currentWorkflowDuplicate = null;
 function openDepense() {
@@ -38,6 +39,11 @@ function openDepense() {
     document.getElementById("ocrDates").innerHTML = "";
 
     document.getElementById("ocrMontants").innerHTML = "";
+    const litresGroup = document.getElementById("litresGroup");
+    const litresContainer = document.getElementById("ocrLitres");
+    currentOCRLitres = [];
+    if (litresGroup) litresGroup.style.display = "none";
+    if (litresContainer) litresContainer.innerHTML = "";
 
 
     // Réinitialisation fichier
@@ -415,7 +421,11 @@ function buildDepense(driveUrl) {
 
         pdf: driveUrl,
 
-        operationType
+        operationType,
+        litres: (() => {
+            syncManualLitres();
+            return currentOCRLitres.join("|");
+        })()
     };
 }
 
@@ -1060,6 +1070,58 @@ function analyseOCRContext(data) {
     };
 }
 
+function isVolenerySupplier() {
+    const supplier = document.getElementById("depFournisseur")?.value || "";
+    return /volenery/i.test(supplier);
+}
+
+function syncManualLitres() {
+    const container = document.getElementById("ocrLitres");
+    if (!container) return;
+    currentOCRLitres = [...container.querySelectorAll("input[data-litres-index]")]
+        .map(input => Number(String(input.value).replace(/ /g, "").replace(",", ".")))
+        .filter(value => Number.isFinite(value) && value > 0);
+}
+
+function renderLitresEditor() {
+    const group = document.getElementById("litresGroup");
+    const container = document.getElementById("ocrLitres");
+    if (!group || !container) return;
+
+    if (!isVolenerySupplier()) {
+        group.style.display = "none";
+        return;
+    }
+
+    const values = currentOCRLitres.length > 0 ? currentOCRLitres : [null];
+    group.style.display = "block";
+    container.innerHTML = values.map((quantity, index) => {
+        const value = quantity == null ? "" : Number(quantity).toFixed(2).replace(".", ",");
+        return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <label style="min-width:65px; margin:0;">Plein ${index + 1}</label>
+            <input type="text" data-litres-index="${index}" inputmode="decimal"
+                value="${value}" placeholder="Ex. 46,35"
+                oninput="this.value=this.value.replace(/[^0-9,.]/g, '').replace(/,/g,'.'); syncManualLitres();"
+                style="max-width:140px; margin:0;">
+            <span>L</span>
+        </div>`;
+    }).join("");
+}
+
+function addManualLitresInput() {
+    syncManualLitres();
+    currentOCRLitres.push("");
+    renderLitresEditor();
+}
+
+function applyLitres(data) {
+    const litres = Array.isArray(data?.litres)
+        ? data.litres
+        : data?.voleneryFuel?.litres || [];
+    currentOCRLitres = litres.map(value => Number(value)).filter(value => Number.isFinite(value) && value > 0);
+    renderLitresEditor();
+}
+
 function openOperationWithData(data, ouvrirModal = true) {
 
     if (ouvrirModal) {
@@ -1073,6 +1135,7 @@ function openOperationWithData(data, ouvrirModal = true) {
     applyMontants(data, contexte);
     applyDates(data, contexte);
     applyCEESV(data, contexte);
+    applyLitres(data);
 }
 
 
@@ -1751,6 +1814,7 @@ async function startImportCEESV() {
 
         showToast(
             `
+  ✅ ${result.facturesImportees || 0} factures importées<br>
   ✅ ${result.ceesvImportes || 0} CEESV détectés<br>
   ✅ ${result.ubsRattaches || 0} UBS détectés<br>
   ✅ ${result.ubsStandby || 0} UBS en attente<br>
@@ -2196,6 +2260,8 @@ function initFournisseurEvents() {
             updateCategorieFromFournisseur();
 
             updateMemorisationFournisseur();
+            syncManualLitres();
+            renderLitresEditor();
 
         }
     );

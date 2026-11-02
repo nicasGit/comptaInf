@@ -104,7 +104,8 @@ async function executionStep(workflow) {
                     uploaded.pdfUrl,
                     workflow.normalized.metadata.operationType || "DEPENSE",
                     workflow.document.commentaire || "",
-                    ""
+                    "",
+                    workflow.document.litres || ""
                 );
 
                 workflow.execution.sheetRow = rowResult?.row || null;
@@ -157,7 +158,8 @@ async function executionStep(workflow) {
                 uploaded.pdfUrl,
                 workflow.normalized.metadata.operationType || "DEPENSE",
                 workflow.document.commentaire || "",
-                ""
+                "",
+                workflow.document.litres || ""
             );
 
             workflow.execution.sheetRow = rowResult?.row || null;

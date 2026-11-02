@@ -91,11 +91,10 @@ async function readCorruptedPdf(pdfPath) {
         "ocr"
     );
 
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, {
-            recursive: true
-        });
+    if (fs.existsSync(outputDir)) {
+        fs.rmSync(outputDir, { recursive: true, force: true });
     }
+    fs.mkdirSync(outputDir, { recursive: true });
 
     const images = await pdfToImages(pdfPath, outputDir);
 
@@ -547,6 +546,97 @@ function extractNbFactures(texte) {
         ? parseInt(match[1], 10)
         : null;
 }
+function extractVoleneryFuelData(text) {
+    const source = String(text || "");
+    const summaryIndex = source.search(/\b(?:Résumé|Aperçu|Récap\.?\s*TVA)\b/i);
+    const detailText = summaryIndex >= 0 ? source.slice(0, summaryIndex) : source;
+    const summaryText = summaryIndex >= 0 ? source.slice(summaryIndex) : "";
+    const lines = detailText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const fuelRows = [];
+
+    lines.forEach(line => {
+        if (!/\b\d{2}[./-]\d{2}[./-]\d{4}\b/.test(line)) return;
+        if (!/BP\s+Station|sans\s+plomb|carburant|essence|diesel/i.test(line)) return;
+        if (/remise|réduction|directe/i.test(line)) return;
+
+        const cleaned = line
+            .replace(/\b\d{2}[./-]\d{2}[./-]\d{4}\b/g, " ")
+            .replace(/\b\d{1,2}:\d{2}\b/g, " ");
+
+        const decimals = [...cleaned.matchAll(/\b\d{1,3}[,.]\d{2,3}\b/g)].map(match => match[0]);
+        const decimalValues = decimals.map(value => Number(value.replace(',', '.')));
+        const litresIndex = decimalValues.findIndex(value => value >= 20 && value <= 100);
+        if (litresIndex >= 0) {
+            const litres = decimalValues[litresIndex];
+            const following = decimalValues.slice(litresIndex + 1);
+            const prixAuLitre = following.find(value => value >= 0.5 && value <= 5);
+            const montant = following.find(value => value >= 5 && value <= 500 && value !== prixAuLitre);
+            if (prixAuLitre != null && montant != null) {
+                fuelRows.push({ article: "Sans plomb 95", litres, prixAuLitre, montant });
+                return;
+            }
+        }
+
+        const numericValues = [...cleaned.matchAll(/\b\d{1,3}[,.]\d{2,3}\b/g)].map(match => Number(match[0].replace(',', '.')));
+        const unitPrices = numericValues.filter(value => value >= 0.5 && value <= 5);
+        const possibleAmounts = numericValues.filter(value => value >= 5 && value <= 500);
+        if (unitPrices.length === 0 && possibleAmounts.length === 1) {
+            const knownPrices = [];
+            lines.slice(0, Math.max(0, lines.indexOf(line))).concat(lines.slice(lines.indexOf(line) + 1)).forEach(otherLine => {
+                [...otherLine.matchAll(/\b([0-9]{1}[,.][0-9]{2})\b/g)].forEach(match => {
+                    const value = Number(match[1].replace(',', '.'));
+                    if (value >= 0.5 && value <= 5) knownPrices.push(value);
+                });
+            });
+            const candidates = [];
+            const expectedPrices = knownPrices.concat(knownPrices.map(price => Number((price - 0.05).toFixed(2))));
+            expectedPrices.forEach((price, priceIndex) => {
+                const litres = Number((possibleAmounts[0] / price).toFixed(2));
+                const recoveredPrice = possibleAmounts[0] / litres;
+                if (litres >= 20 && litres <= 100 && Math.abs(recoveredPrice - price) <= 0.15) {
+                    candidates.push({ litres, recoveredPrice, preference: priceIndex });
+                }
+            });
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => b.preference - a.preference || b.litres - a.litres);
+                fuelRows.push({ article: "Sans plomb 95", litres: candidates[0].litres, montant: possibleAmounts[0], prixAuLitre: candidates[0].recoveredPrice, recovered: true });
+                return;
+            }
+        }
+
+        const compact = [...cleaned.matchAll(/\b\d{3,4}\b/g)].map(match => match[0]);
+        const litresTokenIndex = compact.findIndex(value => Number(value) >= 2000 && Number(value) <= 10000);
+        if (litresTokenIndex < 0) return;
+        const litres = Number(compact[litresTokenIndex]) / 100;
+        const prixAuLitre = Number(compact[litresTokenIndex + 1]) / 100;
+        const montant = Number(compact[litresTokenIndex + 2]) / 100;
+        if (litres >= 20 && litres <= 100 && prixAuLitre >= 0.5 && prixAuLitre <= 5 && montant >= 5 && montant <= 500) {
+            fuelRows.push({ article: "Sans plomb 95", litres, prixAuLitre, montant });
+        }
+    });
+
+    const summaryMatch = summaryText.match(/Sans\s+plomb\s*95\s+(\d{2}[,.]\d{2})/i);
+    if (summaryMatch && fuelRows.length > 0) {
+        const summaryLitres = Number(summaryMatch[1].replace(',', '.'));
+        const knownLitres = fuelRows.reduce((sum, row) => sum + row.litres, 0);
+        const missingLitres = Number((summaryLitres - knownLitres).toFixed(2));
+        if (missingLitres >= 20 && missingLitres <= 100 && !fuelRows.some(row => Math.abs(row.litres - missingLitres) < 0.01)) {
+            fuelRows.push({ article: "Sans plomb 95", litres: missingLitres, inferredFromSummary: true });
+        }
+    }
+
+    const uniqueRows = [];
+    fuelRows.forEach(row => {
+        if (!uniqueRows.some(candidate => Math.abs(candidate.litres - row.litres) < 0.005)) uniqueRows.push(row);
+    });
+
+    return {
+        litres: uniqueRows.map(row => row.litres),
+        lignes: uniqueRows,
+        fournisseurFacture: /BP\s+Station|Volenery/i.test(source) ? "Volenery BP" : null
+    };
+}
+
 function extractFournisseurOld(text) {
 
     const fournisseurs = [
@@ -1146,17 +1236,17 @@ async function analyseDocument(
         const texteCorrompu =
             /[\uE000-\uF8FF]/.test(text);
 
-        if (texteCorrompu) {
+        const pdfProbablementImage = text.trim().length < 40;
 
-            console.log(
-                "⚠️ PDF avec glyphes privés"
+        if (texteCorrompu || pdfProbablementImage) {
+
+            console.log(pdfProbablementImage
+                ? "⚠️ PDF sans texte exploitable, OCR par image"
+                : "⚠️ PDF avec glyphes privés"
             );
 
-            text = await readCorruptedPdf(
-                filePath
-            );
-            // console.log("extractMontants=" + extractMontants(text));
-            // console.log("extractDates=" + extractDates(text));
+            text = await readCorruptedPdf(filePath);
+            console.log(`[OCR PDF] ${text.length} caractères extraits par image`);
 
         }
 
@@ -1222,6 +1312,14 @@ async function analyseDocument(
 
     }
 
+    if (/Volenery|BP\s+(?:Station\s+)?Savigny/i.test(text)) {
+        fournisseur = "Volenery BP";
+        matchedRules.push({
+            nom: "⛽ Fournisseur BP détecté sur le document Volenery",
+            regex: "Volenery|BP Station Savigny"
+        });
+    }
+
     //replace with variable from rules
     fournisseur =
         replaceVariables(
@@ -1258,6 +1356,7 @@ async function analyseDocument(
     // console.log("montant normalisé =", montant);
 
     const type = detectDocumentType(text);
+    const voleneryFuel = extractVoleneryFuelData(text);
 
     return {
 
@@ -1283,6 +1382,8 @@ async function analyseDocument(
         montant,
 
         ocrVariables,
+        litres: voleneryFuel.litres,
+        voleneryFuel,
 
         ceesv:
             extractCEESVData(text),

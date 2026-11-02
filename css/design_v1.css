@@ -494,7 +494,8 @@ tr:hover {
 
     padding: 4px 20px 4px 24px;
 
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* =========================
@@ -987,6 +988,10 @@ tr:hover {
     .modal-body {
         flex-direction: column;
         overflow: auto;
+    }
+
+    .modal-form {
+        overflow-y: visible;
     }
 
     .modal-form {

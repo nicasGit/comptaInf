@@ -62,7 +62,8 @@ async function analyseDocument(workflow) {
         reference: result.reference || result.ceesv?.reference || null,
         compte: result.compte || null,
         categorie: result.categorie || null,
-        description: workflow.input.name || null
+        description: workflow.input.name || null,
+        litres: Array.isArray(result.litres) ? result.litres.join("|") : ""
     };
 
     workflow.normalized.metadata.operationType = result.operationType || result.type || null;

@@ -1,0 +1,38 @@
+<div class="page-header">
+    <h2>Frais kilométriques</h2>
+</div>
+
+<div class="card mileage-history-card">
+    <h3>Frais kilométriques déjà enregistrés</h3>
+    <div class="mileage-history-summary">
+        <div><span>Consommation</span><strong id="mileageSavedCount">0 L/100 km</strong></div>
+        <div><span>Distance</span><strong id="mileageSavedDistance">0,0 km</strong></div>
+        <div><span>Carburant</span><strong id="mileageSavedLitres">0,00 L</strong></div>
+        <div><span>Total</span><strong id="mileageSavedAmount">0,00 CHF</strong></div>
+    </div>
+    <div class="mileage-history-table-wrapper">
+        <table class="mileage-history-table">
+            <thead>
+                <tr><th>Date</th><th>Distance</th><th>Carburant</th><th>Montant</th></tr>
+            </thead>
+            <tbody id="mileageSavedExpenses"></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .mileage-card, .mileage-history-card { max-width: 760px; }
+    .mileage-history-card { margin-top: 20px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .mileage-summary, .mileage-invoice-recap { margin-top: 20px; padding: 16px; border-radius: 8px; background: var(--bg-secondary, #f5f5f5); display: grid; gap: 8px; }
+    .mileage-invoice-recap { background: var(--bg-info, #eef6ff); }
+    .mileage-total { font-size: 18px; padding-top: 8px; }
+    .mileage-history-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .mileage-history-summary div { padding: 12px; border-radius: 8px; background: var(--bg-secondary, #f5f5f5); display: grid; gap: 4px; }
+    .mileage-history-table-wrapper { overflow-x: auto; }
+    .mileage-history-table { width: 100%; border-collapse: collapse; }
+    .mileage-history-table th, .mileage-history-table td { padding: 9px 8px; border-bottom: 1px solid var(--border-color, #ddd); text-align: left; }
+    .mileage-fuel-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .mileage-fuel-list span { padding: 5px 10px; border-radius: 12px; background: #fff; border: 1px solid #d6dde5; }
+    @media (max-width: 600px) { .form-grid, .mileage-history-summary { grid-template-columns: 1fr; } }
+</style>

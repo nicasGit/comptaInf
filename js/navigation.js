@@ -375,6 +375,15 @@ async function openSettings() {
     ).value =
         envData.environment;
 
+    const settingsResponse = await fetch("/settings");
+    if (settingsResponse.ok) {
+        const settings = await settingsResponse.json();
+        const consumption = Number(String(settings.MileageConsumption || "7.3").replace(',', '.'));
+        document.getElementById("mileageConsumptionSetting").value = Number.isFinite(consumption) && consumption > 0
+            ? consumption
+            : 7.3;
+    }
+
     document.getElementById(
         "modalSettings"
     ).style.display = "flex";
@@ -415,7 +424,17 @@ async function saveSettings() {
     const result =
         await response.json();
 
-    if (result.success) {
+    const settingsResponse = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            environment,
+            mileageConsumption: document.getElementById("mileageConsumptionSetting").value
+        })
+    });
+    const settingsResult = await settingsResponse.json();
+
+    if (result.success && settingsResult.success) {
 
         const badge =
             document.getElementById(
