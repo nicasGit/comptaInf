@@ -5,27 +5,29 @@
     </div>
 
     <div class="stats-grid">
-
-        <div class="stat-card">
-            <div class="stat-value" id="statRecettes">0 CHF</div>
-            <div class="stat-label">Recettes</div>
+        <div class="stat-card stat-card-recettes">
+            <div class="stat-icon">↗</div><div><div class="stat-value" id="statRecettes">0 CHF</div><div class="stat-label">Recettes</div></div>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-value" id="statDepenses">0 CHF</div>
-            <div class="stat-label">Dépenses</div>
+        <div class="stat-card stat-card-depenses">
+            <div class="stat-icon">↘</div><div><div class="stat-value" id="statDepenses">0 CHF</div><div class="stat-label">Dépenses</div></div>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-value" id="statResultat">0 CHF</div>
-            <div class="stat-label">Résultat</div>
+        <div class="stat-card stat-card-resultat">
+            <div class="stat-icon">Σ</div><div><div class="stat-value" id="statResultat">0 CHF</div><div class="stat-label">Résultat net</div></div>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-value" id="statOperations">0</div>
-            <div class="stat-label">Opérations</div>
+        <div class="stat-card stat-card-operations">
+            <div class="stat-icon">#</div><div><div class="stat-value" id="statOperations">0</div><div class="stat-label">Opérations</div></div>
         </div>
+    </div>
 
+    <div class="stats-toolbar">
+        <label>Période
+            <select id="statsPeriod">
+                <option value="all">Toute la période</option>
+                <option value="12">12 derniers mois</option>
+                <option value="6">6 derniers mois</option>
+                <option value="3">3 derniers mois</option>
+            </select>
+        </label>
     </div>
 
     <div class="stats-row">
@@ -42,17 +44,15 @@
 
     </div>
 
-    <div class="card">
-        <h3>📈 Evolution mensuelle</h3>
-        <canvas id="statsChart" width="800" height="300">
-        </canvas>
-
-    </div>
-
-
-    <div class="stats-panel">
-        <h3>📅 Evolution mensuelle</h3>
-        <div id="statsMois"></div>
+    <div class="stats-evolution-grid">
+        <div class="stats-panel stats-chart-panel">
+            <div class="stats-panel-header"><h3>📈 Évolution mensuelle</h3><div class="stats-legend"><span class="legend-income">Recettes</span><span class="legend-expense">Dépenses</span></div></div>
+            <canvas id="statsChart" width="900" height="320"></canvas>
+        </div>
+        <div class="stats-panel stats-month-panel">
+            <h3>📅 Détail mensuel</h3>
+            <div id="statsMois"></div>
+        </div>
     </div>
 
 

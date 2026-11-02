@@ -1,352 +1,168 @@
 async function initStats() {
-
     showLoader();
-
     try {
+        const response = await fetch("/api/depenses");
+        const rows = await response.json();
+        if (!Array.isArray(rows) || rows.length < 2) return;
 
-        const response =
-            await fetch("/api/depenses");
+        const operations = rows.slice(1).map(row => ({
+            date: row[0] || "",
+            fournisseur: row[1] || "Inconnu",
+            categorie: row[2] || "Sans catégorie",
+            montant: statsNumber(row[4]),
+            pdf: row[5] || ""
+        })).filter(op => op.date && Number.isFinite(op.montant));
 
-        //const operations =
-        //    await response.json();
-        const rows =
-            await response.json();
-
-        const headers = rows[0];
-
-        const operations =
-            rows.slice(1).map(row => {
-
-                const obj = {};
-
-                headers.forEach((header, index) => {
-
-                    obj[header] = row[index];
-
-                });
-
-                return obj;
-
-            });
-
-        console.log(operations);
-        console.table(operations);
-
-        //console.log("OPERATIONS =", operations);
-        //console.table(operations);
-
-        let recettes = 0;
-        let depenses = 0;
-
-        const categories = {};
-        const fournisseurs = {};
-        const mois = {};
-
-        operations.forEach(op => {
-
-            const montant =
-                parseFloat(
-                    (op.Montant || "0")
-                        .replace(",", ".")
-                );
-
-            const categorie =
-                op.Categorie ||
-                op.categorie ||
-                "Sans catégorie";
-
-            const fournisseur =
-                op.Fournisseur ||
-                op.fournisseur ||
-                "Inconnu";
-
-            const date =
-                op.Date ||
-                op.date;
-
-            if (montant >= 0) {
-                recettes += montant;
-            } else {
-                depenses += Math.abs(montant);
-
-                categories[categorie] =
-                    (categories[categorie] || 0)
-                    + Math.abs(montant);
-            }
-
-            fournisseurs[fournisseur] =
-                (fournisseurs[fournisseur] || 0)
-                + Math.abs(montant);
-
-            if (date) {
-
-                const moisKey =
-                    date.substring(0, 7);
-
-                mois[moisKey] =
-                    (mois[moisKey] || 0)
-                    + montant;
-            }
-
-        });
-
-        document.getElementById(
-            "statRecettes"
-        ).textContent =
-            recettes.toFixed(2) + " CHF";
-
-        document.getElementById(
-            "statDepenses"
-        ).textContent =
-            depenses.toFixed(2) + " CHF";
-
-        document.getElementById(
-            "statResultat"
-        ).textContent =
-            (recettes - depenses).toFixed(2) + " CHF";
-
-        document.getElementById(
-            "statOperations"
-        ).textContent =
-            operations.length;
-
-        renderTop(
-            "statsCategories",
-            categories,
-            10
-        );
-
-        renderTop(
-            "statsFournisseurs",
-            fournisseurs,
-            10
-        );
-
-        renderMois(mois);
-        renderChart(mois);
-
-    }
-    finally {
-
+        window.statsOperations = operations;
+        document.getElementById("statsPeriod")?.addEventListener("change", () => renderStatsPeriod());
+        renderStatsPeriod();
+    } finally {
         hideLoader();
     }
+}
 
+function statsNumber(value) {
+    return Number(String(value ?? "0").replace(/\s/g, "").replace("'", "").replace(/,/g, "."));
+}
+
+function statsMonthKey(value) {
+    const text = String(value || "").trim();
+    const swiss = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (swiss) return `${swiss[3]}-${swiss[2].padStart(2, "0")}`;
+    const iso = text.match(/^(\d{4})-(\d{2})/);
+    return iso ? `${iso[1]}-${iso[2]}` : "";
+}
+
+function renderStatsPeriod() {
+    const operations = window.statsOperations || [];
+    const period = document.getElementById("statsPeriod")?.value || "all";
+    let visible = operations;
+    if (period !== "all") {
+        const monthKeys = [...new Set(operations.map(op => statsMonthKey(op.date)).filter(Boolean))].sort();
+        const selected = new Set(monthKeys.slice(-Number(period)));
+        visible = operations.filter(op => selected.has(statsMonthKey(op.date)));
+    }
+
+    let recettes = 0;
+    let depenses = 0;
+    const categories = {};
+    const fournisseurs = {};
+    const monthly = {};
+
+    visible.forEach(op => {
+        const month = statsMonthKey(op.date);
+        if (!monthly[month]) monthly[month] = { recettes: 0, depenses: 0, resultat: 0 };
+        if (op.montant >= 0) {
+            recettes += op.montant;
+            monthly[month].recettes += op.montant;
+        } else {
+            depenses += Math.abs(op.montant);
+            monthly[month].depenses += Math.abs(op.montant);
+            categories[op.categorie] = (categories[op.categorie] || 0) + Math.abs(op.montant);
+        }
+        fournisseurs[op.fournisseur] = (fournisseurs[op.fournisseur] || 0) + Math.abs(op.montant);
+        monthly[month].resultat += op.montant;
+    });
+
+    document.getElementById("statRecettes").textContent = statsMoney(recettes);
+    document.getElementById("statDepenses").textContent = statsMoney(depenses);
+    const resultat = recettes - depenses;
+    const resultatElement = document.getElementById("statResultat");
+    resultatElement.textContent = statsMoney(resultat);
+    resultatElement.classList.toggle("negative", resultat < 0);
+    document.getElementById("statOperations").textContent = visible.length.toLocaleString("fr-FR");
+    renderTop("statsCategories", categories, 8);
+    renderTop("statsFournisseurs", fournisseurs, 8);
+    renderMois(monthly);
+    renderChart(monthly);
+}
+
+function statsMoney(value) {
+    return `${value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CHF`;
 }
 
 
 function renderChart(source) {
+    const canvas = document.getElementById("statsChart");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const entries = Object.entries(source).sort();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!entries.length) return;
 
-    const canvas =
-        document.getElementById(
-            "statsChart"
-        );
+    const left = 62, right = 20, top = 25, bottom = 45;
+    const chartWidth = canvas.width - left - right;
+    const chartHeight = canvas.height - top - bottom;
+    const values = entries.flatMap(([, totals]) => [totals.recettes, totals.depenses]);
+    const maximum = Math.max(...values, 1);
+    const roundedMaximum = Math.ceil(maximum / 1000) * 1000 || maximum;
 
-    if (!canvas) {
-        return;
+    ctx.font = "12px Arial";
+    ctx.fillStyle = "#6b7280";
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.lineWidth = 1;
+    for (let index = 0; index <= 4; index++) {
+        const y = top + chartHeight * index / 4;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(canvas.width - right, y);
+        ctx.stroke();
+        ctx.fillText(`${Math.round(roundedMaximum * (4 - index) / 4).toLocaleString("fr-FR")}`, 6, y + 4);
     }
 
-    const ctx =
-        canvas.getContext("2d");
+    const step = chartWidth / Math.max(entries.length, 1);
+    entries.forEach(([month, totals], index) => {
+        const center = left + step * index + step / 2;
+        const barWidth = Math.min(28, step * .28);
+        drawStatsBar(ctx, center - barWidth / 2 - 2, totals.recettes, roundedMaximum, chartHeight, top, barWidth, "#22a06b");
+        drawStatsBar(ctx, center + barWidth / 2 + 2, totals.depenses, roundedMaximum, chartHeight, top, barWidth, "#ef4444");
+        ctx.fillStyle = "#64748b";
+        ctx.textAlign = "center";
+        ctx.fillText(statsShortMonth(month), center, canvas.height - 18);
+    });
+    ctx.textAlign = "left";
+}
 
-    const entries =
-        Object.entries(source)
-            .sort();
-
-    if (entries.length === 0) {
-        return;
-    }
-
-    const valeurs =
-        entries.map(x => x[1]);
-
-    const max =
-        Math.max(...valeurs);
-
-    const min =
-        Math.min(...valeurs);
-
-    const width =
-        canvas.width;
-
-    const height =
-        canvas.height;
-
-    const margin = 40;
-
-    ctx.clearRect(
-        0,
-        0,
-        width,
-        height
-    );
-
-    //
-    // Axe X
-    //
-    ctx.strokeStyle = "#bbb";
+function drawStatsBar(ctx, x, value, maximum, chartHeight, top, width, color) {
+    const height = value / maximum * chartHeight;
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(
-        margin,
-        height - margin
-    );
-    ctx.lineTo(
-        width - margin,
-        height - margin
-    );
-    ctx.stroke();
+    ctx.roundRect(x, top + chartHeight - height, width, height, 5);
+    ctx.fill();
+}
 
-    //
-    // Axe Y
-    //
-    ctx.beginPath();
-    ctx.moveTo(
-        margin,
-        margin
-    );
-    ctx.lineTo(
-        margin,
-        height - margin
-    );
-    ctx.stroke();
-
-    //
-    // Courbe
-    //
-    ctx.strokeStyle = "#4caf50";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-
-    entries.forEach(
-        ([mois, total], index) => {
-
-            const x =
-                margin +
-                (
-                    index *
-                    (width - margin * 2)
-                ) /
-                Math.max(
-                    entries.length - 1,
-                    1
-                );
-
-            const y =
-                height -
-                margin -
-                (
-                    (total - min)
-                    /
-                    Math.max(
-                        max - min,
-                        1
-                    )
-                ) *
-                (height - margin * 2);
-
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-
-        }
-    );
-
-    ctx.stroke();
-
-    //
-    // Points + labels
-    //
-    entries.forEach(
-        ([mois, total], index) => {
-
-            const x =
-                margin +
-                (
-                    index *
-                    (width - margin * 2)
-                ) /
-                Math.max(
-                    entries.length - 1,
-                    1
-                );
-
-            const y =
-                height -
-                margin -
-                (
-                    (total - min)
-                    /
-                    Math.max(
-                        max - min,
-                        1
-                    )
-                ) *
-                (height - margin * 2);
-
-            ctx.fillStyle = "#4caf50";
-
-            ctx.beginPath();
-            ctx.arc(
-                x,
-                y,
-                4,
-                0,
-                Math.PI * 2
-            );
-            ctx.fill();
-
-            ctx.fillStyle = "#666";
-            ctx.font = "12px Arial";
-
-            ctx.fillText(
-                mois,
-                x - 20,
-                height - 15
-            );
-
-            ctx.fillText(
-                total.toFixed(0),
-                x - 15,
-                y - 10
-            );
-
-        }
-    );
-
+function statsShortMonth(month) {
+    const match = String(month).match(/^(\d{4})-(\d{2})$/);
+    if (!match) return month;
+    const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+    return `${months[Number(match[2]) - 1]} ${match[1].slice(2)}`;
 }
 
 function renderTop(containerId, source, max) {
-
-    const container =
-        document.getElementById(containerId);
-
-    container.innerHTML = Object.entries(source)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, max)
-        .map(([label, total]) => `
-            <div class="stat-line">
-                <span>${label}</span>
-                <strong>${total.toFixed(2)} CHF</strong>
-            </div>
-        `)
-        .join("");
-
+    const container = document.getElementById(containerId);
+    const entries = Object.entries(source).sort((a, b) => b[1] - a[1]).slice(0, max);
+    const maximum = entries[0]?.[1] || 1;
+    container.innerHTML = entries.length ? entries.map(([label, total], index) => `
+        <div class="stat-ranking-row">
+            <div class="stat-ranking-head"><span><b>${index + 1}</b> ${statsEscape(label)}</span><strong>${statsMoney(total)}</strong></div>
+            <div class="stat-ranking-track"><div style="width:${Math.max(5, total / maximum * 100)}%"></div></div>
+        </div>
+    `).join("") : '<div class="stats-empty">Aucune donnée pour cette période.</div>';
 }
 
 function renderMois(source) {
+    const container = document.getElementById("statsMois");
+    const entries = Object.entries(source).sort().slice(-12);
+    container.innerHTML = entries.length ? entries.map(([month, totals]) => {
+        const resultatClass = totals.resultat >= 0 ? "positive" : "negative";
+        return `<div class="stat-month-row">
+            <strong>${statsShortMonth(month)}</strong>
+            <span><i class="month-income">+ ${statsMoney(totals.recettes)}</i><i class="month-expense">− ${statsMoney(totals.depenses)}</i></span>
+            <b class="${resultatClass}">${statsMoney(totals.resultat)}</b>
+        </div>`;
+    }).join("") : '<div class="stats-empty">Aucune donnée.</div>';
+}
 
-    const container =
-        document.getElementById("statsMois");
-
-    container.innerHTML = Object.entries(source)
-        .sort()
-        .map(([mois, total]) => `
-            <div class="stat-line">
-                <span>${mois}</span>
-                <strong>${total.toFixed(2)} CHF</strong>
-            </div>
-        `)
-        .join("");
-
+function statsEscape(value) {
+    return String(value).replace(/[&<>]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[character]));
 }
