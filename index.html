@@ -103,8 +103,8 @@
 
                 </div>
 
-                <div class="sidebar-footer">
-                    ComptaInf v0.1
+                <div class="sidebar-footer" id="appVersion">
+                    ComptaInf
                 </div>
 
             </div>
@@ -677,6 +677,14 @@
             });
         }
         (async () => {
+            try {
+                const versionResponse = await fetch("/api/version");
+                const build = await versionResponse.json();
+                document.getElementById("appVersion").textContent =
+                    `ComptaInf v${build.version}${build.commitDate ? `-${build.commitDate}` : ""}`;
+            } catch (error) {
+                console.error("Version impossible à charger :", error);
+            }
 
             const me = await fetch("/api/me");
             const user = await me.json();

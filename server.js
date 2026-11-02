@@ -59,6 +59,37 @@ const PORT = 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
+
+app.get("/api/version", (req, res) => {
+    let buildInfo = {};
+    try {
+        buildInfo = JSON.parse(fs.readFileSync(path.join(__dirname, "build-info.json"), "utf8"));
+    } catch (_) {
+        // Local development without Docker build metadata.
+    }
+
+    const commitDate = buildInfo.commitDate ? new Date(buildInfo.commitDate) : null;
+    let commitStamp = "";
+    if (commitDate && !Number.isNaN(commitDate.getTime())) {
+        const parts = new Intl.DateTimeFormat("sv-SE", {
+            timeZone: process.env.BUILD_TIMEZONE || "Europe/Zurich",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23"
+        }).formatToParts(commitDate);
+        const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        commitStamp = `${values.year}${values.month}${values.day}${values.hour}${values.minute}`;
+    }
+
+    res.json({
+        version: process.env.APP_VERSION || packageJson.version,
+        commit: buildInfo.commit || "dev",
+        commitDate: commitStamp
+    });
+});
 app.use("/utils", express.static("utils"));
 
 const DATA_DIR =
