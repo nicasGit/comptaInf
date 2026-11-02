@@ -13,20 +13,11 @@ async function importDocument(
     const settings =
         await sheets.getSettings(email);
 
-    //convertion image en pdf 
-    if (/\.(jpg|jpeg|png)$/i.test(originalName)) {
-
-        const pdfResult =
-            await convertImageToPdf(
-                filePath,
-                originalName
-            );
-
-        filePath =
-            pdfResult.filePath;
-
-        originalName =
-            pdfResult.originalName;
+    // conversion image en PDF
+    if (/\.(jpg|jpeg|png)$/i.test(filePath)) {
+        const pathName = filePath.split(/[\\/]/).pop();
+        await convertImageToPdf(filePath, pathName);
+        filePath = filePath + ".pdf";
     }
 
     console.log("📥 import " + originalName)

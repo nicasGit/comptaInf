@@ -3,6 +3,39 @@ const sheets = require("../sheets");
 const { importDocument } = require("../importDocument");
 const ceesv = require("../ceesv");
 
+function cleanFileName(value) {
+    return String(value || "")
+        .replace(/[<>:"/\\|?*]/g, "")
+        .replace(/\s+/g, "_")
+        .replace(/_+/g, "_");
+}
+
+function withPdfExtension(fileName) {
+    return fileName.replace(/\.(jpg|jpeg|png|pdf)$/i, "") + ".pdf";
+}
+
+function buildDriveFileName(workflow) {
+    const originalName = workflow.input.name || "document.pdf";
+    const ceesvData = workflow.normalized.metadata.ceesv;
+
+    if (ceesvData?.type === "CEESV_ETAT") {
+        const date = String(workflow.document.date || ceesvData.dateValeur || "").replace(/\./g, "-");
+        const montant = ceesvData.montantFacture ?? ceesvData.montantEtat ?? workflow.document.montant ?? "";
+        return withPdfExtension(cleanFileName(`CEESV_${date}_${montant}_${originalName}`));
+    }
+
+    if (ceesvData?.type === "CEESV_UBS") {
+        const date = String(workflow.document.date || ceesvData.dateValeur || "").replace(/\./g, "-");
+        const montant = ceesvData.montantBanque ?? workflow.document.montant ?? "";
+        return withPdfExtension(cleanFileName(`UBS_${date}_${montant}`));
+    }
+
+    const fournisseur = workflow.document.fournisseur || "Document";
+    const date = workflow.document.date || "";
+    const montant = workflow.document.montant ?? "";
+    return withPdfExtension(cleanFileName(`${fournisseur}_${date}_${montant}_${originalName}`));
+}
+
 async function deleteDuplicateRows(workflow) {
     if (workflow.decision.action !== "replace") return;
 
@@ -30,11 +63,13 @@ async function executionStep(workflow) {
             throw new Error(`Date de facture ${year || "inconnue"} différente de l'exercice actif ${exercice}`);
         }
 
+        const driveFileName = buildDriveFileName(workflow);
         const uploaded = await importDocument(
             workflow.input.file.path,
-            workflow.input.name,
+            driveFileName,
             workflow.source.email
         );
+        workflow.execution.driveFileName = driveFileName;
 
         workflow.execution.driveFileId = uploaded.fileId;
         workflow.execution.result = uploaded;
