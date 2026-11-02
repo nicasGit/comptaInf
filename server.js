@@ -1973,8 +1973,71 @@ app.get(
 );
 
 function extractDriveId(url) {
-    const match = url.match(/\/d\/([^/]+)/);
-    return match ? match[1] : null;
+    if (!url) return null;
+    const fileMatch = String(url).match(/\/d\/([^/?]+)/);
+    if (fileMatch) return fileMatch[1];
+    const queryMatch = String(url).match(/[?&]id=([^&]+)/);
+    return queryMatch ? queryMatch[1] : null;
+}
+
+function cleanArchiveName(value, fallback = "Non_renseigne") {
+    const cleaned = String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[<>:"/\\|?*]/g, "-")
+        .replace(/\s+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .replace(/\.+$/g, "");
+    return cleaned || fallback;
+}
+
+function archiveDate(value) {
+    const text = String(value || "").trim();
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    const frenchMatch = text.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/);
+    if (frenchMatch) {
+        return `${frenchMatch[3]}-${frenchMatch[2].padStart(2, "0")}-${frenchMatch[1].padStart(2, "0")}`;
+    }
+    return cleanArchiveName(text, "Sans_date");
+}
+
+function archiveAmount(value) {
+    const raw = String(value || "0").trim();
+    let normalized = raw.replace(/\s/g, "").replace(/[^0-9,-.]/g, "");
+    const commaIndex = normalized.lastIndexOf(",");
+    const dotIndex = normalized.lastIndexOf(".");
+
+    if (commaIndex >= 0 && dotIndex >= 0) {
+        if (commaIndex > dotIndex) {
+            normalized = normalized.replace(/\./g, "").replace(",", ".");
+        } else {
+            normalized = normalized.replace(/,/g, "");
+        }
+    } else if (commaIndex >= 0) {
+        normalized = /,\d{1,2}$/.test(normalized)
+            ? normalized.replace(",", ".")
+            : normalized.replace(/,/g, "");
+    } else if (dotIndex >= 0 && !/\.\d{1,2}$/.test(normalized)) {
+        normalized = normalized.replace(/\./g, "");
+    }
+
+    const amount = Number(normalized);
+    if (!Number.isFinite(amount)) return cleanArchiveName(raw, "Montant");
+    return Math.abs(amount).toFixed(2).replace(".", "-");
+}
+
+function buildArchivePdfName(row) {
+    const date = archiveDate(row[0]);
+    const supplier = cleanArchiveName(row[1], "Fournisseur");
+    const amount = archiveAmount(row[4]);
+    return `${date}_${supplier}_${amount}.pdf`;
+}
+
+function csvCell(value) {
+    const text = String(value ?? "").replace(/"/g, '""');
+    return /[;"\r\n]/.test(text) ? `"${text}"` : text;
 }
 
 app.get(
@@ -2008,56 +2071,113 @@ app.get(
                 zlib: { level: 9 }
             });
 
+            archive.on("warning", err => {
+                if (err.code !== "ENOENT") console.error("Archive warning:", err);
+            });
+            archive.on("error", err => {
+                throw err;
+            });
             archive.pipe(res);
 
+            const sourceRows = rows || [];
+            const headers = sourceRows[0] || [];
+            const normalizeHeader = value => String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+
+            const mainPdfIndex = 5;
+            let bankPdfIndex = 8;
+            let assitempPdfIndex = -1;
+            headers.forEach((header, index) => {
+                const normalized = normalizeHeader(header);
+                if (normalized.includes("banque") && (normalized.includes("pdf") || normalized.includes("justif"))) {
+                    bankPdfIndex = index;
+                }
+                if (normalized.includes("assitemp") || normalized.includes("assistance") && normalized.includes("temp")) {
+                    assitempPdfIndex = index;
+                }
+            });
+
+            const removeIndexes = new Set([headers.findIndex(header => normalizeHeader(header) === "dev")]);
+            headers.forEach((header, index) => {
+                const normalized = normalizeHeader(header);
+                if (normalized === "dev" || normalized.includes("dateimport") || normalized.includes("importdate") || normalized.includes("datedimport")) {
+                    removeIndexes.add(index);
+                }
+            });
+            removeIndexes.delete(-1);
+
+            const pdfIndexes = [
+                { index: mainPdfIndex, label: "Justificatif", folder: "Justificatifs" },
+                { index: bankPdfIndex, label: "Banque", folder: "JustificatifsBanque" },
+                { index: assitempPdfIndex, label: "Assitemp", folder: "JustificatifsAssitemp" }
+            ].filter((item, position, all) => item.index >= 0 && all.findIndex(candidate => candidate.index === item.index) === position);
+
+            const archiveRows = sourceRows.map(row => {
+                const archiveRow = [...(row || [])];
+                pdfIndexes.forEach(pdf => {
+                    if (pdf.index >= 0 && archiveRow[pdf.index] !== undefined) {
+                        archiveRow[pdf.index] = "";
+                    }
+                });
+                return archiveRow;
+            });
+
+            pdfIndexes.forEach(pdf => {
+                if (archiveRows[0] && archiveRows[0][pdf.index] !== undefined) {
+                    archiveRows[0][pdf.index] = `Chemin ${pdf.label.toLowerCase()}`;
+                }
+            });
+
+            const keptIndexes = headers
+                .map((header, index) => index)
+                .filter(index => !removeIndexes.has(index));
+            const usedNames = new Map();
             let count = 0;
 
-            for (const row of rows.slice(1)) {
+            for (let rowIndex = 1; rowIndex < sourceRows.length; rowIndex++) {
+                const row = sourceRows[rowIndex];
+                for (const pdf of pdfIndexes) {
+                    const pdfUrl = row[pdf.index];
+                    if (!pdfUrl) continue;
+                    const fileId = extractDriveId(pdfUrl);
+                    if (!fileId) continue;
 
-                const pdfUrl = row[5];
+                    try {
+                        const buffer = await drive.downloadFile(req.session.email, fileId);
+                        const baseName = buildArchivePdfName(row).replace(/\.pdf$/i, "");
+                        const labelledBaseName = pdf.label === "Justificatif"
+                            ? `${baseName}.pdf`
+                            : `${baseName}_${pdf.label}.pdf`;
+                        const key = labelledBaseName.toLowerCase();
+                        const duplicateIndex = usedNames.get(key) || 0;
+                        usedNames.set(key, duplicateIndex + 1);
+                        const fileName = duplicateIndex === 0
+                            ? labelledBaseName
+                            : labelledBaseName.replace(/\.pdf$/i, `_${duplicateIndex + 1}.pdf`);
+                        const archivePath = `${pdf.folder}/${fileName}`;
 
-                if (!pdfUrl) {
-                    continue;
-                }
-
-                const fileId =
-                    extractDriveId(pdfUrl);
-
-                console.log(fileId);
-
-                if (!fileId) {
-                    continue;
-                }
-                continue;
-
-                try {
-
-                    const buffer =
-                        await drive.downloadFile(
-                            req.session.email,
-                            fileId
-                        );
-
-                    archive.append(
-                        buffer,
-                        {
-                            name:
-                                `${row[0]}_${count}.pdf`
-                        }
-                    );
-
-                    count++;
-
-                } catch (err) {
-
-                    console.error(
-                        "Erreur téléchargement :",
-                        pdfUrl,
-                        err.message
-                    );
+                        const escapedArchivePath = archivePath.replace(/"/g, '""');
+                        archiveRows[rowIndex][pdf.index] = `=LIEN_HYPERTEXTE("${escapedArchivePath}";"Ouvrir le PDF ${pdf.label}")`;
+                        archive.append(buffer, { name: archivePath });
+                        count++;
+                    } catch (err) {
+                        archiveRows[rowIndex][pdf.index] = "";
+                        console.error(`Erreur téléchargement archive ${pdf.label} :`, pdfUrl, err.message);
+                    }
                 }
             }
 
+            const csv = archiveRows
+                .map(row => keptIndexes.map(index => csvCell(row[index])).join(";"))
+                .join("\r\n") + "\r\n";
+            archive.append(Buffer.from("\ufeff" + csv, "utf8"), {
+                name: `ComptaInf_${exercice}.csv`
+            });
+
+            console.log(`[Export] Archive exercice ${exercice}: ${count} justificatifs PDF`);
             await archive.finalize();
 
         } catch (err) {
