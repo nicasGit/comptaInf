@@ -1,0 +1,64 @@
+<div class="page-header"><h2>Frais professionnels</h2></div>
+
+<div class="professional-summary">
+    <div class="card professional-summary-total"><span>Total professionnel</span><strong id="professionalTotal">0,00 CHF</strong></div>
+    <div class="card professional-summary-count"><span>Dépenses</span><strong id="professionalCount">0</strong></div>
+    <div class="card professional-summary-mileage"><span>Frais kilométriques</span><strong id="professionalMileage">0,00 CHF</strong></div>
+    <div class="card professional-summary-missing"><span>Justificatifs manquants</span><strong id="professionalMissing">0</strong></div>
+</div>
+
+<div class="professional-tabs" role="tablist">
+    <button class="professional-tab active" data-category="all">Toutes les dépenses</button>
+    <button class="professional-tab" data-category="vehicle">Véhicule</button>
+    <button class="professional-tab" data-category="medical">Matériel médical</button>
+    <button class="professional-tab" data-category="pharmacy">Pharmacie</button>
+    <button class="professional-tab" data-category="insurance">Assurances</button>
+    <button class="professional-tab" data-category="training">Formation</button>
+    <button class="professional-tab" data-category="telecom">Téléphonie</button>
+    <button class="professional-tab" data-category="other">Autres</button>
+</div>
+
+<div class="card professional-category-card">
+    <h3>Répartition par catégorie</h3>
+    <div id="professionalCategories" class="professional-categories"></div>
+</div>
+
+<div class="card professional-table-card">
+    <div class="professional-table-header">
+        <h3>Dépenses professionnelles</h3>
+        <input id="professionalSearch" type="search" placeholder="Rechercher un fournisseur...">
+    </div>
+    <div class="professional-table-wrapper">
+        <table class="professional-table">
+            <thead><tr><th>Date</th><th>Fournisseur</th><th>Catégorie</th><th>Justificatif</th><th class="professional-amount">Montant</th></tr></thead>
+            <tbody id="professionalExpenses"></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.professional-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+.professional-summary .card { display:grid; gap:6px; padding:16px; border-left:5px solid transparent; color:#fff; box-shadow:0 4px 14px rgba(0,0,0,.12); }
+.professional-summary strong { font-size:20px; }
+.professional-summary-total { background:linear-gradient(135deg,#1976d2,#42a5f5); border-left-color:#0d47a1!important; }
+.professional-summary-count { background:linear-gradient(135deg,#00796b,#26a69a); border-left-color:#004d40!important; }
+.professional-summary-mileage { background:linear-gradient(135deg,#ef6c00,#ffb74d); border-left-color:#e65100!important; }
+.professional-summary-missing { background:linear-gradient(135deg,#c62828,#ef5350); border-left-color:#8e0000!important; }
+.professional-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.professional-tab { border:1px solid var(--border-color,#ddd); background:white; border-radius:20px; padding:8px 14px; cursor:pointer; }
+.professional-tab.active { background:var(--primary,#1976d2); color:white; border-color:var(--primary,#1976d2); }
+.professional-category-card { margin-bottom:16px; }
+.professional-categories { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+.professional-category { border:1px solid var(--border-color,#ddd); border-left:4px solid var(--category-color,#1976d2); border-radius:8px; padding:12px; display:grid; gap:4px; background:var(--category-background,#eef6ff); }
+.professional-category strong { font-size:16px; }
+.professional-table-header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.professional-table-header input { max-width:280px; }
+.professional-table-wrapper { overflow-x:auto; }
+.professional-table { width:100%; border-collapse:collapse; }
+.professional-table th,.professional-table td { padding:10px 8px; border-bottom:1px solid var(--border-color,#ddd); text-align:left; }
+.professional-table th:first-child,.professional-table td:first-child { width:110px; }
+.professional-amount { text-align:right!important; }
+.professional-missing { color:#b26a00; }
+@media(max-width:800px){ .professional-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px){ .professional-summary { grid-template-columns:1fr; } .professional-table-header { align-items:stretch; flex-direction:column; } }
+</style>
