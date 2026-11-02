@@ -189,6 +189,45 @@ body {
 }
 
 /* =========================
+   DASHBOARD
+========================= */
+.dashboard-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:16px; }
+.dashboard-kpi { min-height:112px; border-radius:16px; padding:18px 20px; display:flex; align-items:center; gap:16px; color:#fff; box-shadow:0 8px 24px rgba(15,23,42,.12); }
+.dashboard-kpi-icon { flex:0 0 48px; height:48px; border-radius:14px; display:grid; place-items:center; font-size:23px; font-weight:800; background:rgba(255,255,255,.18); }
+.dashboard-kpi>div:last-child { display:grid; min-width:0; }
+.dashboard-kpi span { opacity:.88; font-size:14px; }
+.dashboard-kpi strong { font-size:27px; line-height:1.15; margin:3px 0; overflow-wrap:anywhere; }
+.dashboard-kpi small { opacity:.78; }
+.dashboard-kpi-income { background:linear-gradient(135deg,#15803d,#22c55e); }
+.dashboard-kpi-expense { background:linear-gradient(135deg,#dc2626,#f87171); }
+.dashboard-kpi-result { background:linear-gradient(135deg,#6d28d9,#a78bfa); }
+.dashboard-kpi-standby { background:linear-gradient(135deg,#c2410c,#fb923c); grid-column:1/-1; cursor:pointer; }
+.dashboard-main-grid { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(280px,.7fr); gap:16px; margin-bottom:16px; }
+.dashboard-import-card,.dashboard-actions-card { min-width:0; }
+.dashboard-section-heading,.dashboard-recent-header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.dashboard-section-heading h3,.dashboard-actions-card h3,.dashboard-recent-header h3 { margin:4px 0 0; }
+.dashboard-eyebrow { color:#64748b; font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.dashboard-import-badge { padding:6px 10px; border-radius:20px; background:#e8f2ff; color:#1976d2; font-size:12px; white-space:nowrap; }
+.dashboard-dropzone { height:230px; margin-top:18px; border-width:2px; border-style:dashed; border-color:#93c5fd; background:linear-gradient(145deg,#f8fbff,#eef6ff); }
+.dashboard-dropzone h2 { margin:12px 0 5px; font-size:21px; }
+.dashboard-dropzone p { color:#64748b; margin:0 0 14px; }
+.dashboard-upload-button { padding:9px 16px; border-radius:10px; background:#1976d2; color:white; font-weight:700; box-shadow:0 5px 12px rgba(25,118,210,.25); }
+.dashboard-actions { display:grid; gap:10px; margin-top:18px; }
+.dashboard-action { width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:13px; display:flex; align-items:center; gap:12px; text-align:left; background:white; cursor:pointer; color:#334155; }
+.dashboard-action:hover { border-color:#93c5fd; background:#f8fbff; transform:translateY(-1px); }
+.dashboard-action>span { width:38px; height:38px; border-radius:10px; display:grid; place-items:center; background:#eef6ff; font-size:18px; }
+.dashboard-action div { display:grid; }
+.dashboard-action small { color:#64748b; margin-top:2px; }
+.dashboard-action.primary { border-color:#1976d2; background:#1976d2; color:white; }
+.dashboard-action.primary>span { background:rgba(255,255,255,.16); }
+.dashboard-action.primary small { color:#dbeafe; }
+.dashboard-recent-panel { margin-top:0; }
+.dashboard-recent-header { margin-bottom:12px; }
+.dashboard-view-all { width:auto; padding:8px 14px; }
+@media(max-width:900px){.dashboard-summary{grid-template-columns:repeat(2,minmax(0,1fr));}.dashboard-main-grid{grid-template-columns:1fr}.dashboard-kpi strong{font-size:23px}}
+@media(max-width:600px){.dashboard-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dashboard-kpi{min-height:72px;padding:10px 12px;gap:9px;border-radius:12px}.dashboard-kpi-icon{flex-basis:34px;height:34px;border-radius:10px;font-size:16px}.dashboard-kpi span{font-size:12px}.dashboard-kpi strong{font-size:17px;margin:1px 0}.dashboard-kpi small{display:none}.dashboard-kpi-standby{grid-column:1/-1}.dashboard-section-heading{align-items:flex-start}.dashboard-import-badge{display:none}.dashboard-dropzone{height:210px}.dashboard-recent-header{align-items:flex-start}.dashboard-view-all{padding:7px 10px}}
+
+/* =========================
    BOUTONS
 ========================= */
 

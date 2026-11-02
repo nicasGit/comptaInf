@@ -63,71 +63,73 @@
 
     </div>
 
-    <!-- CARTES -->
-
-    <div class="cards">
-
-        <div class="card">
-            <div class="card-title">💰 Recettes</div>
-            <div class="card-value green" id="recettesTotal">0 CHF</div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">🧾 Dépenses</div>
-            <div class="card-value red" id="depensesTotal">0 CHF</div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">📈 Résultat</div>
-            <div class="card-value blue" id="resultatTotal">0 CHF</div>
-        </div>
-
-
-        <div id="cardStandby" style="display:none;" class="card standby-card" onclick="loadStandby()">
-            <div class="card-title">
-                ⏳ En attente de rapprochement
+    <section class="dashboard-summary" aria-label="Synthèse comptable">
+        <article class="dashboard-kpi dashboard-kpi-income">
+            <div class="dashboard-kpi-icon">↗</div>
+            <div><span>Recettes</span><strong id="recettesTotal">0 CHF</strong><small>Entrées comptabilisées</small>
             </div>
-
-            <div id="nbStandby" class="card-value" style="color:#f57c00;">
-                0
+        </article>
+        <article class="dashboard-kpi dashboard-kpi-expense">
+            <div class="dashboard-kpi-icon">↘</div>
+            <div><span>Dépenses</span><strong id="depensesTotal">0 CHF</strong><small>Sorties comptabilisées</small>
             </div>
+        </article>
+        <article class="dashboard-kpi dashboard-kpi-result">
+            <div class="dashboard-kpi-icon">Σ</div>
+            <div><span>Résultat</span><strong id="resultatTotal">0 CHF</strong><small>Recettes moins dépenses</small>
+            </div>
+        </article>
+        <article id="cardStandby" class="dashboard-kpi dashboard-kpi-standby" style="display:none;"
+            onclick="loadStandby()">
+            <div class="dashboard-kpi-icon">⏳</div>
+            <div><span>À rapprocher</span><strong id="nbStandby">0</strong><small id="standbyDetail">Opérations en
+                    attente</small></div>
+        </article>
+    </section>
 
-            <div id="standbyDetail" style="margin-top:10px;color:#666;">
+    <section class="dashboard-main-grid">
+        <div class="dashboard-import-card card">
+            <div class="dashboard-section-heading">
+
+                <span class="dashboard-import-badge">OCR automatique</span>
+            </div>
+            <div id="dropzone" class="dropzone dashboard-dropzone">
+                <div class="dropicon">📄</div>
+                <h2>Déposez votre document ici</h2>
+                <p>PDF, JPG ou PNG · L'analyse démarre automatiquement</p>
+                <span class="dashboard-upload-button">Choisir un fichier</span>
+                <input type="file" id="pdfFileMain" accept=".pdf,.jpg,.jpeg,.png" hidden>
             </div>
         </div>
 
-    </div>
-
-    <!-- DRAG & DROP -->
-    <div class="XXXXgoogleOnlyXXX">
-        <div id="dropzone" class="dropzone">
-
-            <div class="dropicon">📄</div>
-
-            <h2>Déposer un justificatif</h2>
-
-            <p>Glissez un PDF ici ou cliquez pour sélectionner un fichier</p>
-
-            <input type="file" id="pdfFileMain" accept=".pdf,.jpg,.jpeg,.png" hidden>
-
-        </div>
-    </div>
-
-
-
-    <!-- ACTIONS -->
-    <div class="googleOnly">
-        <div class="actions">
-            <button class="btn" onclick="openDepense()">
-                ➕ Nouvelle Operation
-            </button>
-        </div>
-    </div>
+        <aside class="dashboard-actions-card card">
+            <span class="dashboard-eyebrow">Actions rapides</span>
+            <h3>Gérer la comptabilité</h3>
+            <div class="dashboard-actions">
+                <button class="dashboard-action primary" onclick="openDepense()"><span>＋</span>
+                    <div><strong>Nouvelle opération</strong><small>Saisie manuelle ou justificatif</small></div>
+                </button>
+                <button class="dashboard-action" onclick="loadOperations('all')"><span>📋</span>
+                    <div><strong>Voir les opérations</strong><small>Consulter l'historique</small></div>
+                </button>
+                <button class="dashboard-action" onclick="loadProfessionalExpenses(); return false;"><span>💼</span>
+                    <div><strong>Frais professionnels</strong><small>Charges et catégories</small></div>
+                </button>
+                <button class="dashboard-action" onclick="loadStats()"><span>📊</span>
+                    <div><strong>Statistiques</strong><small>Analyse de l'exercice</small></div>
+                </button>
+            </div>
+        </aside>
+    </section>
     <!-- TABLEAU -->
 
-    <div class="panel">
+    <div class="panel dashboard-recent-panel">
         <div class="operations-table-wrapper">
-            <h3>Dernières opérations</h3>
+            <div class="dashboard-recent-header">
+                <div><span class="dashboard-eyebrow">Activité récente</span>
+                    <h3>Dernières opérations</h3>
+                </div><button class="btn dashboard-view-all" onclick="loadOperations('all')">Voir tout</button>
+            </div>
 
             <table id="lastOperationTable">
 
