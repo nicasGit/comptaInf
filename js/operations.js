@@ -176,8 +176,13 @@ function renderOperationsTable() {
                 totauxParMois[mois] = 0;
             }
 
-            totauxParMois[mois] +=
-                Math.abs(montant);
+            if (pageType === "depenses") {
+                totauxParMois[mois] += Math.abs(montant);
+            } else if (pageType === "recettes") {
+                totauxParMois[mois] += montant;
+            } else {
+                totauxParMois[mois] += montant;
+            }
 
         });
 
@@ -439,7 +444,7 @@ function refreshOperationsStats() {
             }
             else {
 
-                total += Math.abs(montant);
+                total += montant;
                 nb++;
 
             }
