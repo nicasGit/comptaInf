@@ -143,6 +143,7 @@ async function uploadFile(
 ) {
 
     let response;
+    let fileStream;
 
     try {
         const config = getConfig(email);
@@ -192,9 +193,7 @@ async function uploadFile(
                     mimeType,
 
                     body:
-                        fs.createReadStream(
-                            filePath
-                        )
+                        fileStream = fs.createReadStream(filePath)
 
                 },
 
@@ -203,15 +202,34 @@ async function uploadFile(
             });
     }
     finally {
-        if (
-            filePath &&
-            fs.existsSync(filePath)
-        ) {
+        if (fileStream) {
+            await new Promise(resolve => {
+                if (fileStream.closed || fileStream.destroyed) {
+                    resolve();
+                    return;
+                }
 
-            fs.unlinkSync(filePath);
-
+                fileStream.once("close", resolve);
+                fileStream.destroy();
+            });
         }
 
+        if (filePath && fs.existsSync(filePath)) {
+            let lastError;
+            for (let attempt = 0; attempt < 10; attempt++) {
+                try {
+                    await fs.promises.unlink(filePath);
+                    lastError = null;
+                    break;
+                } catch (error) {
+                    if (!(["EBUSY", "EPERM"].includes(error.code))) throw error;
+                    lastError = error;
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+
+            if (lastError) throw lastError;
+        }
     }
 
     return response.data.id;
