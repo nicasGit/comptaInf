@@ -58,6 +58,7 @@ function classifyProfessionalExpense(category, supplier) {
     if (/assurance|rc pro|mutuelle/i.test(text)) return "insurance";
     if (/formation|cours|seminaire|séminaire/i.test(text)) return "training";
     if (/téléphonie|telephonie|internet|swisscom|sunrise|salt/i.test(text)) return "telecom";
+    if (/repas.{0,12}(professionnel|affaire)|restauration|restaurant|repas|déjeuner|dejeuner|diner|dîner|bistro|brasserie/i.test(text)) return "meals";
     return "other";
 }
 
@@ -73,11 +74,15 @@ function renderProfessionalExpenses() {
     const mileageTotal = professionalExpenses
         .filter(expense => expense.professionalCategory === "vehicle")
         .reduce((sum, expense) => sum + expense.amount, 0);
+    const mealsTotal = professionalExpenses
+        .filter(expense => expense.professionalCategory === "meals")
+        .reduce((sum, expense) => sum + expense.amount, 0);
     const missing = professionalExpenses.filter(expense => !expense.pdf).length;
 
     document.getElementById("professionalTotal").textContent = formatProfessionalAmount(total);
     document.getElementById("professionalCount").textContent = professionalExpenses.length;
     document.getElementById("professionalMileage").textContent = formatProfessionalAmount(mileageTotal);
+    document.getElementById("professionalMeals").textContent = formatProfessionalAmount(mealsTotal);
     document.getElementById("professionalMissing").textContent = missing;
 
     renderProfessionalCategories();
@@ -95,9 +100,9 @@ function renderProfessionalExpenses() {
 function renderProfessionalCategories() {
     const container = document.getElementById("professionalCategories");
     if (!container) return;
-    const names = { vehicle: "Véhicule", medical: "Matériel médical", pharmacy: "Pharmacie", insurance: "Assurances", training: "Formation", telecom: "Téléphonie", other: "Autres" };
-    const colors = { vehicle: "#ef6c00", medical: "#00897b", pharmacy: "#5e35b1", insurance: "#1565c0", training: "#6d4c41", telecom: "#039be5", other: "#78909c" };
-    const backgrounds = { vehicle: "#fff3e0", medical: "#e0f2f1", pharmacy: "#ede7f6", insurance: "#e3f2fd", training: "#efebe9", telecom: "#e1f5fe", other: "#eceff1" };
+    const names = { vehicle: "Véhicule", medical: "Matériel médical", pharmacy: "Pharmacie", insurance: "Assurances", training: "Formation", telecom: "Téléphonie", meals: "Repas professionnels", other: "Autres" };
+    const colors = { vehicle: "#ef6c00", medical: "#00897b", pharmacy: "#5e35b1", insurance: "#1565c0", training: "#6d4c41", telecom: "#039be5", meals: "#7b1fa2", other: "#78909c" };
+    const backgrounds = { vehicle: "#fff3e0", medical: "#e0f2f1", pharmacy: "#ede7f6", insurance: "#e3f2fd", training: "#efebe9", telecom: "#e1f5fe", meals: "#f3e5f5", other: "#eceff1" };
     const totals = {};
     professionalExpenses.forEach(expense => totals[expense.professionalCategory] = (totals[expense.professionalCategory] || 0) + expense.amount);
     container.innerHTML = Object.keys(names).filter(key => totals[key]).map(key => `
@@ -106,7 +111,7 @@ function renderProfessionalCategories() {
 }
 
 function professionalCategoryLabel(category) {
-    return { vehicle: "Véhicule", medical: "Matériel médical", pharmacy: "Pharmacie", insurance: "Assurances", training: "Formation", telecom: "Téléphonie", other: "Autres" }[category] || "Autres";
+    return { vehicle: "Véhicule", medical: "Matériel médical", pharmacy: "Pharmacie", insurance: "Assurances", training: "Formation", telecom: "Téléphonie", meals: "Repas professionnels", other: "Autres" }[category] || "Autres";
 }
 
 function formatProfessionalAmount(amount) {
