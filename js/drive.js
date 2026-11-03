@@ -21,7 +21,7 @@ const auth =
     new google.auth.GoogleAuth({
         keyFile: SERVICE_ACCOUNT_FILE,
         scopes: [
-            "https://www.googleapis.com/auth/drive"
+            "https://www.googleapis.com/auth/drive.file"
         ]
     });
 
@@ -217,31 +217,35 @@ async function uploadFile(
     return response.data.id;
 }
 
-async function getExercices(email) {
-
+async function getFolder(email, folderId, fields = "id,name,mimeType,capabilities") {
     const drive = getDrive(email);
+    const response = await drive.files.get({ fileId: folderId, fields });
+    if (response.data.mimeType !== "application/vnd.google-apps.folder") {
+        throw new Error("RootFolderId ne désigne pas un dossier Drive");
+    }
+    return response.data;
+}
 
-    const response =
-        await drive.files.list({
-
-            q: `
-                '${getRootFolderId(email)}' in parents
-                and mimeType='application/vnd.google-apps.folder'
-                and trashed=false
-            `,
-
-            fields: "files(id,name)"
-
+async function getExercices(email) {
+    const drive = getDrive(email);
+    try {
+        const response = await drive.files.list({
+            q: `'${getRootFolderId(email)}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+            fields: "files(id,name)",
+            pageSize: 1000
         });
 
-    return response.data.files
-        .filter(f =>
-            /^\d{4}$/.test(f.name)
-        )
-        .map(f => f.name)
-        .sort()
-        .reverse();
+        const years = response.data.files
+            .filter(file => /^\d{4}$/.test(file.name))
+            .map(file => file.name);
+        if (years.length > 0) return [...new Set(years)].sort().reverse();
+    } catch (error) {
+        if (![403, 404].includes(error.code)) throw error;
+        console.warn("Dossiers Drive non accessibles avec le scope drive.file:", error.message);
+    }
 
+    const currentYear = new Date().getFullYear();
+    return [currentYear - 1, currentYear, currentYear + 1].map(String);
 }
 
 async function downloadFile(email, fileId) {
@@ -280,5 +284,6 @@ module.exports = {
     uploadFile,
     getExercices,
     downloadFile,
-    archiveFile
+    archiveFile,
+    getFolder
 };

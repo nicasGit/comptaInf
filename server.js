@@ -6,8 +6,8 @@ function envFlag(name, defaultValue = false) {
     return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
-let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", true);
-let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", true);
+let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", false);
+let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", false);
 let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", false);
 
 function isLocalRequest(req) {
@@ -42,6 +42,7 @@ const {
 const {
     getEnvironment,
     setEnvironment,
+    getConfig,
     getCurrentUser,
     getCurrentUserFromRequest,
     getExercice
@@ -405,7 +406,7 @@ app.get("/login", (req, res) => {
             "openid",
             "email",
             "profile",
-            "https://www.googleapis.com/auth/drive"
+            "https://www.googleapis.com/auth/drive.file"
         ]
 
     });
@@ -1978,6 +1979,17 @@ app.get("/test-drive", async (req, res) => {
 //    }
 //
 //});
+app.get("/api/drive/root-status", requireAuth, async (req, res) => {
+    try {
+        const folderId = getConfig(req.session.email).RootFolderId;
+        if (!folderId) return res.status(400).json({ authorized: false, error: "RootFolderId non configuré" });
+        const folder = await drive.getFolder(req.session.email, folderId);
+        res.json({ authorized: true, folder });
+    } catch (error) {
+        res.status(403).json({ authorized: false, error: "Le dossier racine doit être sélectionné ou ouvert explicitement dans Google Drive via le Picker." });
+    }
+});
+
 app.get(
     "/api/drive/download/:id",
     async (req, res) => {

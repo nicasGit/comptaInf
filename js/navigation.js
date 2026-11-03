@@ -532,8 +532,13 @@ async function processNextFile() {
 }
 
 async function checkDriveFiles() {
+    // L'application utilise désormais drive.file. Google Drive ne permet plus
+    // l'exploration automatique d'un dossier configuré sans autorisation étendue.
+    // Les fichiers sont importés depuis un fichier sélectionné localement ou via
+    // Google Picker / les fichiers explicitement ouverts depuis Drive.
+    return;
 
-    /* TODO 
+    /* TODO (scope drive étendu non autorisé) 
     try {
  
          const response =
