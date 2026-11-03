@@ -9,6 +9,19 @@ const Tesseract = require("tesseract.js");
 const sharp = require("sharp");
 const path = require("path");
 
+let ocrWorkerPromise = null;
+
+async function getOcrWorker() {
+    if (!ocrWorkerPromise) {
+        ocrWorkerPromise = Tesseract.createWorker("fra", 1)
+            .catch(error => {
+                ocrWorkerPromise = null;
+                throw error;
+            });
+    }
+    return ocrWorkerPromise;
+}
+
 //const pdfPoppler = require("pdf-poppler");
 let pdfPoppler = null;
 const isWindows = process.platform === "win32";
@@ -67,7 +80,7 @@ async function pdfToImages(pdfPath, outputDir) {
             out_dir: outputDir,
             out_prefix: "page",
             page: null,
-            scale: 2000
+            scale: 1600
         });
     } else {
 
@@ -149,7 +162,7 @@ async function extractTextFromImage(imagePath,
     const buffer = await sharp(imagePath)
         .rotate()
         .resize({
-            width: 2000,
+            width: 1600,
             withoutEnlargement: true
         })
         .grayscale()
@@ -160,11 +173,8 @@ async function extractTextFromImage(imagePath,
     //    "✅ image OCR créée en memoire :",
     //    processedImage
     //);
-    const result =
-        await Tesseract.recognize(
-            buffer,
-            "fra"
-        );
+    const worker = await getOcrWorker();
+    const result = await worker.recognize(buffer);
 
 
     result.data.text = normalizeOCRText(result.data.text);
