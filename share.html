@@ -158,17 +158,21 @@
       try {
 
 
-        const response = await fetch("/api/analyse-shared-file", {
+        const response = await fetch("/api/import/workflow/prepare-shared", {
           method: "POST"
         });
 
-        const data = await response.json();
+        const workflowResult = await response.json();
         clearInterval(animation);
 
         if (!response.ok) {
-          throw new Error(data.error || "Erreur pendant l'analyse");
+          throw new Error(workflowResult.error || "Erreur pendant l'analyse");
         }
 
+
+        const data = workflowResult.analysis || {};
+        window.currentWorkflowId = workflowResult.workflowId;
+        window.currentWorkflowDuplicate = workflowResult.duplicate;
 
         const isRealCEESV =
           data.ceesv &&
@@ -207,28 +211,11 @@
 
         window.sharedAnalyse = data;
 
-        const date = data.date || data.ceesv?.dateValeur || "";
-        console.log("share call api/checkDuplicate", date);
-
-        const duplicateResponse =
-          await fetch("/api/checkDuplicate", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              date: convertDate(date),
-              fournisseur: data.fournisseur,
-              categorie: data.categorie,
-              montant: data.montant,
-              montantEtat: data.ceesv?.montantFacture,
-              montantFacture: data.ceesv?.montantEtat,
-              montantBanque: data.ceesv?.montantBanque
-            })
-          });
-
-        const duplicate =
-          await duplicateResponse.json();
+        const duplicate = {
+          duplicate: workflowResult.duplicate?.found,
+          row: workflowResult.duplicate?.selected?.row,
+          rowsCeesv: workflowResult.duplicate?.matches
+        };
 
         //console.log(duplicate);
 
@@ -374,6 +361,28 @@
         //console.log("window.sharedAnalyse", JSON.stringify(window.sharedAnalyse));
 
         let response = null;
+        if (window.currentWorkflowId) {
+          response = await fetch("/api/import/workflow/decide", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              workflowId: window.currentWorkflowId,
+              action: mode,
+              comment: window.sharedAnalyse.commentaire || "",
+              document: {
+                date: window.sharedAnalyse.date || window.sharedAnalyse.ceesv?.dateValeur || "",
+                fournisseur: window.sharedAnalyse.fournisseur || "",
+                categorie: window.sharedAnalyse.categorie || "",
+                compte: window.sharedAnalyse.compte || "",
+                montant: window.sharedAnalyse.montant ?? window.sharedAnalyse.ceesv?.montantBanque ?? 0,
+                description: window.sharedAnalyse.originalName || window.sharedAnalyse.originalname || "",
+                commentaire: window.sharedAnalyse.commentaire || "",
+                operationType: window.sharedAnalyse.operationType || "RECETTE",
+                litres: Array.isArray(window.sharedAnalyse.litres) ? window.sharedAnalyse.litres.join("|") : ""
+              }
+            })
+          });
+        } else {
         // Import CEESV automatique
         if (window.sharedAnalyse.ceesv?.type === "CEESV_ETAT" || window.sharedAnalyse.ceesv?.type === "CEESV_UBS") {
 
@@ -408,6 +417,7 @@
               }
             );
 
+        }
         }
 
         console.log("Import response=", response.ok);

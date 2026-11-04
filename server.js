@@ -7,8 +7,8 @@ function envFlag(name, defaultValue = false) {
 }
 
 let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", true);
-let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", true);
-let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", false);
+let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", false);
+let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", true);
 
 function isLocalRequest(req) {
     const hostname = String(req.hostname || "")
@@ -1806,6 +1806,35 @@ app.post("/api/analyse-shared-file", requireAuth, async (req, res) => {
         );
 
     res.json(result);
+});
+
+app.post("/api/import/workflow/prepare-shared", requireAuth, async (req, res) => {
+    const sharedFile = req.session.sharedFile;
+    if (!sharedFile || !fs.existsSync(sharedFile.path)) {
+        return res.status(404).json({ error: "Aucun fichier partagé" });
+    }
+
+    const file = {
+        path: sharedFile.path,
+        name: sharedFile.originalname,
+        originalname: sharedFile.originalname,
+        type: sharedFile.mimetype,
+        mimetype: sharedFile.mimetype
+    };
+
+    try {
+        const workflow = await prepareWorkflow("share", file, req.session.email);
+        res.json({
+            workflowId: workflow.id,
+            status: workflow.status,
+            document: workflow.document,
+            duplicate: workflow.duplicate,
+            analysis: workflow.analysis.data
+        });
+    } catch (error) {
+        console.error("[ImportWorkflow] prepare share", error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 
