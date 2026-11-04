@@ -104,9 +104,12 @@ async function decideWorkflow(workflowId, action, email = null, comment = null, 
     }
 
     if (documentData) {
+        const documentUpdates = Object.fromEntries(
+            Object.entries(documentData).filter(([, value]) => value !== undefined)
+        );
         workflow.document = {
             ...workflow.document,
-            ...documentData,
+            ...documentUpdates,
             description: documentData.description || workflow.document.description,
             commentaire: documentData.commentaire ?? workflow.document.commentaire ?? ""
         };
@@ -127,8 +130,17 @@ async function decideWorkflow(workflowId, action, email = null, comment = null, 
         throw new Error("Décision d'import invalide");
     }
 
-    if (action === "replace" && !workflow.duplicate?.found) {
-        throw new Error("Remplacement sans doublon");
+    if (action === "replace") {
+        if (workflow.duplicate.matches.length === 0) {
+            await duplicateStep(workflow);
+        }
+        if (!workflow.duplicate.matches.length) {
+            throw new Error("Remplacement sans doublon");
+        }
+        workflow.duplicate.found = true;
+        if (!workflow.duplicate.selected) {
+            workflow.duplicate.selected = workflow.duplicate.matches[0];
+        }
     }
 
     workflow.status = "saving";

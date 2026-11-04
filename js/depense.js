@@ -620,6 +620,8 @@ async function checkDuplicateAfterOCR(result) {
         const matches = currentWorkflowDuplicate.matches;
         const selected = currentWorkflowDuplicate.selected;
 
+        console.log("currentWorkflowDuplicate.matches", currentWorkflowDuplicate.matches);
+
         action = await openDuplicateModal({
             duplicate: true,
             row: selected?.row,
@@ -986,7 +988,7 @@ function applyCEESV(data,
 
                 // console.log("match.pdfBanque " + match.pdfBanque);
 
-                openDuplicateModal(match);
+                // openDuplicateModal(match);
 
             }
 

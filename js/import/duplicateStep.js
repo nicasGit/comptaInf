@@ -25,6 +25,9 @@ async function duplicateStep(workflow) {
     const isCeesv = fournisseur?.includes("CEESV") || workflow.input.format !== "facture";
     const matches = [];
 
+
+    // console.log(`Search - fournisseur=${fournisseur}, date=${date}, montant=${montant}, ceesvAmounts=${ceesvAmounts}, isCeesv=${isCeesv}   `);
+
     rows.forEach((row, index) => {
         const sameSupplier = normalizeFournisseur(row[1]) === fournisseur;
         const sameDate = convertDate(row[0]) === date;
@@ -33,7 +36,12 @@ async function duplicateStep(workflow) {
             ? ceesvAmounts.some(value => value !== 0 && value === sheetAmount) || sheetAmount === montant
             : sheetAmount === montant;
 
+        // console.log(`test${index + 1}: fournisseur=${row[1]}, date=${row[0]}, montant=${row[4]}`);
+
         if (sameSupplier && sameDate && sameAmount) {
+
+            // console.log(`Doublon trouvé à la ligne ${index + 1}: fournisseur=${row[1]}, date=${row[0]}, montant=${row[4]}`);
+
             matches.push({
                 // getData/getDepenses retourne la ligne d'en-tête à l'index 0.
                 // La ligne Google Sheets physique est donc index + 1.
@@ -49,6 +57,8 @@ async function duplicateStep(workflow) {
             });
         }
     });
+
+    //console.log("duplicateStep matches", matches);
 
     workflow.duplicate.checked = true;
     workflow.duplicate.found = matches.length > 0;
