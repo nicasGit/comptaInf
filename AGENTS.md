@@ -7,6 +7,16 @@ l’utilisateur priment. Limiter les modifications au besoin demandé et conserv
 les changements existants. Ne pas créer de commit, pousser ou publier sans
 demande explicite.
 
+## Mise à jour de la documentation
+
+À chaque modification importante de l’architecture, vérifier si ce document et
+[architecture.md](./architecture.md) doivent être actualisés. Les mettre à jour
+si nécessaire dans le cadre du même changement.
+
+Décrire uniquement le fonctionnement vérifié dans le code. Distinguer les règles
+de développement, l’implémentation actuelle et ses limites ; ne pas présenter une
+intention ou une évolution envisagée comme une fonctionnalité existante.
+
 ## Architecture
 
 ComptaInf est une application de comptabilité avec justificatifs, reposant sur
