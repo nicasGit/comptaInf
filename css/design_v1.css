@@ -203,7 +203,13 @@ body {
 .dashboard-kpi-result { background:linear-gradient(135deg,#6d28d9,#a78bfa); }
 .dashboard-kpi-standby { background:linear-gradient(135deg,#c2410c,#fb923c); grid-column:1/-1; cursor:pointer; }
 .dashboard-kpi-periodic { background:linear-gradient(135deg,#0369a1,#38bdf8); grid-column:1/-1; cursor:pointer; }
-.periodic-modal-body { display:block; max-height:65vh; overflow:auto; }
+.modal-body.periodic-modal-body {
+    display:block;
+    max-height:65vh;
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+}
 .periodic-supplier { border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px; }
 .periodic-supplier-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
 .periodic-supplier-header div { display:grid; }
