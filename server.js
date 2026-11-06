@@ -23,6 +23,7 @@ function devFeatureEnabled(req, flag) {
 const packageJson = require("./package.json");
 
 const express = require("express");
+const { registerPublicAssets } = require("./public-assets");
 const { exec } = require("child_process");
 const multer = require("multer");
 const fs = require("fs");
@@ -59,7 +60,7 @@ const PORT = 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
+registerPublicAssets(app);
 
 app.get("/api/version", (req, res) => {
     let buildInfo = {};
@@ -91,7 +92,6 @@ app.get("/api/version", (req, res) => {
         commitDate: commitStamp
     });
 });
-app.use("/utils", express.static("utils"));
 
 const DATA_DIR =
     process.env.DATA_DIR ||
@@ -131,11 +131,6 @@ app.get("/icon-512.png", (req, res) => {
     res.sendFile(path.join(__dirname, "icon-512.png"));
 });
 
-app.get("/share.html", requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, "share.html"));
-});
-
-
 app.use(session({
     secret: "ComptaInfSecretSessionNJO",
     resave: false,
@@ -144,6 +139,10 @@ app.use(session({
         maxAge: 30 * 24 * 60 * 60 * 1000
     }
 }));
+
+app.get("/share.html", requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, "share.html"));
+});
 
 
 const DEV_USER =
@@ -308,7 +307,7 @@ app.post("/api/import/workflow/decide", requireAuth, async (req, res) => {
 //
 // PAGE PRINCIPALE
 //
-app.get("/", requireAuth, (req, res) => {
+app.get(["/", "/index.html"], requireAuth, (req, res) => {
 
     res.sendFile(
         path.join(__dirname, "index.html")
@@ -2035,33 +2034,6 @@ app.use("/uploads",
         )
     )
 );
-
-//
-// APP JS
-//
-app.use(
-    "/app.js",
-    express.static(
-        path.join(
-            __dirname,
-            "app.js"
-        )
-    )
-);
-
-//
-// CSS SI TU AJOUTES UN FICHIER CSS PLUS TARD
-//
-app.use(
-    "/css",
-    express.static(
-        path.join(
-            __dirname,
-            "css"
-        )
-    )
-);
-
 
 
 app.get("/test-sheet", async (req, res) => {
