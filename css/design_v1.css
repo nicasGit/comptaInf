@@ -202,6 +202,16 @@ body {
 .dashboard-kpi-expense { background:linear-gradient(135deg,#dc2626,#f87171); }
 .dashboard-kpi-result { background:linear-gradient(135deg,#6d28d9,#a78bfa); }
 .dashboard-kpi-standby { background:linear-gradient(135deg,#c2410c,#fb923c); grid-column:1/-1; cursor:pointer; }
+.dashboard-kpi-periodic { background:linear-gradient(135deg,#0369a1,#38bdf8); grid-column:1/-1; cursor:pointer; }
+.periodic-modal-body { display:block; max-height:65vh; overflow:auto; }
+.periodic-supplier { border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px; }
+.periodic-supplier-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+.periodic-supplier-header div { display:grid; }
+.periodic-supplier-header small { color:#64748b; text-transform:capitalize; }
+.periodic-missing-count { color:#b91c1c; background:#fee2e2; border-radius:999px; padding:5px 10px; font-weight:700; }
+.periodic-period-list { display:grid; gap:6px; }
+.periodic-period { display:grid; grid-template-columns:24px 1fr auto; align-items:center; gap:8px; padding:9px 10px; border-radius:8px; background:#f0fdf4; }
+.periodic-period.missing { background:#fff7ed; color:#9a3412; }
 .dashboard-main-grid { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(280px,.7fr); gap:16px; margin-bottom:16px; }
 .dashboard-import-card,.dashboard-actions-card { min-width:0; }
 .dashboard-section-heading,.dashboard-recent-header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
@@ -387,6 +397,10 @@ tr:hover {
     padding: 14px;
 
     z-index: 9999;
+}
+
+.modal.show {
+    display: flex;
 }
 
 /*

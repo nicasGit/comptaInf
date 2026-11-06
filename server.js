@@ -7,7 +7,7 @@ function envFlag(name, defaultValue = false) {
 }
 
 let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", true);
-let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", false);
+let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", true);
 let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", true);
 
 function isLocalRequest(req) {
@@ -686,7 +686,6 @@ app.post(
 
             const categorie =
                 req.body.categorie?.trim();
-
             const compte =
                 req.body.compte?.trim();
 
@@ -782,6 +781,8 @@ app.post(
 
             const categorie =
                 req.body.categorie?.trim();
+            const frequence =
+                req.body.frequence?.trim() || "";
 
             if (!fournisseur || !categorie) {
 
@@ -800,13 +801,15 @@ app.post(
 
             if (!fournisseurs[fournisseur]) {
                 fournisseurs[fournisseur] = {
-                    categorie
+                    categorie,
+                    frequence
                 };
 
                 await sheets.addFournisseur(
                     req.session.email,
                     fournisseur,
-                    categorie
+                    categorie,
+                    frequence
                 );
 
                 console.log(
@@ -833,6 +836,141 @@ app.post(
         }
     }
 );
+
+function parseComptaDate(value) {
+    const text = String(value || "").trim();
+    let match = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (match) {
+        return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+    }
+
+    match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) {
+        return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+
+    return null;
+}
+
+app.get("/api/fournisseurs-periodiques", requireAuth, async (req, res) => {
+    try {
+        const email = req.session.email;
+        const fournisseurs = await sheets.getFournisseurs(email);
+        const fournisseursConvert = await sheets.getFournisseursConvert(email);
+        const depenses = await sheets.getDepenses(email);
+        const now = new Date();
+        const year = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        const items = [];
+        const normalize = value => String(value || "").trim().toLowerCase();
+        const expensesBySupplier = {};
+        const normalizeSupplier = supplier => {
+            const text = String(supplier || "").trim();
+            const normalizedText = normalize(text);
+
+            const conversion = Object.entries(fournisseursConvert || {}).find(([search]) => {
+                try {
+                    return new RegExp(search, "i").test(text);
+                } catch {
+                    return normalizedText.includes(normalize(search));
+                }
+            });
+
+            return conversion ? String(conversion[1]).trim().toLowerCase() : normalizedText;
+        };
+
+        depenses.slice(1).forEach(row => {
+            const supplier = normalizeSupplier(row[1]);
+            const date = parseComptaDate(row[0]);
+            if (!supplier || !date || date.getFullYear() !== year) {
+                return;
+            }
+            if (!expensesBySupplier[supplier]) {
+                expensesBySupplier[supplier] = [];
+            }
+            expensesBySupplier[supplier].push({
+                date: row[0],
+                month: date.getMonth() + 1,
+                montant: row[4] || "",
+                pdf: row[5] || ""
+            });
+        });
+
+        Object.entries(fournisseurs).forEach(([supplier, config]) => {
+            const frequency = normalize(config.frequence);
+            if (!["mensuel", "semestriel", "annuel"].includes(frequency)) {
+                return;
+            }
+
+            const dueMonths = frequency === "mensuel"
+                ? Array.from({ length: currentMonth }, (_, index) => index + 1)
+                : frequency === "semestriel"
+                    ? [1, 7].filter(month => month <= currentMonth)
+                    : [1];
+            const supplierKey = normalize(supplier);
+            let expenses = expensesBySupplier[supplierKey] || [];
+
+            if (expenses.length === 0) {
+                const supplierPrefix = supplierKey.replace(/[.*+?^${}()|[\]\\]/g, "");
+                expenses = Object.entries(expensesBySupplier)
+                    .filter(([name]) =>
+                        name === supplierPrefix ||
+                        name.startsWith(`${supplierPrefix} -`) ||
+                        name.startsWith(`${supplierPrefix} `)
+                    )
+                    .flatMap(([, supplierExpenses]) => supplierExpenses);
+            }
+            const periods = dueMonths.map(month => {
+                const matching = expenses.filter(expense => {
+                    if (frequency === "mensuel") {
+                        return expense.month === month;
+                    }
+                    if (frequency === "semestriel") {
+                        return expense.month >= month && expense.month < month + 6;
+                    }
+                    return expense.month >= 1 && expense.month <= 12;
+                });
+                const label = frequency === "mensuel"
+                    ? new Date(year, month - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+                    : frequency === "semestriel"
+                        ? `Semestre ${month === 1 ? 1 : 2} ${year}`
+                        : String(year);
+
+                return {
+                    period: label.charAt(0).toUpperCase() + label.slice(1),
+                    status: matching.length ? "present" : "missing",
+                    treatments: matching.map(expense => ({
+                        date: expense.date,
+                        montant: expense.montant,
+                        pdf: expense.pdf
+                    }))
+                };
+            });
+            const missing = periods.filter(period => period.status === "missing").length;
+            if (missing > 0) {
+                items.push({
+                    fournisseur: supplier,
+                    categorie: config.categorie,
+                    frequence: config.frequence,
+                    missing,
+                    periods
+                });
+            }
+        });
+
+        items.sort((a, b) => a.fournisseur.localeCompare(b.fournisseur, "fr"));
+        res.json({
+            year,
+            missingCount: items.reduce((total, item) => total + item.missing, 0),
+            fournisseursCount: items.length,
+            items
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get(
     "/api/fournisseurs-convert",
     requireAuth,

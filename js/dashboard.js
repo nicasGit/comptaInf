@@ -13,9 +13,82 @@ async function initDashboard() {
     await loadGoogleUser();
 
     await refreshStandby();
+    await refreshPeriodicTreatments();
 
     updateDate();
 
+}
+
+let periodicTreatmentsData = null;
+
+async function refreshPeriodicTreatments() {
+    const card = document.getElementById("cardPeriodic");
+    if (!card) return;
+
+    const response = await fetch("/api/fournisseurs-periodiques");
+    if (!response.ok) {
+        card.style.display = "none";
+        return;
+    }
+
+    periodicTreatmentsData = await response.json();
+    document.getElementById("nbPeriodic").textContent = periodicTreatmentsData.missingCount;
+    document.getElementById("periodicDetail").textContent =
+        `${periodicTreatmentsData.fournisseursCount} fournisseur(s) incomplet(s)`;
+    card.style.display = periodicTreatmentsData.missingCount > 0 ? "" : "none";
+}
+
+function openPeriodicTreatmentsModal() {
+
+    if (!periodicTreatmentsData) return;
+
+    let modal = document.getElementById("periodicTreatmentsModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "periodicTreatmentsModal";
+        modal.className = "modal";
+        modal.innerHTML = `
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>🗓️ Traitements périodiques</h2>
+                    <span class="close" onclick="closePeriodicTreatmentsModal()">&times;</span>
+                </div>
+                <div class="modal-body periodic-modal-body" id="periodicTreatmentsContent"></div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+
+    const html = periodicTreatmentsData.items.map(item => `
+        <section class="periodic-supplier">
+            <div class="periodic-supplier-header">
+                <div><strong>${escapePeriodicHtml(item.fournisseur)}</strong><small>${escapePeriodicHtml(item.frequence)}</small></div>
+                <span class="periodic-missing-count">${item.missing} manquant(s)</span>
+            </div>
+            <div class="periodic-period-list">
+                ${item.periods.map(period => `
+                    <div class="periodic-period ${period.status}">
+                        <span class="periodic-status">${period.status === "present" ? "✅" : "⚠️"}</span>
+                        <span>${escapePeriodicHtml(period.period)}</span>
+                        <strong>${period.status === "present"
+            ? `${period.treatments.length} traitement(s) en place`
+            : "Manquant"}</strong>
+                    </div>`).join("")}
+            </div>
+        </section>`).join("");
+
+    document.getElementById("periodicTreatmentsContent").innerHTML =
+        html || '<p>Aucun traitement périodique manquant.</p>';
+    modal.classList.add("show");
+}
+
+function closePeriodicTreatmentsModal() {
+    document.getElementById("periodicTreatmentsModal")?.classList.remove("show");
+}
+
+function escapePeriodicHtml(value) {
+    const element = document.createElement("span");
+    element.textContent = value ?? "";
+    return element.innerHTML;
 }
 function initDashboardEvents() {
 

@@ -215,7 +215,7 @@ async function getFournisseurs(email) {
 
             spreadsheetId: getConfigSpreadsheetId(email),
 
-            range: "FOURNISSEURS!A:B"
+            range: "FOURNISSEURS!A:C"
 
         });
 
@@ -227,7 +227,8 @@ async function getFournisseurs(email) {
     rows.slice(1).forEach(row => {
 
         fournisseurs[row[0]] = {
-            categorie: row[1] || ""
+            categorie: row[1] || "",
+            frequence: row[2] || ""
         };
 
     });
@@ -422,7 +423,8 @@ async function addCategorie(
 async function addFournisseur(
     email,
     fournisseur,
-    categorie
+    categorie,
+    frequence = ""
 ) {
 
     const client =
@@ -439,7 +441,7 @@ async function addFournisseur(
                 getConfigSpreadsheetId(email),
 
             range:
-                "FOURNISSEURS!A:B",
+                "FOURNISSEURS!A:C",
 
             valueInputOption:
                 "USER_ENTERED",
@@ -448,7 +450,8 @@ async function addFournisseur(
 
                 values: [[
                     fournisseur,
-                    categorie
+                    categorie,
+                    frequence
                 ]]
 
             }
