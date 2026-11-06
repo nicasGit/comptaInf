@@ -6,15 +6,13 @@ function envFlag(name, defaultValue = false) {
     return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
-let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", true);
-let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", true);
-let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", true);
+let DEV_BYPASS_LOGIN = envFlag("DEV_BYPASS_LOGIN", false);
+let DEV_AUTOLOGIN_LOCAL = envFlag("DEV_AUTOLOGIN_LOCAL", false);
+let DEV_SHARE_SIMULATE = envFlag("DEV_SHARE_SIMULATE", false);
 
 function isLocalRequest(req) {
-    const hostname = String(req.hostname || "")
-        .toLowerCase()
-        .replace(/^\[|\]$/g, "");
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+    const address = req.socket?.remoteAddress;
+    return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
 }
 
 function devFeatureEnabled(req, flag) {
@@ -1059,22 +1057,12 @@ async function saveDepense(email, depense) {
     }
 
     if (depense.mode === "replace") {
-
-        if (depense.duplicateRow) {
-            await sheets.deleteRow(
-                email,
-                depense.duplicateRow
-            );
-        }
-        //delete CEESV
-        if (depense.duplicateRows && depense.duplicateRows.length > 0) {
-            const rows = [...depense.duplicateRows].sort((a, b) => b - a);
-
-            for (const row of rows) {
-                await sheets.deleteRow(email, row);
-            }
-        }
-
+        const oldRows = [depense.duplicateRow, ...(depense.duplicateRows || [])]
+            .filter(row => row != null && Number(row) !== 0)
+            .map(row => typeof row === "object" ? row.ligne || row.row : row);
+        if (!oldRows.length) throw new Error("Remplacement sans doublon");
+        await sheets.replaceDepenses(email, [depense], oldRows);
+        return;
     }
 
     await sheets.addDepense(
@@ -1519,50 +1507,13 @@ app.post(
                                 analyseCeesv
                             );
 
-                        if (match.matchFacture) {
-
-                            await sheets.deleteRow(
-                                req.session.email,
-                                match.ligneFacture
-                            );
-
-                        }
-
-                        if (match.matchEtat) {
-
-                            await sheets.deleteRow(
-                                req.session.email,
-                                match.ligneEtat
-                            );
-
-                        }
-
-
-                        await sheets.addDepense(
-                            req.session.email,
-                            date,
-                            "CEESV - Facture",
-                            "",
-                            "",
-                            analyseCeesv.montantFacture,
-                            pdfUrl,
-                            "RECETTE",
-                            "",
-                            match.pdfFacture || ""
-                        );
-
-                        await sheets.addDepense(
-                            req.session.email,
-                            date,
-                            "CEESV - Etat",
-                            "",
-                            "",
-                            analyseCeesv.montantEtat,
-                            pdfUrl,
-                            "RECETTE",
-                            "",
-                            match.pdfEtat || ""
-                        );
+                        await sheets.replaceDepenses(req.session.email, [
+                            { date, fournisseur: "CEESV - Facture", montant: analyseCeesv.montantFacture,
+                                pdf: pdfUrl, operationType: "RECETTE", justifBanque: match.pdfFacture || "" },
+                            { date, fournisseur: "CEESV - Etat", montant: analyseCeesv.montantEtat,
+                                pdf: pdfUrl, operationType: "RECETTE", justifBanque: match.pdfEtat || "" }
+                        ], [match.matchFacture ? match.ligneFacture : null,
+                            match.matchEtat ? match.ligneEtat : null].filter(row => row != null));
 
                         result.ceesvImportes++;
 

@@ -36,19 +36,29 @@ function buildDriveFileName(workflow) {
     return withPdfExtension(cleanFileName(`${fournisseur}_${date}_${montant}_${originalName}`));
 }
 
-async function deleteDuplicateRows(workflow) {
-    if (workflow.decision.action !== "replace") return;
-
-    for (const match of [...workflow.duplicate.matches].sort((a, b) => b.row - a.row)) {
-        await sheets.deleteRow(workflow.source.email, match.row);
-        workflow.execution.deletedRows.push(match.row);
+async function saveOperation(workflow, uploaded) {
+    const document = workflow.document;
+    if (workflow.decision.action === "replace") {
+        await sheets.replaceDepenses(workflow.source.email, [{
+            ...document,
+            pdf: uploaded.pdfUrl,
+            operationType: workflow.normalized.metadata.operationType || "DEPENSE"
+        }], workflow.duplicate.matches.map(match => match.row));
+        workflow.execution.deletedRows = workflow.duplicate.matches.map(match => match.row);
+        return;
     }
-
-    workflow.duplicate.selected = null;
+    const result = await sheets.addDepense(workflow.source.email, document.date,
+        document.fournisseur, document.categorie || "", document.compte || "",
+        document.montant, uploaded.pdfUrl,
+        workflow.normalized.metadata.operationType || "DEPENSE",
+        document.commentaire || "", "", document.litres || "");
+    workflow.execution.sheetRow = result?.row || null;
 }
 
 async function executionStep(workflow) {
-    if (!workflow.execution.started) {
+    if (workflow.execution.completed) return workflow;
+    if (workflow.execution.started) throw new Error("Import déjà en cours");
+    try {
         workflow.execution.started = true;
 
         const settings = await sheets.getSettings(workflow.source.email);
@@ -64,7 +74,7 @@ async function executionStep(workflow) {
         }
 
         const driveFileName = buildDriveFileName(workflow);
-        const uploaded = await importDocument(
+        const uploaded = workflow.execution.result || await importDocument(
             workflow.input.file.path,
             driveFileName,
             workflow.source.email
@@ -93,22 +103,7 @@ async function executionStep(workflow) {
                 }
                 workflow.execution.completed = true;
             } else {
-                await deleteDuplicateRows(workflow);
-                const rowResult = await sheets.addDepense(
-                    workflow.source.email,
-                    workflow.document.date,
-                    workflow.document.fournisseur,
-                    workflow.document.categorie || "",
-                    workflow.document.compte || "",
-                    workflow.document.montant,
-                    uploaded.pdfUrl,
-                    workflow.normalized.metadata.operationType || "DEPENSE",
-                    workflow.document.commentaire || "",
-                    "",
-                    workflow.document.litres || ""
-                );
-
-                workflow.execution.sheetRow = rowResult?.row || null;
+                await saveOperation(workflow, uploaded);
                 workflow.execution.completed = true;
             }
         } else if (ceesvData?.type === "CEESV_ETAT") {
@@ -146,25 +141,11 @@ async function executionStep(workflow) {
 
             workflow.execution.completed = true;
         } else {
-            await deleteDuplicateRows(workflow);
-
-            const rowResult = await sheets.addDepense(
-                workflow.source.email,
-                workflow.document.date,
-                workflow.document.fournisseur,
-                workflow.document.categorie || "",
-                workflow.document.compte || "",
-                workflow.document.montant,
-                uploaded.pdfUrl,
-                workflow.normalized.metadata.operationType || "DEPENSE",
-                workflow.document.commentaire || "",
-                "",
-                workflow.document.litres || ""
-            );
-
-            workflow.execution.sheetRow = rowResult?.row || null;
+            await saveOperation(workflow, uploaded);
             workflow.execution.completed = true;
         }
+    } finally {
+        workflow.execution.started = false;
     }
 
     workflow.history.push({

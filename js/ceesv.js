@@ -79,60 +79,12 @@ async function processCEESV(data) {
     };
 
 
-    await sheets.addDepense(
-        email,
-        ligneFacture.date,
-        ligneFacture.fournisseur,
-        ligneFacture.categorie,
-        ligneFacture.compte,
-        ligneFacture.montant,
-        ligneFacture.pdf,
-        ligneFacture.operationType,
-        ligneFacture.commentaire,
-        ligneFacture.justifBanque
-    );
-
-    await sheets.addDepense(
-        email,
-        ligneEtat.date,
-        ligneEtat.fournisseur,
-        ligneEtat.categorie,
-        ligneEtat.compte,
-        ligneEtat.montant,
-        ligneEtat.pdf,
-        ligneEtat.operationType,
-        ligneEtat.commentaire,
-        ligneEtat.justifBanque
-    );
-
-    const lignesUBSTemporaires = [...new Set([
-        Number(data.ceesv?.ligneFacture || data.ceesv?.matchFacture?.ligne || 0),
-        Number(data.ceesv?.ligneEtat || data.ceesv?.matchEtat?.ligne || 0)
-    ])].filter(ligne => ligne > 0).sort((a, b) => b - a);
-
-    for (const ligne of lignesUBSTemporaires) {
-        console.log("🗑️ Suppression ligne UBS temporaire CEESV", ligne);
-        await sheets.deleteRow(email, ligne);
-    }
-
-    console.log("mode =", mode)
-    if (mode === "replace") {
-
-        if (data.duplicateRows && data.duplicateRows.length > 0) {
-            const rows = [...data.duplicateRows]
-                .sort((a, b) => b.ligne - a.ligne);
-
-            for (const row of rows) {
-                console.log(`🗑️ Suppression ligne ${row.ligne} (${row.fournisseur})`);
-
-                await sheets.deleteRow(
-                    email,
-                    Number(row.ligne)
-                );
-            }
-        }
-
-    }
+    const oldRows = [
+        data.ceesv?.ligneFacture || data.ceesv?.matchFacture?.ligne,
+        data.ceesv?.ligneEtat || data.ceesv?.matchEtat?.ligne,
+        ...(mode === "replace" ? (data.duplicateRows || []).map(row => row.ligne) : [])
+    ].filter(row => row != null && Number(row) !== 0);
+    await sheets.replaceDepenses(email, [ligneFacture, ligneEtat], oldRows);
 
     return true;
 }

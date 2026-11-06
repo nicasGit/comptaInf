@@ -44,6 +44,23 @@ function getSheets() {
     });
 }
 
+function dateCell(value) {
+    const normalized = convertDate(String(value ?? "").replace(/^'+/, ""));
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) throw new Error("Date invalide");
+    const [, year, month, day] = match.map(Number);
+    const timestamp = Date.UTC(year, month - 1, day);
+    const date = new Date(timestamp);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+        throw new Error("Date invalide");
+    }
+    // Sheets stores dates as days since 1899-12-30, independent of time zone.
+    return {
+        userEnteredValue: { numberValue: (timestamp - Date.UTC(1899, 11, 30)) / 86400000 },
+        userEnteredFormat: { numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } }
+    };
+}
+
 
 async function addDepense(email, date, fournisseur, categorie, compte, montant, pdf, operationType, commentaire = "", justifBanque = "", litres = "") {
 
@@ -67,16 +84,10 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
     const dateNormalized = convertDate(date);
     console.log("sheets date=" + dateNormalized);
 
-    const existing = await sheets.spreadsheets.values.get({
+    const result = await sheets.spreadsheets.values.append({
         spreadsheetId: getSpreadsheetId(email),
-        range: "DEPENSES!A:A"
-    });
-    const rows = existing.data.values || [];
-    const rowNumber = rows.length + 1;
-
-    await sheets.spreadsheets.values.update({
-        spreadsheetId: getSpreadsheetId(email),
-        range: `DEPENSES!A${rowNumber}:N${rowNumber}`,
+        range: "DEPENSES!A:N",
+        insertDataOption: "INSERT_ROWS",
         valueInputOption: "USER_ENTERED",
         requestBody: {
             values: [[
@@ -98,7 +109,45 @@ async function addDepense(email, date, fournisseur, categorie, compte, montant, 
         }
     });
     console.log("✅ Dépense ajoutée " + operationType + "  " + fournisseur + " " + montantFinal + " " + dateNormalized);
-    return { row: rowNumber };
+    const updatedRange = result.data.updates?.updatedRange || "";
+    return { row: Number(updatedRange.match(/!A(\d+):/)?.[1]) || null };
+}
+
+// Append the replacement and remove old rows in one atomic Sheets request.
+async function replaceDepenses(email, operations, oldRows) {
+    const spreadsheetId = getSpreadsheetId(email);
+    const sheetsApi = getSheets();
+    const metadata = await sheetsApi.spreadsheets.get({ spreadsheetId });
+    const sheet = metadata.data.sheets.find(item => item.properties.title === "DEPENSES");
+    if (!sheet) throw new Error("Feuille DEPENSES introuvable");
+    const sheetId = sheet.properties.sheetId;
+    const rows = [...new Set(oldRows.map(Number))].sort((a, b) => b - a);
+    if (rows.some(row => !Number.isInteger(row) || row < 2)) {
+        throw new Error("Ligne de remplacement invalide");
+    }
+    const now = new Date().toLocaleString("fr-CH");
+    const values = operations.map(operation => {
+        const amount = Number(String(operation.montant).replace(",", "."));
+        if (!Number.isFinite(amount)) throw new Error("Montant invalide");
+        return [convertDate(operation.date), operation.fournisseur, operation.categorie || "",
+            operation.compte || "", Number((operation.operationType === "RECETTE"
+                ? Math.abs(amount) : -Math.abs(amount)).toFixed(2)), operation.pdf || "",
+            operation.operationType || "DEPENSE", operation.commentaire || "",
+            operation.justifBanque || "", "", now, "", "", operation.litres || ""];
+    });
+    if (!values.length) throw new Error("Aucune écriture de remplacement");
+    await sheetsApi.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [
+            { appendCells: { sheetId, fields: "userEnteredValue,userEnteredFormat.numberFormat", rows: values.map(row => ({
+                values: row.map((value, column) => column === 0 ? dateCell(value) : ({ userEnteredValue: typeof value === "number"
+                    ? { numberValue: value } : { stringValue: String(value) } }))
+            })) } },
+            ...rows.map(row => ({ deleteDimension: { range: {
+                sheetId, dimension: "ROWS", startIndex: row - 1, endIndex: row
+            } } }))
+        ] }
+    });
 }
 
 async function updateOperation(email, rowNumber, operation) {
@@ -599,6 +648,7 @@ async function deleteRow(email, rowNumber) {
 }
 
 module.exports = {
+    replaceDepenses,
     addDepense,
     getDepenses,
     getData,

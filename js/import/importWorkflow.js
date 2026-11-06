@@ -103,6 +103,10 @@ async function decideWorkflow(workflowId, action, email = null, comment = null, 
         throw new Error("Workflow appartenant à un autre utilisateur");
     }
 
+    if (workflow.status === "saving") {
+        throw new Error("Import déjà en cours");
+    }
+
     if (documentData) {
         const documentUpdates = Object.fromEntries(
             Object.entries(documentData).filter(([, value]) => value !== undefined)
@@ -130,24 +134,30 @@ async function decideWorkflow(workflowId, action, email = null, comment = null, 
         throw new Error("Décision d'import invalide");
     }
 
-    if (action === "replace") {
-        if (workflow.duplicate.matches.length === 0) {
-            await duplicateStep(workflow);
-        }
-        if (!workflow.duplicate.matches.length) {
-            throw new Error("Remplacement sans doublon");
-        }
-        workflow.duplicate.found = true;
-        if (!workflow.duplicate.selected) {
-            workflow.duplicate.selected = workflow.duplicate.matches[0];
-        }
-    }
-
     workflow.status = "saving";
-    await executionStep(workflow);
-    workflow.status = "completed";
-    activeWorkflows.delete(workflowId);
-    return workflow;
+    try {
+        if (action === "replace") {
+            if (workflow.duplicate.matches.length === 0) {
+                await duplicateStep(workflow);
+            }
+            if (!workflow.duplicate.matches.length) {
+                throw new Error("Remplacement sans doublon");
+            }
+            workflow.duplicate.found = true;
+            if (!workflow.duplicate.selected) {
+                workflow.duplicate.selected = workflow.duplicate.matches[0];
+            }
+        }
+
+        await executionStep(workflow);
+        if (!workflow.execution.completed) throw new Error("Import incomplet");
+        workflow.status = "completed";
+        activeWorkflows.delete(workflowId);
+        return workflow;
+    } catch (error) {
+        workflow.status = "error";
+        throw error;
+    }
 }
 
 async function runWorkflow(source, file = null) {
