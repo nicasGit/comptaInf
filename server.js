@@ -22,6 +22,7 @@ const packageJson = require("./package.json");
 
 const express = require("express");
 const { registerPublicAssets } = require("./public-assets");
+const { generateAnnualReport } = require("./js/annual-report");
 const { exec } = require("child_process");
 const multer = require("multer");
 const fs = require("fs");
@@ -2141,6 +2142,27 @@ app.post(
 
     }
 );
+app.get("/api/export-pdf", requireAuth, async (req, res) => {
+    try {
+        const email = req.session.email;
+        const settings = await sheets.getSettings(email);
+        const year = String(settings.Exercice || "");
+        if (!/^\d{4}$/.test(year)) {
+            return res.status(400).json({ error: "Exercice actif invalide" });
+        }
+        const rows = await sheets.getDepenses(email);
+        const user = getCurrentUserFromRequest(req);
+        const buffer = await generateAnnualReport(rows, year, user?.name || email);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="ComptaInf_Bilan_${year}.pdf"`);
+        res.setHeader("Cache-Control", "private, no-store");
+        res.send(buffer);
+    } catch (error) {
+        console.error("[Export PDF]", error);
+        res.status(500).json({ error: "Impossible de générer le bilan annuel PDF" });
+    }
+});
+
 app.get(
     "/api/export-sheet",
     requireAuth,

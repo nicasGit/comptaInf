@@ -60,6 +60,7 @@ de l’interface. Les données des vues sont principalement chargées par les AP
 | [config.js](./js/config.js) | Utilisateurs, environnement actif, exercice et configuration des ressources |
 | [oauth.js](./js/oauth.js) | Client OAuth Google partagé par les modules serveur |
 | [sheets.js](./js/sheets.js) | Lecture et écriture des feuilles Google Sheets avec un compte de service |
+| [annual-report.js](./js/annual-report.js) | Synthèses annuelles et génération du PDF avec pdf-lib |
 | [drive.js](./js/drive.js) | Accès Drive avec les jetons OAuth de l’utilisateur |
 | [importDocument.js](./js/importDocument.js) | Préparation du justificatif et envoi vers Drive |
 | [ocr.js](./js/ocr.js) | Extraction, reconnaissance de texte et application des règles métier |
@@ -244,6 +245,22 @@ continu ni abonnement aux changements Google Sheets.
 
 ### Exports
 
+L’option « PDF bilan annuel » appelle `GET /api/export-pdf`, protégé par
+`requireAuth`. Le serveur lit les paramètres et les opérations Sheets de
+l’utilisateur et utilise `Exercice` des paramètres pour sélectionner l’année.
+[annual-report.js](./js/annual-report.js) produit un PDF A4 paginé avec les recettes,
+dépenses, résultat, synthèses mensuelles et par compte/catégorie, puis le détail
+des opérations. Les calculs utilisent des centimes entiers et le signe du montant.
+Les lignes invalides et hors exercice sont comptabilisées séparément et leur
+exclusion est indiquée dans le document. Le rapport est une synthèse des écritures,
+sans représentation des actifs et passifs.
+
+La génération utilise `pdf-lib` sans nouvelle dépendance. Les caractères non
+pris en charge par les polices standard sont remplacés. Le navigateur télécharge
+le PDF via un objet Blob, affiche un indicateur d’attente et signale les erreurs.
+La réponse est une pièce jointe PDF privée sans cache. Aucun justificatif Drive
+n’est téléchargé ni incorporé dans ce rapport.
+
 Le serveur propose des exports de feuille, un CSV MEGA et une archive ZIP des
 justificatifs. L’archive télécharge les documents depuis Drive et construit un CSV
 contenant des liens vers les fichiers embarqués. Les indices des colonnes, les
@@ -284,6 +301,8 @@ avec les fonctions d’écriture.
 Les tests de [tests/](./tests/) couvrent notamment la publication des fichiers,
 la sécurité des imports et l’actualisation des traitements périodiques. Les appels
 Google sont simulés ; ils ne valident pas les permissions ni les échanges réels.
+Les tests de l’export annuel vérifient les calculs, le filtrage des données, la
+génération de PDF lisibles, la pagination et le contrat de la route HTTP.
 
 ```powershell
 node --test tests/*.test.js

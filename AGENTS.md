@@ -36,6 +36,7 @@ Node.js, Express, Google Sheets et Google Drive.
 - `js/operations.js`, `stats.js`, `mileage.js`,
   `professional-expenses.js` : fonctionnalités des vues correspondantes.
 - `js/sheets.js` : accès aux feuilles Google et écriture des opérations.
+- `js/annual-report.js` : calcul des synthèses annuelles et génération du PDF.
 - `js/drive.js` : dossiers, justificatifs, téléchargements et archivage Drive.
 - `js/oauth.js` : client OAuth Google.
 - `js/config.js` : configuration locale, utilisateurs, environnement et exercice.
@@ -190,6 +191,20 @@ et `annuel`.
   toute autre règle d’échéance nécessite une demande métier explicite.
 - Conserver le défilement vertical du contenu de la modale. Attention aux règles
   génériques `.modal-body` qui peuvent écraser une règle plus spécifique.
+
+## Export PDF annuel
+
+- L’export `GET /api/export-pdf` est authentifié et utilise `Exercice` des
+  paramètres Sheets de l’utilisateur.
+- Le module `js/annual-report.js` génère le document avec `pdf-lib`, déjà présent
+  dans les dépendances. Ce module serveur ne doit pas être publié au navigateur.
+- Filtrer les opérations par année, calculer les totaux en centimes et signaler
+  les lignes exclues pour date ou montant invalide.
+- Les montants signés déterminent les recettes et dépenses, comme sur le tableau
+  de bord. Les synthèses mensuelles et par compte/catégorie doivent se réconcilier.
+- Le document est une synthèse des écritures, pas un bilan des actifs et passifs.
+- Préserver la pagination et gérer les caractères incompatibles avec les polices
+  PDF standard pour qu’un libellé OCR n’empêche pas la génération.
 
 ## Sécurité et fichiers temporaires
 

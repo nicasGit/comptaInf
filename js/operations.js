@@ -597,8 +597,27 @@ async function startExport() {
             break;
 
         case "pdf":
-            window.location =
-                "/api/export-pdf";
+            showLoader();
+            try {
+                const response = await fetch("/api/export-pdf", { cache: "no-store" });
+                if (!response.ok) throw new Error("Export PDF impossible");
+                const contentType = response.headers.get("Content-Type") || "";
+                if (!contentType.includes("application/pdf")) throw new Error("Réponse PDF invalide");
+                const url = URL.createObjectURL(await response.blob());
+                const link = document.createElement("a");
+                link.href = url;
+                const disposition = response.headers.get("Content-Disposition") || "";
+                link.download = disposition.match(/filename="([^"]+)"/)?.[1] || "ComptaInf_Bilan.pdf";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (error) {
+                console.error(error);
+                alert("Impossible de générer le bilan annuel PDF. Vérifiez votre connexion et réessayez.");
+            } finally {
+                hideLoader();
+            }
             break;
 
         case "zip":
