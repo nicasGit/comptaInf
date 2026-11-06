@@ -13,7 +13,6 @@ async function initDashboard() {
     await loadGoogleUser();
 
     await refreshStandby();
-    await refreshPeriodicTreatments();
 
     updateDate();
 
@@ -25,8 +24,9 @@ async function refreshPeriodicTreatments() {
     const card = document.getElementById("cardPeriodic");
     if (!card) return;
 
-    const response = await fetch("/api/fournisseurs-periodiques");
+    const response = await fetch("/api/fournisseurs-periodiques", { cache: "no-store" });
     if (!response.ok) {
+        periodicTreatmentsData = null;
         card.style.display = "none";
         return;
     }
@@ -36,9 +36,17 @@ async function refreshPeriodicTreatments() {
     document.getElementById("periodicDetail").textContent =
         `${periodicTreatmentsData.fournisseursCount} fournisseur(s) incomplet(s)`;
     card.style.display = periodicTreatmentsData.missingCount > 0 ? "" : "none";
+    if (document.getElementById("periodicTreatmentsModal")?.classList.contains("show")) {
+        renderPeriodicTreatmentsModal();
+    }
 }
 
-function openPeriodicTreatmentsModal() {
+async function openPeriodicTreatmentsModal() {
+    await refreshPeriodicTreatments();
+    renderPeriodicTreatmentsModal();
+}
+
+function renderPeriodicTreatmentsModal() {
 
     if (!periodicTreatmentsData) return;
 
@@ -670,6 +678,7 @@ async function loadPreview(url) {
 }
 
 async function refreshStats() {
+    await refreshPeriodicTreatments();
 
     const response =
         await fetch("/api/depenses");

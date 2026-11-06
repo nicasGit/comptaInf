@@ -850,6 +850,7 @@ function parseComptaDate(value) {
 }
 
 app.get("/api/fournisseurs-periodiques", requireAuth, async (req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
     try {
         const email = req.session.email;
         const fournisseurs = await sheets.getFournisseurs(email);
@@ -895,12 +896,14 @@ app.get("/api/fournisseurs-periodiques", requireAuth, async (req, res) => {
 
         Object.entries(fournisseurs).forEach(([supplier, config]) => {
             const frequency = normalize(config.frequence);
-            if (!["mensuel", "semestriel", "annuel"].includes(frequency)) {
+            if (!["mensuel", "trimestriel", "semestriel", "annuel"].includes(frequency)) {
                 return;
             }
 
             const dueMonths = frequency === "mensuel"
                 ? Array.from({ length: currentMonth }, (_, index) => index + 1)
+                : frequency === "trimestriel"
+                    ? [1, 4, 7, 10].filter(month => month <= currentMonth)
                 : frequency === "semestriel"
                     ? [1, 7].filter(month => month <= currentMonth)
                     : [1];
@@ -925,10 +928,15 @@ app.get("/api/fournisseurs-periodiques", requireAuth, async (req, res) => {
                     if (frequency === "semestriel") {
                         return expense.month >= month && expense.month < month + 6;
                     }
+                    if (frequency === "trimestriel") {
+                        return expense.month >= month && expense.month < month + 3;
+                    }
                     return expense.month >= 1 && expense.month <= 12;
                 });
                 const label = frequency === "mensuel"
                     ? new Date(year, month - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+                    : frequency === "trimestriel"
+                        ? `Trimestre ${Math.floor((month - 1) / 3) + 1} ${year}`
                     : frequency === "semestriel"
                         ? `Semestre ${month === 1 ? 1 : 2} ${year}`
                         : String(year);
